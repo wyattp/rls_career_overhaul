@@ -206,6 +206,7 @@ const iconById = {
   sleep: icons.night,
   loans: icons.beamCurrency,
   policeSirenSetup: icons.cogs,
+  convertToPoliceVehicle: icons.shieldHandCheckmark,
 }
 
 const infoById = computed(() => [

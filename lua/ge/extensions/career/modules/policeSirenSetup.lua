@@ -76,6 +76,24 @@ local function openMenuFromComputer(computerId, inventoryId)
   guihooks.trigger("ChangeState", {state = "policeSirenSetup"})
 end
 
+local function convertVehicleToPolice(computerId, inventoryId)
+  local invId = tonumber(inventoryId)
+  if not invId then return end
+
+  if career_modules_inventory and career_modules_inventory.setVehicleRole then
+    career_modules_inventory.setVehicleRole(invId, "police")
+  end
+
+  if career_modules_inventory and career_modules_inventory.setVehicleDirty then
+    career_modules_inventory.setVehicleDirty(invId)
+  end
+
+  local computer = freeroam_facilities.getFacility("computer", computerId)
+  if computer then
+    career_modules_computer.openMenu(computer)
+  end
+end
+
 local function closeMenu()
   if originComputerId then
     local computer = freeroam_facilities.getFacility("computer", originComputerId)
@@ -149,16 +167,28 @@ local function onComputerAddFunctions(menuData, computerFunctions)
     local inventoryId = vehicleInfo.inventoryId
     local vehicleData = getVehicleData(inventoryId)
 
-    if vehicleData and isPoliceVehicle(vehicleData) and hasSirenAudioSlot(vehicleData) then
-      local functionData = {
-        id = "policeSirenSetup",
-        label = "Police Siren Setup",
-        callback = function()
-          openMenuFromComputer(menuData.computerFacility.id, inventoryId)
-        end,
-        order = 60,
-      }
-      computerFunctions.vehicleSpecific[inventoryId][functionData.id] = functionData
+    if vehicleData and hasSirenAudioSlot(vehicleData) then
+      if isPoliceVehicle(vehicleData) then
+        local functionData = {
+          id = "policeSirenSetup",
+          label = "Police Siren Setup",
+          callback = function()
+            openMenuFromComputer(menuData.computerFacility.id, inventoryId)
+          end,
+          order = 60,
+        }
+        computerFunctions.vehicleSpecific[inventoryId][functionData.id] = functionData
+      else
+        local functionData = {
+          id = "convertToPoliceVehicle",
+          label = "Convert To Police Vehicle",
+          callback = function()
+            convertVehicleToPolice(menuData.computerFacility.id, inventoryId)
+          end,
+          order = 59,
+        }
+        computerFunctions.vehicleSpecific[inventoryId][functionData.id] = functionData
+      end
     end
   end
 end
