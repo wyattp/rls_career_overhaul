@@ -1,0 +1,102 @@
+Police Plate Computer - Insurance Overhaul Feature Spec
+
+Status
+- Planning/spec only. No code changes included in this document.
+
+Goal
+- Keep the existing RLS insurance/driver-abstract system for normal career gameplay.
+- Add a police-career specific vehicle coverage flow so police pursuit incidents do not heavily punish the player's personal insurance profile.
+- Require coverage selection when loading/purchasing police vehicles.
+
+Problem Statement
+- Current behavior uses one shared driver abstract + insurance mechanic for all gameplay.
+- Police chasing naturally creates more crash risk, which currently degrades the same system used by non-police progression.
+- This makes police gameplay disproportionately punitive and not role-appropriate.
+
+High-Level Design
+- Introduce a police-specific coverage choice at police vehicle onboarding moments.
+- Route pursuit-related protection through "Police HQ coverage" behavior rather than standard personal-insurance punishment.
+- Reuse current insurance template/reward mechanisms where possible.
+
+Feature Scope
+1. Police Vehicle Coverage Selection (New UX requirement)
+- Trigger points:
+  - When player loads a police vehicle.
+  - When player purchases/acquires a police vehicle.
+- Player must choose a coverage level before finalizing the action.
+- Coverage choice is saved per police vehicle (or per active police assignment, implementation decision later).
+
+2. Coverage Tiers (Initial)
+- Basic Coverage
+  - Cost model: 5% cut. 70% of repair cost covered
+  - Interpretation for implementation: apply a 5% deduction to relevant police-career payouts/rewards tied to that covered vehicle.
+- Enhanced Coverage
+  - Cost model: 15% cut. 90% of repair cost covered
+  - Benefits:
+    - Free towing.
+    - 1 crash forgiveness per refresh cycle.
+  - Reuse current insurance reward/template plumbing for forgiveness and messaging.
+
+3. Police HQ Protection Behavior
+- Pursuit-related crashes should be relatively unaffected compared to civilian insurance penalties.
+- Intended outcome:
+  - Police incidents are handled by selected police coverage tier.
+  - Personal/civilian abstract progression should not be heavily penalized by expected pursuit collisions.
+- Exact event classification rules (what counts as "pursuit-related") will be defined during implementation.
+
+4. Refresh Cycle for Forgiveness
+- Enhanced coverage grants exactly 1 forgiveness each refresh.
+- "Refresh" should map to an existing cadence in the insurance system if available (same reset rhythm used by current template/reward mechanism).
+- If no direct cadence exists, define one during implementation and keep it consistent with existing insurance UX.
+
+5. Player Interaction Flow
+- Player enters police workflow and chooses to load or purchase a police vehicle.
+- Before finalizing the action, player must select a police HQ coverage tier (`Basic` or `Enhanced`).
+- UI must show clear consequences before confirm:
+  - Basic: 5% payout cut, 70% repair-cost coverage.
+  - Enhanced: 15% payout cut, 90% repair-cost coverage, free towing, 1 crash forgiveness per refresh.
+- Selection is saved and immediately applied to the current police vehicle context.
+- During police gameplay, tow/repair/crash outcomes are resolved by the selected police HQ tier.
+
+6. Driving Score Behavior
+- Civilian driving score remains a global insurance risk metric and continues to work normally outside police coverage handling.
+- Police pursuit-related incidents should be routed through police HQ coverage outcomes, not treated as normal civilian insurance penalties.
+- Intended result:
+  - Police gameplay does not heavily trash civilian insurance progression.
+  - Non-police incidents still follow standard insurance and driver-score rules.
+
+Data and Persistence (Planned)
+- New saved state needed:
+  - Selected police coverage tier.
+  - Remaining forgiveness count in current refresh window.
+  - Last refresh marker/timestamp or equivalent cycle token.
+- Persist in police-career compatible save path; avoid breaking existing save compatibility.
+
+Integration Notes
+- Leverage existing insurance structures and reward hooks to minimize duplicated logic.
+- Add clear separation between:
+  - Civilian insurance/driver abstract effects.
+  - Police HQ coverage effects.
+- Maintain backward compatibility with saves that have no police coverage data yet.
+
+UX Notes
+- Coverage selection prompt should appear as part of the police vehicle flow (not hidden in unrelated menus).
+- Prompt must clearly explain:
+  - The % cut.
+  - Whether towing is free.
+  - Forgiveness count and reset behavior.
+  - How police incidents affect (or do not affect) civilian driving score.
+
+Acceptance Criteria
+- Player cannot complete police vehicle load/purchase without selecting a coverage tier.
+- Basic tier applies 5% cut, covers 70% of eligible repair costs, and has no extra forgiveness/free towing benefits.
+- Enhanced tier applies 15% cut, covers 90% of eligible repair costs, enables free towing, and grants 1 forgiveness per refresh.
+- Pursuit-heavy police play no longer meaningfully trashes civilian insurance progression.
+- Non-police incidents continue to impact driving score as normal.
+- Existing non-police insurance behavior remains functionally unchanged.
+- Old saves load safely with sensible defaults/migration behavior.
+
+Out of Scope (for this phase)
+- UI art polish beyond required prompts.
+- Full economy rebalance beyond the 5%/15% cuts.
+- New coverage tiers beyond Basic and Enhanced.
