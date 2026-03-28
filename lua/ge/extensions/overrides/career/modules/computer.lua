@@ -44,7 +44,7 @@ local function openMenu(computerFacility, resetActiveVehicleIndex, activityEleme
 
   extensions.hook("onComputerAddFunctions", menuData, computerFunctions)
 
-  --local computerPos = freeroam_facilities.getAverageDoorPositionForFacility(computerFacility)
+  local computerPos = freeroam_facilities.getAverageDoorPositionForFacility(computerFacility)
   local door = computerFacility.doors[1]
   tether = nil
   if door then
