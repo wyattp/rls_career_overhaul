@@ -13,8 +13,12 @@ local function getVehicleData(inventoryId)
   return vehicles and vehicles[inventoryId] or nil
 end
 
-local function isPoliceVehicle(vehicleData)
-  return vehicleData and vehicleData.role == "police"
+local function isPoliceVehicle(vehicleData, inventoryId)
+  if vehicleData and vehicleData.role == "police" then return true end
+  if inventoryId and career_modules_inventory and career_modules_inventory.getVehicleRole then
+    return career_modules_inventory.getVehicleRole(inventoryId) == "police"
+  end
+  return false
 end
 
 -- Find the spawned vehicle ID matching a given inventory ID
@@ -118,7 +122,7 @@ local function getSetupData(inventoryId)
     return {ok = false, reason = "Vehicle not found"}
   end
 
-  if not isPoliceVehicle(vehicleData) then
+  if not isPoliceVehicle(vehicleData, invId) then
     return {ok = false, reason = "Selected vehicle is not police role"}
   end
 
@@ -144,13 +148,19 @@ local function setSetupData(inventoryId, data)
   local invId = tonumber(inventoryId) or activeInventoryId
   local vehicleData = getVehicleData(invId)
   if not vehicleData then return false, "Vehicle not found" end
-  if not isPoliceVehicle(vehicleData) then return false, "Selected vehicle is not police role" end
+  if not isPoliceVehicle(vehicleData, invId) then return false, "Selected vehicle is not police role" end
   if type(data) ~= "table" then return false, "Invalid setup data" end
 
   vehicleData.rlsPoliceSirenSetup = {
     primaryAudio = tostring(data.primaryAudio or ""),
     secondaryAudio = tostring(data.secondaryAudio or ""),
   }
+
+  -- Also update the vehicle's config.parts so the primary siren is used on next spawn
+  local primaryPart = tostring(data.primaryAudio or "")
+  if primaryPart ~= "" and vehicleData.config and vehicleData.config.parts then
+    vehicleData.config.parts.soundscape_siren = primaryPart
+  end
 
   if career_modules_inventory and career_modules_inventory.setVehicleDirty then
     career_modules_inventory.setVehicleDirty(invId)
@@ -167,7 +177,7 @@ local function onComputerAddFunctions(menuData, computerFunctions)
     local vehicleData = getVehicleData(inventoryId)
 
     if vehicleData then
-      if isPoliceVehicle(vehicleData) then
+      if isPoliceVehicle(vehicleData, inventoryId) then
         local functionData = {
           id = "policeSirenSetup",
           label = "Police Siren Setup",

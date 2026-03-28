@@ -1,7 +1,7 @@
 <template>
   <div class="police-computer bng-app" v-show="isVisible" :class="{ collapsed: isCollapsed }">
     <!-- Header - always visible -->
-    <div class="pc-header" @click="toggleCollapse">
+    <div class="pc-header">
       <div class="pc-title">
         <span class="pc-badge">ANPR</span>
         <span class="pc-label">Police Computer</span>
@@ -13,7 +13,9 @@
           @click.stop="toggleANPR">
           {{ anprActive ? 'ON' : 'OFF' }}
         </button>
-        <span class="collapse-icon">{{ isCollapsed ? '&#9650;' : '&#9660;' }}</span>
+        <button class="minimize-btn" @click.stop="toggleCollapse" :title="isCollapsed ? 'Expand' : 'Minimize'">
+          {{ isCollapsed ? '&#9660;' : '&#9650;' }}
+        </button>
       </div>
     </div>
 
@@ -52,6 +54,7 @@
 
       <!-- Detail panel -->
       <div class="detail-panel" v-if="selectedRecord" :class="{ 'detail-flagged': selectedRecord.flagged }">
+        <div class="detail-close" @click.stop="selectedPlate = null; selectedRecord = null">&times;</div>
         <!-- Alerts banner -->
         <div class="alerts-banner" v-if="selectedRecord.alerts && selectedRecord.alerts.length > 0">
           <div class="alert-item" v-for="alert in selectedRecord.alerts" :key="alert">
@@ -295,8 +298,8 @@ $clear-green: #3cff6e;
   background: $bg-dark;
   border: 1px solid $border-color;
   border-radius: 4px;
-  min-width: 280px;
-  max-width: 320px;
+  min-width: 360px;
+  max-width: 420px;
   overflow: hidden;
   user-select: none;
 
@@ -367,9 +370,22 @@ $clear-green: #3cff6e;
   }
 }
 
-.collapse-icon {
-  font-size: 10px;
+.minimize-btn {
+  background: rgba(74, 158, 255, 0.15);
   color: $text-secondary;
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  padding: 1px 8px;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(74, 158, 255, 0.3);
+    color: $text-primary;
+  }
 }
 
 .pc-body {
@@ -456,8 +472,23 @@ $clear-green: #3cff6e;
   font-style: italic;
 }
 
+.detail-close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 18px;
+  color: $text-secondary;
+  cursor: pointer;
+  line-height: 1;
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
 // Detail panel
 .detail-panel {
+  position: relative;
   padding: 8px 10px;
   background: $bg-panel;
   border-top: 1px solid $border-color;

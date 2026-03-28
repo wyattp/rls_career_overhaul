@@ -5,18 +5,34 @@ local logTag = "policeControls"
 local sirenStageByVehId = {}
 local lastSirenTapByVehId = {}
 local SIREN_DOUBLE_TAP_WINDOW = 0.35
+local pendingLightbarRestore = {} -- vehId -> lightbar state to restore after respawn
 
 local function getPlayerPoliceVehicle()
   local playerVeh = be:getPlayerVehicle(0)
   if not playerVeh then return nil end
 
   local playerVehId = playerVeh:getID()
-  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return nil end
 
-  local trafficData = gameplay_traffic.getTrafficData()
-  local tveh = trafficData[playerVehId]
-  if tveh and tveh.roleName == "police" then
-    return playerVeh, playerVehId
+  -- Check inventory role first (same as policeComputer)
+  if career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
+    local invId = career_modules_inventory.getInventoryIdFromVehicleId(playerVehId)
+    if invId then
+      local vehicleRole = career_modules_inventory.getVehicleRole and career_modules_inventory.getVehicleRole(invId)
+      if vehicleRole == "police" then
+        return playerVeh, playerVehId
+      end
+    end
+  end
+
+  -- Fallback: check traffic data role
+  if gameplay_traffic and gameplay_traffic.getTrafficData then
+    local trafficData = gameplay_traffic.getTrafficData()
+    if trafficData then
+      local tveh = trafficData[playerVehId]
+      if tveh and tveh.roleName == "police" then
+        return playerVeh, playerVehId
+      end
+    end
   end
 
   return nil
@@ -54,65 +70,41 @@ local function getConfiguredSirenAudio(vehId)
   return "", ""
 end
 
-local function escapeLuaString(value)
-  if value == nil then return "" end
-  return tostring(value):gsub("\\", "\\\\"):gsub("\"", "\\\"")
-end
+-- Swap the soundscape_siren part on the vehicle and respawn it
+local function swapSirenPart(playerVeh, playerVehId, desiredPartName, lightbarState)
+  if not desiredPartName or desiredPartName == "" then return false end
 
-local function queueSetSirenTone(playerVeh, toneStage, desiredAudio)
-  toneStage = toneStage or 1 -- 1=wail, 2=yelp
-  desiredAudio = desiredAudio or ""
-  playerVeh:queueLuaCommand(string.format([[
-local desiredTone = %d
-local desiredAudio = "%s"
-local toggled = false
+  local vd = extensions.core_vehicle_manager and extensions.core_vehicle_manager.getVehicleData(playerVehId)
+  if not vd or not vd.config or not vd.config.parts then return false end
 
-local function safeCall(fn)
-  local ok, result = pcall(fn)
-  return ok and result ~= false
-end
-
-local function tryController(c)
-  if not c then return false end
-
-  if desiredAudio ~= "" then
-    if c.setSirenAudio and safeCall(function() c:setSirenAudio(desiredAudio) end) then return true end
-    if c.setSirenSoundscape and safeCall(function() c:setSirenSoundscape(desiredAudio) end) then return true end
-    if c.setSoundscape and safeCall(function() c:setSoundscape(desiredAudio) end) then return true end
-    if c.setSound and safeCall(function() c:setSound(desiredAudio) end) then return true end
-    if c.setSample and safeCall(function() c:setSample(desiredAudio) end) then return true end
-    if c.setName and safeCall(function() c:setName(desiredAudio) end) then return true end
+  local currentPart = vd.config.parts.soundscape_siren or ""
+  if currentPart == desiredPartName then
+    -- Already the right part, just set lightbar
+    playerVeh:queueLuaCommand(string.format("electrics.set_lightbar_signal(%d)", lightbarState or 2))
+    return true
   end
 
-  if c.setSirenMode and safeCall(function() c:setSirenMode(desiredTone) end) then return true end
-  if c.setTone and safeCall(function() c:setTone(desiredTone) end) then return true end
-  if c.setMode and safeCall(function() c:setMode(desiredTone) end) then return true end
-  if c.nextSirenMode and safeCall(function() c:nextSirenMode() end) then return true end
-  if c.cycleSirenMode and safeCall(function() c:cycleSirenMode() end) then return true end
-  if c.toggleSirenMode and safeCall(function() c:toggleSirenMode() end) then return true end
-  if c.nextTone and safeCall(function() c:nextTone() end) then return true end
-  if c.cycleTone and safeCall(function() c:cycleTone() end) then return true end
-  if c.toggleTone and safeCall(function() c:toggleTone() end) then return true end
+  -- Modify the config
+  local config = deepcopy(vd.config)
+  config.parts.soundscape_siren = desiredPartName
 
-  return false
-end
+  -- Store lightbar state to restore after respawn
+  pendingLightbarRestore[playerVehId] = lightbarState or 2
 
-if controller and controller.getControllersByType then
-  local sirenTypes = {"siren", "soundscape", "soundscapeSiren", "soundscape_siren"}
-  for _, ctrlType in ipairs(sirenTypes) do
-    local ctrls = controller.getControllersByType(ctrlType) or {}
-    for _, c in pairs(ctrls) do
-      if tryController(c) then
-        toggled = true
-      end
-    end
-  end
-end
+  -- Get model name
+  local modelName = vd.mainPartName or playerVeh.jbeam
+  if not modelName then return false end
 
-if not toggled then
-  log("W", "policeControls", "No supported siren tone API found for this vehicle")
-end
-]], toneStage, escapeLuaString(desiredAudio)))
+  -- Respawn with new config
+  local spawnOptions = {
+    config = config,
+    keepOtherVehRotation = true,
+  }
+  core_vehicle_manager.queueAdditionalVehicleData({spawnWithEngineRunning = false}, playerVehId)
+  core_vehicles.replaceVehicle(modelName, spawnOptions, playerVeh)
+
+  log("I", logTag, "Swapped siren part to: " .. desiredPartName)
+  return true
 end
 
 -- Lights are decoupled from siren: this toggles only OFF <-> lights-only.
@@ -132,7 +124,7 @@ function M.togglePoliceLights()
 end
 
 -- Siren control (with lights required):
--- single tap toggles tone (wail <-> yelp), double tap turns siren off.
+-- single tap cycles between primary and secondary siren, double tap turns siren off.
 function M.cyclePoliceSiren()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then return end
@@ -164,15 +156,37 @@ function M.cyclePoliceSiren()
   end
 
   if stage == 0 then
-    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
-    queueSetSirenTone(playerVeh, 1, primaryAudio)
+    -- First tap: activate siren with primary sound
+    if primaryAudio ~= "" then
+      swapSirenPart(playerVeh, playerVehId, primaryAudio, 2)
+    else
+      playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
+    end
     sirenStageByVehId[playerVehId] = 1
   elseif stage == 1 then
-    queueSetSirenTone(playerVeh, 2, secondaryAudio)
+    -- Second tap: switch to secondary sound
+    if secondaryAudio ~= "" and secondaryAudio ~= primaryAudio then
+      swapSirenPart(playerVeh, playerVehId, secondaryAudio, 2)
+    end
     sirenStageByVehId[playerVehId] = 2
   else
-    queueSetSirenTone(playerVeh, 1, primaryAudio)
+    -- Third tap: back to primary
+    if primaryAudio ~= "" and primaryAudio ~= secondaryAudio then
+      swapSirenPart(playerVeh, playerVehId, primaryAudio, 2)
+    end
     sirenStageByVehId[playerVehId] = 1
+  end
+end
+
+-- After vehicle respawn, restore lightbar state
+function M.onVehicleSpawned(vehId)
+  local restoreState = pendingLightbarRestore[vehId]
+  if restoreState then
+    pendingLightbarRestore[vehId] = nil
+    local veh = getObjectByID(vehId)
+    if veh then
+      veh:queueLuaCommand(string.format("electrics.set_lightbar_signal(%d)", restoreState))
+    end
   end
 end
 
@@ -195,6 +209,7 @@ end
 function M.onExtensionUnloaded()
   table.clear(sirenStageByVehId)
   table.clear(lastSirenTapByVehId)
+  table.clear(pendingLightbarRestore)
 end
 
 return M

@@ -9,6 +9,8 @@ local scannedPlates = {} -- ordered list of scanned plate strings (most recent f
 local vehicleRecords = {} -- keyed by vehicle ID
 local scanTimer = 0
 local scanInterval = 0.5 -- seconds between scans
+local stateTimer = 0
+local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 12
 local scanRange = 40 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
@@ -204,12 +206,27 @@ local function getPlayerPoliceVehicle()
   if not playerVeh then return nil end
 
   local playerVehId = playerVeh:getID()
-  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return nil end
 
-  local trafficData = gameplay_traffic.getTrafficData()
-  local tveh = trafficData[playerVehId]
-  if tveh and tveh.roleName == 'police' then
-    return playerVeh, playerVehId
+  -- Check inventory role first (same method as playerDriving.getPlayerIsCop)
+  if career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
+    local invId = career_modules_inventory.getInventoryIdFromVehicleId(playerVehId)
+    if invId then
+      local vehicleRole = career_modules_inventory.getVehicleRole and career_modules_inventory.getVehicleRole(invId)
+      if vehicleRole == 'police' then
+        return playerVeh, playerVehId
+      end
+    end
+  end
+
+  -- Fallback: check traffic data role
+  if gameplay_traffic and gameplay_traffic.getTrafficData then
+    local trafficData = gameplay_traffic.getTrafficData()
+    if trafficData then
+      local tveh = trafficData[playerVehId]
+      if tveh and tveh.roleName == 'police' then
+        return playerVeh, playerVehId
+      end
+    end
   end
 
   return nil
@@ -418,6 +435,15 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
   if scanTimer >= scanInterval then
     scanTimer = 0
     scanForVehicles()
+  end
+
+  stateTimer = stateTimer + dtReal
+  if stateTimer >= stateInterval then
+    stateTimer = 0
+    guihooks.trigger('policeComputerState', {
+      anprActive = anprActive,
+      scannedPlates = M.getScannedPlatesList()
+    })
   end
 end
 
