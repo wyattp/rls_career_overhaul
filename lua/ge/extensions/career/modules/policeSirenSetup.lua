@@ -18,14 +18,11 @@ end
 -- Find the spawned vehicle ID matching a given inventory ID
 local function getSpawnedIdForInventory(invId)
   if not career_modules_inventory or not career_modules_inventory.getInventoryIdFromVehicleId then return nil end
-  local count = be:getVehicleCount()
-  for i = 0, count - 1 do
-    local veh = be:getVehicle(i)
-    if veh then
-      local vehId = veh:getID()
-      if career_modules_inventory.getInventoryIdFromVehicleId(vehId) == invId then
-        return vehId
-      end
+  local vehicles = getAllVehicles and getAllVehicles() or {}
+  for _, veh in ipairs(vehicles) do
+    local vehId = veh:getID()
+    if career_modules_inventory.getInventoryIdFromVehicleId(vehId) == invId then
+      return vehId
     end
   end
   return nil
