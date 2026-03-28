@@ -704,6 +704,29 @@ updateRabbit = function(dtReal)
   end
 end
 
+-- Called by policeControls when lights are activated behind a vehicle.
+-- Immediately initiates a traffic stop on the closest vehicle ahead.
+function M.immediateTrafficStop()
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if not playerVeh then return false end
+
+  -- Use a wider range/cone than the dwell-based stop for the immediate trigger
+  local target = findVehicleAhead(playerVeh, 30, 0.85)
+  if not target then return false end
+
+  -- Generate record if not already known
+  generateRecord(target)
+
+  -- Initiate immediately — no dwell timer
+  trafficStopTarget = target
+  trafficStopInitiated = true
+  earlyFleeTimer = nil
+  trafficStopTimer = 0
+  initiateTrafficStop(target)
+
+  return true
+end
+
 function M.onExtensionLoaded()
   log('I', logTag, 'Police Computer module loaded')
   if gameplay_police and gameplay_police.setPursuitVars then

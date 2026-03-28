@@ -120,6 +120,11 @@ function M.togglePoliceLights()
   if nextState == 0 then
     playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
     sirenStageByVehId[playerVehId] = 0
+  else
+    -- Lights just turned on — immediately try to initiate a traffic stop on the vehicle ahead
+    if gameplay_policeComputer and gameplay_policeComputer.immediateTrafficStop then
+      gameplay_policeComputer.immediateTrafficStop()
+    end
   end
 end
 
