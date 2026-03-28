@@ -289,6 +289,12 @@ export default {
     closeAllMenus: () => {},
   },
 
+  career_modules_policeSirenSetup: {
+    getSetupData: inventoryId => Any,
+    setSetupData: (inventoryId, data) => [Any, Any],
+    closeMenu: () => {},
+  },
+
   career_modules_delivery_general: {
     setAutomaticRoute: enabled => Boolean,
     setDetailedDropOff: enabled => Boolean,

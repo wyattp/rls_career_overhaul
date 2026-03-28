@@ -160,7 +160,8 @@ function selectPlate(plate) {
     return
   }
   selectedPlate.value = plate
-  $game.api.engineLua(`gameplay_policeComputer.lookupPlate("${plate}")`)
+  const safePlate = plate.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  $game.api.engineLua(`gameplay_policeComputer.lookupPlate("${safePlate}")`)
 }
 
 function truncate(str, len) {

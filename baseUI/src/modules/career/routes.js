@@ -24,6 +24,7 @@ import VehicleShopping from "./views/VehicleShoppingMain.vue"
 import VehiclePerformance from "./views/VehiclePerformanceMain.vue"
 import ChooseInsurance from "./views/ChooseInsuranceMain.vue"
 import Negotiation from "./views/VehicleNegotiationMain.vue"
+import PoliceSirenSetup from "./views/PoliceSirenSetupMain.vue"
 
 export default [
   // Career Pause
@@ -87,6 +88,16 @@ export default [
           uiApps: {
             shown: false,
           },
+        },
+      },
+
+      // Police Siren Setup
+      {
+        path: "policeSirenSetup",
+        name: "policeSirenSetup",
+        component: PoliceSirenSetup,
+        meta: {
+          uiApps: { shown: false },
         },
       },
 

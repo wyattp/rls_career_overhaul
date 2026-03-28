@@ -5,68 +5,77 @@ M.dependencies = {"career_modules_inventory", "career_modules_computer"}
 local originComputerId
 local activeInventoryId
 
-local availableSirenAudio = {
-  {value = "soundscape_siren_19", label = "Siren Audio 19"},
-  {value = "soundscape_siren_20", label = "Siren Audio 20"},
-}
-
 local function getVehicleData(inventoryId)
   if not inventoryId then return nil end
   local vehicles = career_modules_inventory and career_modules_inventory.getVehicles and career_modules_inventory.getVehicles() or nil
   return vehicles and vehicles[inventoryId] or nil
 end
 
-local function hasSirenAudioSlot(vehicleData)
-  return vehicleData
-    and vehicleData.config
-    and vehicleData.config.parts
-    and vehicleData.config.parts.soundscape_siren ~= nil
-end
-
 local function isPoliceVehicle(vehicleData)
   return vehicleData and vehicleData.role == "police"
 end
 
-local function containsAudioValue(value)
-  for _, entry in ipairs(availableSirenAudio) do
-    if entry.value == value then return true end
+-- Find the spawned vehicle ID matching a given inventory ID
+local function getSpawnedIdForInventory(invId)
+  if not career_modules_inventory or not career_modules_inventory.getInventoryIdFromVehicleId then return nil end
+  local count = be:getVehicleCount()
+  for i = 0, count - 1 do
+    local veh = be:getVehicle(i)
+    if veh then
+      local vehId = veh:getID()
+      if career_modules_inventory.getInventoryIdFromVehicleId(vehId) == invId then
+        return vehId
+      end
+    end
   end
-  return false
+  return nil
 end
 
-local function getDefaultConfig(vehicleData)
-  local currentAudio = (
-    vehicleData
-    and vehicleData.config
-    and vehicleData.config.parts
-    and vehicleData.config.parts.soundscape_siren
-  ) or ""
-
-  local secondaryAudio = "soundscape_siren_20"
-  if currentAudio == "soundscape_siren_20" then
-    secondaryAudio = "soundscape_siren_19"
+-- Recursively walk a partsTree node looking for a slot by name
+local function findSlotNode(node, targetSlot)
+  if not node or not node.children then return nil end
+  for slotName, childNode in pairs(node.children) do
+    if slotName == targetSlot then return childNode end
+    local found = findSlotNode(childNode, targetSlot)
+    if found then return found end
   end
+  return nil
+end
 
-  if currentAudio ~= "" and not containsAudioValue(currentAudio) then
-    secondaryAudio = currentAudio
+-- Dynamically get available parts for the soundscape_siren slot from a spawned vehicle
+local function getAvailableSirenOptions(invId)
+  local spawnedId = getSpawnedIdForInventory(invId)
+  if not spawnedId then return nil end
+
+  local vd = extensions.core_vehicle_manager and extensions.core_vehicle_manager.getVehicleData(spawnedId)
+  if not vd or not vd.ioCtx or not vd.config or not vd.config.partsTree then return nil end
+
+  local sirenNode = findSlotNode(vd.config.partsTree, "soundscape_siren")
+  if not sirenNode or not sirenNode.suitablePartNames or #sirenNode.suitablePartNames == 0 then return nil end
+
+  local availableParts = jbeamIO.getAvailableParts(vd.ioCtx)
+  local options = {}
+  for _, partName in ipairs(sirenNode.suitablePartNames) do
+    local partInfo = availableParts[partName]
+    local desc = partInfo and partInfo.description
+    local label = (type(desc) == "table" and desc.description or desc) or partName
+    table.insert(options, {value = partName, label = label})
   end
-
-  return {
-    primaryAudio = currentAudio,
-    secondaryAudio = secondaryAudio
-  }
+  return #options > 0 and options or nil
 end
 
 local function getStoredConfig(vehicleData)
   local stored = vehicleData and vehicleData.rlsPoliceSirenSetup or nil
-  if not stored then
-    return getDefaultConfig(vehicleData)
+  local currentAudio = (vehicleData and vehicleData.config and vehicleData.config.parts and vehicleData.config.parts.soundscape_siren) or ""
+  if stored then
+    return {
+      primaryAudio = stored.primaryAudio or currentAudio,
+      secondaryAudio = stored.secondaryAudio or ""
+    }
   end
-
-  local defaults = getDefaultConfig(vehicleData)
   return {
-    primaryAudio = stored.primaryAudio or defaults.primaryAudio,
-    secondaryAudio = stored.secondaryAudio or defaults.secondaryAudio
+    primaryAudio = currentAudio,
+    secondaryAudio = ""
   }
 end
 
@@ -114,17 +123,19 @@ local function getSetupData(inventoryId)
     return {ok = false, reason = "Selected vehicle is not police role"}
   end
 
-  if not hasSirenAudioSlot(vehicleData) then
-    return {ok = false, reason = "Selected vehicle has no siren audio slot"}
+  local options = getAvailableSirenOptions(invId)
+  if not options then
+    return {ok = false, reason = "Could not read siren options — make sure the vehicle is spawned nearby"}
   end
 
   local config = getStoredConfig(vehicleData)
+  local currentSirenAudio = (vehicleData.config and vehicleData.config.parts and vehicleData.config.parts.soundscape_siren) or ""
   return {
     ok = true,
     inventoryId = invId,
     vehicleName = vehicleData.niceName or "Police Vehicle",
-    currentSirenAudio = vehicleData.config.parts.soundscape_siren or "",
-    options = deepcopy(availableSirenAudio),
+    currentSirenAudio = currentSirenAudio,
+    options = options,
     primaryAudio = config.primaryAudio,
     secondaryAudio = config.secondaryAudio
   }
@@ -135,22 +146,11 @@ local function setSetupData(inventoryId, data)
   local vehicleData = getVehicleData(invId)
   if not vehicleData then return false, "Vehicle not found" end
   if not isPoliceVehicle(vehicleData) then return false, "Selected vehicle is not police role" end
-  if not hasSirenAudioSlot(vehicleData) then return false, "Selected vehicle has no siren audio slot" end
   if type(data) ~= "table" then return false, "Invalid setup data" end
 
-  local primaryAudio = tostring(data.primaryAudio or "")
-  local secondaryAudio = tostring(data.secondaryAudio or "")
-
-  if primaryAudio ~= "" and not containsAudioValue(primaryAudio) then
-    return false, "Invalid primary siren audio value"
-  end
-  if secondaryAudio ~= "" and not containsAudioValue(secondaryAudio) then
-    return false, "Invalid secondary siren audio value"
-  end
-
   vehicleData.rlsPoliceSirenSetup = {
-    primaryAudio = primaryAudio,
-    secondaryAudio = secondaryAudio,
+    primaryAudio = tostring(data.primaryAudio or ""),
+    secondaryAudio = tostring(data.secondaryAudio or ""),
   }
 
   if career_modules_inventory and career_modules_inventory.setVehicleDirty then
