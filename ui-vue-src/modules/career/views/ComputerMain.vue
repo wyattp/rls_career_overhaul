@@ -205,6 +205,7 @@ const iconById = {
   carMeets: icons.cars,
   sleep: icons.night,
   loans: icons.beamCurrency,
+  policeSirenSetup: icons.cogs,
 }
 
 const infoById = computed(() => [

@@ -263,6 +263,12 @@ export default {
     storeVehicleAtClosestGarage: id => Number,
   },
 
+  career_modules_policeSirenSetup: {
+    closeMenu: () => {},
+    getSetupData: inventoryId => Number,
+    setSetupData: (inventoryId, data) => [Number, Object],
+  },
+
   career_modules_vehiclePerformance: {
     startDragTest: id => Number,
     cancelTest: () => {},

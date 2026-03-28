@@ -26,6 +26,7 @@ import ChooseInsurance from "./views/ChooseInsuranceMain.vue"
 import Negotiation from "./views/VehicleNegotiationMain.vue"
 import Sleep from "./views/SleepMenu.vue"
 import Loans from "./views/LoanMenu.vue"
+import PoliceSirenSetup from "./views/PoliceSirenSetup.vue"
 import RoleAssignment from "./views/RoleAssignment.vue"
 import CarMeets from "./views/CarMeetsMenu.vue"
 import PurchaseGarage from "./views/PurchaseGarage.vue"
@@ -350,6 +351,13 @@ export default [
         path: "loans-menu",
         name: "loans-menu",
         component: Loans
+      },
+
+      // Police Siren Setup Menu
+      {
+        path: "policeSirenSetup",
+        name: "policeSirenSetup",
+        component: PoliceSirenSetup
       },
 
       // Police Assignment
