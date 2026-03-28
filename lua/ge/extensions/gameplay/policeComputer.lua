@@ -215,6 +215,25 @@ local function getPlayerPoliceVehicle()
   return nil
 end
 
+local function getLightbarSignal(vehObj, vehId)
+  if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
+    local state = map.objects[vehId].states.lightbar
+    if state ~= nil then
+      return tonumber(state) or 0
+    end
+  end
+
+  -- Fallback for environments where getElectrics exists.
+  if vehObj and type(vehObj.getElectrics) == 'function' then
+    local electrics = vehObj:getElectrics()
+    if electrics and electrics.lightbar_signal ~= nil then
+      return tonumber(electrics.lightbar_signal) or 0
+    end
+  end
+
+  return 0
+end
+
 local function scanForVehicles()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then return end
@@ -538,14 +557,13 @@ local function resetTrafficStop()
 end
 
 updateTrafficStop = function(dtReal)
-  local playerVeh = getPlayerPoliceVehicle()
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then
     resetTrafficStop()
     return
   end
 
-  local electrics = playerVeh:getElectrics()
-  local lightbar = electrics and electrics.lightbar_signal or 0
+  local lightbar = getLightbarSignal(playerVeh, playerVehId)
   if lightbar ~= 1 then
     resetTrafficStop()
     return

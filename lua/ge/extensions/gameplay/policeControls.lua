@@ -23,8 +23,25 @@ local function getPlayerPoliceVehicle()
 end
 
 local function getLightbarState(playerVeh)
-  local electrics = playerVeh and playerVeh:getElectrics() or nil
-  return (electrics and electrics.lightbar_signal) or 0
+  if not playerVeh then return 0 end
+
+  local vehId = playerVeh:getID()
+  if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
+    local state = map.objects[vehId].states.lightbar
+    if state ~= nil then
+      return tonumber(state) or 0
+    end
+  end
+
+  -- Fallback for environments where getElectrics exists.
+  if type(playerVeh.getElectrics) == "function" then
+    local electrics = playerVeh:getElectrics()
+    if electrics and electrics.lightbar_signal ~= nil then
+      return tonumber(electrics.lightbar_signal) or 0
+    end
+  end
+
+  return 0
 end
 
 -- Lights are decoupled from siren: this toggles only OFF <-> lights-only.
