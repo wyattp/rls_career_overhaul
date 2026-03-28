@@ -167,7 +167,7 @@ local function onComputerAddFunctions(menuData, computerFunctions)
     local inventoryId = vehicleInfo.inventoryId
     local vehicleData = getVehicleData(inventoryId)
 
-    if vehicleData and hasSirenAudioSlot(vehicleData) then
+    if vehicleData then
       if isPoliceVehicle(vehicleData) then
         local functionData = {
           id = "policeSirenSetup",
