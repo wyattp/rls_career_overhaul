@@ -36,7 +36,7 @@
           class="plate-row"
           v-for="entry in scannedPlates"
           :key="entry.plate"
-          :class="{ flagged: entry.flagged, selected: selectedPlate === entry.plate }"
+          :class="{ flagged: entry.flagged, selected: selectedPlate === entry.plate, ahead: aheadPlate === entry.plate }"
           @click="selectPlate(entry.plate)">
           <span class="plate-number">{{ entry.plate }}</span>
           <span class="plate-vehicle">{{ truncate(entry.vehicleName, 14) }}</span>
@@ -143,6 +143,7 @@ const selectedPlate = ref(null)
 const selectedRecord = ref(null)
 const actionBanner = ref(null)
 const stopProgress = ref(null)
+const aheadPlate = ref(null)
 let actionBannerTimeout = null
 
 function toggleCollapse() {
@@ -236,6 +237,10 @@ function onRabbit(data) {
   showActionBanner('danger', 'SUSPECT FLEEING' + (data && data.plate ? ' - ' + data.plate : ''))
 }
 
+function onAhead(data) {
+  aheadPlate.value = data && data.plate ? data.plate : null
+}
+
 function onVisibilityChange(data) {
   isVisible.value = data.visible
   if (!data.visible) {
@@ -254,6 +259,7 @@ onMounted(() => {
   $game.events.on('policeComputerStopInitiated', onStopInitiated)
   $game.events.on('policeComputerStopProgress', onStopProgress)
   $game.events.on('policeComputerRabbit', onRabbit)
+  $game.events.on('policeComputerAhead', onAhead)
   $game.api.engineLua('gameplay_policeComputer.requestState()')
 })
 
@@ -266,6 +272,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerStopInitiated', onStopInitiated)
   $game.events.off('policeComputerStopProgress', onStopProgress)
   $game.events.off('policeComputerRabbit', onRabbit)
+  $game.events.off('policeComputerAhead', onAhead)
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
 })
 </script>
@@ -390,6 +397,16 @@ $clear-green: #3cff6e;
     background: rgba(74, 158, 255, 0.15);
     border-left: 2px solid $text-accent;
     padding-left: 8px;
+  }
+
+  &.ahead {
+    background: rgba(74, 158, 255, 0.2);
+    border-left: 2px solid $text-accent;
+    padding-left: 8px;
+
+    .plate-number {
+      color: $text-accent;
+    }
   }
 
   &.flagged {

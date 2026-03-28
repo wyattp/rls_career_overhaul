@@ -236,13 +236,23 @@ end
 
 local function scanForVehicles()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
-  if not playerVeh then return end
+  if not playerVeh then
+    guihooks.trigger('policeComputerAhead', { plate = nil })
+    return
+  end
 
   local playerPos = playerVeh:getPosition()
   local playerDir = playerVeh:getDirectionVector()
 
-  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return end
+  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then
+    guihooks.trigger('policeComputerAhead', { plate = nil })
+    return
+  end
   local trafficData = gameplay_traffic.getTrafficData()
+
+  local closestDist = scanRange
+  local closestPlate = nil
+  local hasNewScan = false
 
   for vehId, tVeh in pairs(trafficData) do
     if vehId ~= playerVehId and tVeh.roleName ~= 'police' then
@@ -256,6 +266,12 @@ local function scanForVehicles()
         if dist < scanRange and dot > scanConeAngle then
           local record = generateRecord(vehId)
           if record then
+            -- Track closest vehicle in cone
+            if dist < closestDist then
+              closestDist = dist
+              closestPlate = record.plate
+            end
+
             -- Check if already scanned
             local alreadyScanned = false
             for i, p in ipairs(scannedPlates) do
@@ -269,6 +285,7 @@ local function scanForVehicles()
             end
 
             if not alreadyScanned then
+              hasNewScan = true
               table.insert(scannedPlates, 1, record.plate)
               if #scannedPlates > maxScannedPlates then
                 table.remove(scannedPlates, #scannedPlates)
@@ -291,6 +308,17 @@ local function scanForVehicles()
         end
       end
     end
+  end
+
+  -- Always send which plate is currently ahead
+  guihooks.trigger('policeComputerAhead', { plate = closestPlate })
+
+  -- Push full state after any new scan so UI stays in sync
+  if hasNewScan then
+    guihooks.trigger('policeComputerState', {
+      anprActive = anprActive,
+      scannedPlates = M.getScannedPlatesList()
+    })
   end
 end
 
