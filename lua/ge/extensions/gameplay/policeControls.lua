@@ -44,6 +44,35 @@ local function getLightbarState(playerVeh)
   return 0
 end
 
+local function queueToggleSirenTone(playerVeh)
+  playerVeh:queueLuaCommand([[
+local toggled = false
+if controller and controller.getControllersByType then
+  local sirenTypes = {"siren", "soundscape", "soundscapeSiren", "soundscape_siren"}
+  for _, ctrlType in ipairs(sirenTypes) do
+    local ctrls = controller.getControllersByType(ctrlType) or {}
+    for _, c in pairs(ctrls) do
+      if c then
+        if c.toggleSirenMode then
+          c.toggleSirenMode()
+          toggled = true
+        elseif c.nextSirenMode then
+          c.nextSirenMode()
+          toggled = true
+        elseif c.toggleMode then
+          c.toggleMode()
+          toggled = true
+        end
+      end
+    end
+  end
+end
+if not toggled then
+  log("W", "policeControls", "No siren controller tone toggle found for this vehicle")
+end
+]])
+end
+
 -- Lights are decoupled from siren: this toggles only OFF <-> lights-only.
 -- Turning lights off always forces siren off and resets siren stage.
 function M.togglePoliceLights()
@@ -55,6 +84,7 @@ function M.togglePoliceLights()
   playerVeh:queueLuaCommand(string.format("electrics.set_lightbar_signal(%d)", nextState))
 
   if nextState == 0 then
+    playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
     sirenStageByVehId[playerVehId] = 0
   end
 end
@@ -83,9 +113,7 @@ function M.cyclePoliceSiren()
   end
 
   if isDoubleTap then
-    if stage == 2 then
-      playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
-    end
+    playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
     playerVeh:queueLuaCommand("electrics.set_lightbar_signal(1)")
     sirenStageByVehId[playerVehId] = 0
     lastSirenTapByVehId[playerVehId] = nil
@@ -96,10 +124,10 @@ function M.cyclePoliceSiren()
     playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
     sirenStageByVehId[playerVehId] = 1
   elseif stage == 1 then
-    playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
+    queueToggleSirenTone(playerVeh)
     sirenStageByVehId[playerVehId] = 2
   else
-    playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
+    queueToggleSirenTone(playerVeh)
     sirenStageByVehId[playerVehId] = 1
   end
 end
