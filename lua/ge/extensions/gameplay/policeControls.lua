@@ -44,33 +44,75 @@ local function getLightbarState(playerVeh)
   return 0
 end
 
-local function queueToggleSirenTone(playerVeh)
-  playerVeh:queueLuaCommand([[
+local function getConfiguredSirenAudio(vehId)
+  if career_modules_policeSirenSetup and career_modules_policeSirenSetup.getVehicleAudioSetupByVehicleId then
+    local setup = career_modules_policeSirenSetup.getVehicleAudioSetupByVehicleId(vehId)
+    if type(setup) == "table" then
+      return tostring(setup.primaryAudio or ""), tostring(setup.secondaryAudio or "")
+    end
+  end
+  return "", ""
+end
+
+local function escapeLuaString(value)
+  if value == nil then return "" end
+  return tostring(value):gsub("\\", "\\\\"):gsub("\"", "\\\"")
+end
+
+local function queueSetSirenTone(playerVeh, toneStage, desiredAudio)
+  toneStage = toneStage or 1 -- 1=wail, 2=yelp
+  desiredAudio = desiredAudio or ""
+  playerVeh:queueLuaCommand(string.format([[
+local desiredTone = %d
+local desiredAudio = "%s"
 local toggled = false
+
+local function safeCall(fn)
+  local ok, result = pcall(fn)
+  return ok and result ~= false
+end
+
+local function tryController(c)
+  if not c then return false end
+
+  if desiredAudio ~= "" then
+    if c.setSirenAudio and safeCall(function() c:setSirenAudio(desiredAudio) end) then return true end
+    if c.setSirenSoundscape and safeCall(function() c:setSirenSoundscape(desiredAudio) end) then return true end
+    if c.setSoundscape and safeCall(function() c:setSoundscape(desiredAudio) end) then return true end
+    if c.setSound and safeCall(function() c:setSound(desiredAudio) end) then return true end
+    if c.setSample and safeCall(function() c:setSample(desiredAudio) end) then return true end
+    if c.setName and safeCall(function() c:setName(desiredAudio) end) then return true end
+  end
+
+  if c.setSirenMode and safeCall(function() c:setSirenMode(desiredTone) end) then return true end
+  if c.setTone and safeCall(function() c:setTone(desiredTone) end) then return true end
+  if c.setMode and safeCall(function() c:setMode(desiredTone) end) then return true end
+  if c.nextSirenMode and safeCall(function() c:nextSirenMode() end) then return true end
+  if c.cycleSirenMode and safeCall(function() c:cycleSirenMode() end) then return true end
+  if c.toggleSirenMode and safeCall(function() c:toggleSirenMode() end) then return true end
+  if c.nextTone and safeCall(function() c:nextTone() end) then return true end
+  if c.cycleTone and safeCall(function() c:cycleTone() end) then return true end
+  if c.toggleTone and safeCall(function() c:toggleTone() end) then return true end
+
+  return false
+end
+
 if controller and controller.getControllersByType then
   local sirenTypes = {"siren", "soundscape", "soundscapeSiren", "soundscape_siren"}
   for _, ctrlType in ipairs(sirenTypes) do
     local ctrls = controller.getControllersByType(ctrlType) or {}
     for _, c in pairs(ctrls) do
-      if c then
-        if c.toggleSirenMode then
-          c.toggleSirenMode()
-          toggled = true
-        elseif c.nextSirenMode then
-          c.nextSirenMode()
-          toggled = true
-        elseif c.toggleMode then
-          c.toggleMode()
-          toggled = true
-        end
+      if tryController(c) then
+        toggled = true
       end
     end
   end
 end
+
 if not toggled then
-  log("W", "policeControls", "No siren controller tone toggle found for this vehicle")
+  log("W", "policeControls", "No supported siren tone API found for this vehicle")
 end
-]])
+]], toneStage, escapeLuaString(desiredAudio)))
 end
 
 -- Lights are decoupled from siren: this toggles only OFF <-> lights-only.
@@ -108,6 +150,7 @@ function M.cyclePoliceSiren()
   lastSirenTapByVehId[playerVehId] = now
 
   local stage = sirenStageByVehId[playerVehId]
+  local primaryAudio, secondaryAudio = getConfiguredSirenAudio(playerVehId)
   if stage == nil then
     stage = lightbar >= 2 and 1 or 0
   end
@@ -122,12 +165,13 @@ function M.cyclePoliceSiren()
 
   if stage == 0 then
     playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
+    queueSetSirenTone(playerVeh, 1, primaryAudio)
     sirenStageByVehId[playerVehId] = 1
   elseif stage == 1 then
-    queueToggleSirenTone(playerVeh)
+    queueSetSirenTone(playerVeh, 2, secondaryAudio)
     sirenStageByVehId[playerVehId] = 2
   else
-    queueToggleSirenTone(playerVeh)
+    queueSetSirenTone(playerVeh, 1, primaryAudio)
     sirenStageByVehId[playerVehId] = 1
   end
 end
