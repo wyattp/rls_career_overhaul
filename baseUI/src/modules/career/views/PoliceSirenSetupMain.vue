@@ -7,16 +7,12 @@
 
         <div class="field-row">
           <label>Primary Siren</label>
-          <select v-model="primaryAudio">
-            <option v-for="opt in setupData.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-          </select>
+          <BngDropdown v-model="primaryAudio" :items="setupData.options" />
         </div>
 
         <div class="field-row">
           <label>Secondary Siren</label>
-          <select v-model="secondaryAudio">
-            <option v-for="opt in setupData.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-          </select>
+          <BngDropdown v-model="secondaryAudio" :items="setupData.options" />
         </div>
 
         <div class="button-row">
@@ -31,7 +27,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue"
-import { BngCard, BngButton, ACCENTS } from "@/common/components/base"
+import { BngCard, BngButton, BngDropdown, ACCENTS } from "@/common/components/base"
 import { vBngBlur } from "@/common/directives"
 import ComputerWrapper from "./ComputerWrapper.vue"
 import { lua } from "@/bridge"
