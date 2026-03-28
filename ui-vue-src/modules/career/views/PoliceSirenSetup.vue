@@ -8,19 +8,11 @@
           <div class="vehicle-name">{{ setupData.vehicleName }}</div>
           <div class="field">
             <label for="primaryAudio">Primary Tone (Wail)</label>
-            <select id="primaryAudio" v-model="primaryAudio">
-              <option v-for="option in setupData.options" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <BngDropdown v-model="primaryAudio" :items="setupData.options" />
           </div>
           <div class="field">
             <label for="secondaryAudio">Secondary Tone (Yelp)</label>
-            <select id="secondaryAudio" v-model="secondaryAudio">
-              <option v-for="option in setupData.options" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <BngDropdown v-model="secondaryAudio" :items="setupData.options" />
           </div>
           <div class="actions">
             <BngButton :disabled="saving" @click="save">Save</BngButton>
@@ -36,7 +28,7 @@
 import { ref, onMounted } from "vue"
 import { lua } from "@/bridge"
 import ComputerWrapper from "./ComputerWrapper.vue"
-import { BngButton, BngCard } from "@/common/components/base"
+import { BngButton, BngCard, BngDropdown } from "@/common/components/base"
 import { useComputerStore } from "../stores/computerStore"
 
 const computerStore = useComputerStore()
@@ -133,13 +125,6 @@ onMounted(load)
   gap: 0.4rem;
 }
 
-.field select {
-  background: rgba(0, 0, 0, 0.35);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 0.3rem;
-  padding: 0.5rem 0.6rem;
-}
 
 .actions {
   display: flex;
