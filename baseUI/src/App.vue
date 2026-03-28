@@ -28,6 +28,11 @@
 
   <LoadingScreen />
 
+  <!-- Police Computer HUD - self-manages visibility via policeComputerVisibility events -->
+  <div class="police-computer-hud">
+    <PoliceComputerApp />
+  </div>
+
   <!-- this debug overlay gets teleported away to the body, so there's no way to render it on top of a popup -->
   <VueDebug />
 
@@ -55,6 +60,7 @@ import TopBar from "@/common/modules/topbar/TopBar.vue"
 import Popup from "@/common/modules/popup/views/Popup.vue"
 import Popover from "@/common/views/Popover.vue"
 import MainBackground from "@/common/modules/main-bg/components/MainBackground.vue"
+import PoliceComputerApp from "@/modules/apps/policeComputer/app.vue"
 import { useSettings } from "@/services/settings"
 import router from "@/router"
 
@@ -175,6 +181,14 @@ watch([
   align-items: stretch;
   font-family: var(--fnt-defs);
   overflow: hidden;
+}
+
+.police-computer-hud {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 10000;
+  pointer-events: auto;
 }
 
 .click-through {
