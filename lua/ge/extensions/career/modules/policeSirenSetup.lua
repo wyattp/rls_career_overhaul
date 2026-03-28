@@ -2,6 +2,8 @@ local M = {}
 
 M.dependencies = {"career_modules_inventory", "career_modules_computer"}
 
+local jbeamIO = require('jbeam/io')
+
 local originComputerId
 local activeInventoryId
 
