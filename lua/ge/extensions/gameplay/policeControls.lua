@@ -1,0 +1,111 @@
+local M = {}
+
+local logTag = "policeControls"
+
+local sirenStageByVehId = {}
+local lastSirenTapByVehId = {}
+local SIREN_DOUBLE_TAP_WINDOW = 0.35
+
+local function getPlayerPoliceVehicle()
+  local playerVeh = be:getPlayerVehicle(0)
+  if not playerVeh then return nil end
+
+  local playerVehId = playerVeh:getID()
+  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return nil end
+
+  local trafficData = gameplay_traffic.getTrafficData()
+  local tveh = trafficData[playerVehId]
+  if tveh and tveh.roleName == "police" then
+    return playerVeh, playerVehId
+  end
+
+  return nil
+end
+
+local function getLightbarState(playerVeh)
+  local electrics = playerVeh and playerVeh:getElectrics() or nil
+  return (electrics and electrics.lightbar_signal) or 0
+end
+
+-- Lights are decoupled from siren: this toggles only OFF <-> lights-only.
+-- Turning lights off always forces siren off and resets siren stage.
+function M.togglePoliceLights()
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if not playerVeh then return end
+
+  local lightbar = getLightbarState(playerVeh)
+  local nextState = lightbar > 0 and 0 or 1
+  playerVeh:queueLuaCommand(string.format("electrics.set_lightbar_signal(%d)", nextState))
+
+  if nextState == 0 then
+    sirenStageByVehId[playerVehId] = 0
+  end
+end
+
+-- Siren control (with lights required):
+-- single tap toggles tone (wail <-> yelp), double tap turns siren off.
+function M.cyclePoliceSiren()
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if not playerVeh then return end
+
+  local lightbar = getLightbarState(playerVeh)
+  if lightbar <= 0 then
+    sirenStageByVehId[playerVehId] = 0
+    lastSirenTapByVehId[playerVehId] = nil
+    return
+  end
+
+  local now = os.clock()
+  local lastTap = lastSirenTapByVehId[playerVehId]
+  local isDoubleTap = lastTap and (now - lastTap) <= SIREN_DOUBLE_TAP_WINDOW
+  lastSirenTapByVehId[playerVehId] = now
+
+  local stage = sirenStageByVehId[playerVehId]
+  if stage == nil then
+    stage = lightbar >= 2 and 1 or 0
+  end
+
+  if isDoubleTap then
+    if stage == 2 then
+      playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
+    end
+    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(1)")
+    sirenStageByVehId[playerVehId] = 0
+    lastSirenTapByVehId[playerVehId] = nil
+    return
+  end
+
+  if stage == 0 then
+    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
+    sirenStageByVehId[playerVehId] = 1
+  elseif stage == 1 then
+    playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
+    sirenStageByVehId[playerVehId] = 2
+  else
+    playerVeh:queueLuaCommand("for _,v in pairs(controller.getControllersByType('lightbar')) do v.toggleMode() end")
+    sirenStageByVehId[playerVehId] = 1
+  end
+end
+
+function M.onVehicleSwitched(oldId, newId)
+  if oldId then
+    sirenStageByVehId[oldId] = nil
+    lastSirenTapByVehId[oldId] = nil
+  end
+end
+
+function M.onTrafficVehicleRemoved(vehId)
+  sirenStageByVehId[vehId] = nil
+  lastSirenTapByVehId[vehId] = nil
+end
+
+function M.onExtensionLoaded()
+  log("I", logTag, "Police controls loaded")
+end
+
+function M.onExtensionUnloaded()
+  table.clear(sirenStageByVehId)
+  table.clear(lastSirenTapByVehId)
+end
+
+return M

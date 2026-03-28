@@ -1,0 +1,18 @@
+{
+    "togglePoliceLights": {
+        "cat": "gameplay",
+        "order": 260,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.togglePoliceLights() end",
+        "title": "Police: Toggle Lights",
+        "desc": "Toggle police lightbar lights only (siren remains off unless enabled separately)"
+    },
+    "cyclePoliceSiren": {
+        "cat": "gameplay",
+        "order": 261,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.cyclePoliceSiren() end",
+        "title": "Police: Cycle Siren",
+        "desc": "Single tap changes police siren tone (wail/yelp). Double tap turns siren off. Siren requires lights to be on."
+    }
+}
