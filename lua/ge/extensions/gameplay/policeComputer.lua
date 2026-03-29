@@ -12,6 +12,8 @@ local retiredVehicleIds = {} -- vehicles evicted from ANPR history for this sess
 local spawnGeneration = {} -- keyed by vehicle ID, increments each spawn to vary seeded randoms
 local globalSpawnCounter = 0 -- monotonic counter across all spawns
 local seenTickCounter = 0
+local perVehicleComputerState = {} -- keyed by inventoryId
+local activeInventoryId = nil
 local scanTimer = 0
 local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
@@ -67,6 +69,8 @@ local apbReasons = {
 local trafficStopTarget = nil
 local trafficStopTimer = 0
 local trafficStopInitiated = false
+local trafficStopComplying = false
+local trafficStopEnforceTimer = 0
 local trafficStopOwnedFlee = {}
 local earlyFleeTimer = nil
 local rabbitTarget = nil
@@ -78,6 +82,8 @@ local STOP_DWELL_TIME = 3.0
 local STOP_RANGE = 15
 local STOP_CONE_DOT = 0.92
 local STOP_MAX_SPEED = 5
+local STOP_ENFORCE_INTERVAL = 0.35
+local TICKET_BASE_REWARD = 4000
 
 -- Forward declarations used by onUpdate.
 local updateTrafficStop
@@ -240,6 +246,55 @@ local function getPlayerPoliceVehicle()
   return nil
 end
 
+local function getInventoryIdFromVehicleId(vehId)
+  if not vehId then return nil end
+  if not career_modules_inventory or not career_modules_inventory.getInventoryIdFromVehicleId then return nil end
+  return career_modules_inventory.getInventoryIdFromVehicleId(vehId)
+end
+
+local function setEmptyComputerState()
+  anprActive = false
+  scannedVehIds = {}
+  vehicleRecords = {}
+  vehicleLastSeenTick = {}
+  retiredVehicleIds = {}
+  seenTickCounter = 0
+end
+
+local function saveStateForInventoryId(invId)
+  if not invId then return end
+  perVehicleComputerState[invId] = {
+    anprActive = anprActive and true or false,
+    scannedVehIds = deepcopy(scannedVehIds),
+    vehicleRecords = deepcopy(vehicleRecords),
+    vehicleLastSeenTick = deepcopy(vehicleLastSeenTick),
+    retiredVehicleIds = deepcopy(retiredVehicleIds),
+    seenTickCounter = seenTickCounter or 0,
+  }
+end
+
+local function saveCurrentVehicleState()
+  if activeInventoryId then
+    saveStateForInventoryId(activeInventoryId)
+  end
+end
+
+local function restoreStateForInventoryId(invId)
+  activeInventoryId = invId
+  local saved = invId and perVehicleComputerState[invId] or nil
+  if not saved then
+    setEmptyComputerState()
+    return
+  end
+
+  anprActive = saved.anprActive and true or false
+  scannedVehIds = deepcopy(saved.scannedVehIds or {})
+  vehicleRecords = deepcopy(saved.vehicleRecords or {})
+  vehicleLastSeenTick = deepcopy(saved.vehicleLastSeenTick or {})
+  retiredVehicleIds = deepcopy(saved.retiredVehicleIds or {})
+  seenTickCounter = saved.seenTickCounter or 0
+end
+
 local function getLightbarSignal(vehObj, vehId)
   if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
     local state = map.objects[vehId].states.lightbar
@@ -279,6 +334,7 @@ local function scanForVehicles()
   local closestVehId = nil
   local closestPlate = nil
   local hasNewScan = false
+  local historyChanged = false
   local detected = {}
   local trackedSet = {}
 
@@ -329,6 +385,7 @@ local function scanForVehicles()
   guihooks.trigger('policeComputerAhead', { plate = closestPlate })
 
   if #detected > 0 then
+    local oldIds = deepcopy(scannedVehIds)
     -- Update recency for all vehicles currently in view, with the closest one treated as most recent.
     table.sort(detected, function(a, b) return a.dist > b.dist end)
     for _, entry in ipairs(detected) do
@@ -359,10 +416,22 @@ local function scanForVehicles()
         retiredVehicleIds[evictedVehId] = true
       end
     end
+
+    if #oldIds ~= #scannedVehIds then
+      historyChanged = true
+    else
+      for i = 1, #scannedVehIds do
+        if scannedVehIds[i] ~= oldIds[i] then
+          historyChanged = true
+          break
+        end
+      end
+    end
   end
 
-  -- Push full state after any new scan so UI stays in sync
-  if hasNewScan then
+  -- Push full state after any scan/history updates so UI stays in sync
+  if hasNewScan or historyChanged then
+    saveCurrentVehicleState()
     guihooks.trigger('policeComputerState', {
       anprActive = anprActive,
       scannedPlates = M.getScannedPlatesList()
@@ -374,6 +443,7 @@ end
 
 function M.toggleANPR()
   anprActive = not anprActive
+  saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
     anprActive = anprActive,
     scannedPlates = M.getScannedPlatesList()
@@ -383,6 +453,7 @@ end
 
 function M.setANPR(active)
   anprActive = active
+  saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
     anprActive = anprActive,
     scannedPlates = M.getScannedPlatesList()
@@ -430,6 +501,7 @@ function M.clearScans()
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
   seenTickCounter = 0
+  saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
     anprActive = anprActive,
     scannedPlates = {}
@@ -439,16 +511,22 @@ end
 -- Visibility
 
 local function checkPoliceVehicle()
-  local isInPolice = getPlayerPoliceVehicle() ~= nil
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  local isInPolice = playerVeh ~= nil
+  if isInPolice then
+    local invId = getInventoryIdFromVehicleId(playerVehId)
+    if invId and invId ~= activeInventoryId then
+      restoreStateForInventoryId(invId)
+      guihooks.trigger('policeComputerState', {
+        anprActive = anprActive,
+        scannedPlates = M.getScannedPlatesList()
+      })
+    end
+  end
+
   if isInPolice ~= computerVisible then
     computerVisible = isInPolice
     guihooks.trigger('policeComputerVisibility', { visible = computerVisible })
-    if not computerVisible then
-      -- Auto-disable ANPR when exiting police vehicle
-      if anprActive then
-        anprActive = false
-      end
-    end
     log('I', logTag, 'Police computer ' .. (computerVisible and 'shown' or 'hidden'))
   end
 end
@@ -504,9 +582,28 @@ function M.onTrafficVehicleRemoved(vehId)
       break
     end
   end
+  saveCurrentVehicleState()
 end
 
 function M.onVehicleSwitched(oldId, newId)
+  local oldInvId = getInventoryIdFromVehicleId(oldId)
+  if oldInvId then
+    saveStateForInventoryId(oldInvId)
+  end
+
+  local newInvId = getInventoryIdFromVehicleId(newId)
+  if newInvId then
+    restoreStateForInventoryId(newInvId)
+  else
+    activeInventoryId = nil
+    setEmptyComputerState()
+  end
+
+  guihooks.trigger('policeComputerState', {
+    anprActive = anprActive,
+    scannedPlates = M.getScannedPlatesList()
+  })
+
   checkPoliceVehicle()
 end
 
@@ -561,6 +658,7 @@ end
 
 local function fleeFromStop(vehId, mode)
   mode = mode or 2
+  trafficStopComplying = false
   trafficStopOwnedFlee[vehId] = true
   gameplay_police.setPursuitMode(mode, vehId)
   if mode == 2 then
@@ -592,7 +690,9 @@ local function initiateTrafficStop(vehId)
   if flee then
     fleeFromStop(vehId, fleeMode)
   else
-    obj:queueLuaCommand('ai.setMode("traffic")')
+    trafficStopComplying = true
+    trafficStopEnforceTimer = 0
+    obj:queueLuaCommand('ai.setMode("stop")')
     obj:queueLuaCommand('ai.setSpeedMode("set")')
     obj:queueLuaCommand('ai.setTargetSpeed(0)')
     guihooks.trigger('policeComputerStopInitiated', { plate = record and record.plate })
@@ -612,6 +712,36 @@ local function initiateTrafficStop(vehId)
       end
     end
   end
+end
+
+local function awardTicketReward(vehId)
+  local reward = TICKET_BASE_REWARD
+  local reputationBonus = 1.0
+
+  if freeroam_organizations and freeroam_organizations.getOrganization then
+    local org = freeroam_organizations.getOrganization("policeLoaner")
+    if org and org.reputation and org.reputationLevels then
+      local levelIndex = (org.reputation.level or 0) + 2
+      local level = org.reputationLevels[levelIndex]
+      if level and level.deliveryBonus and level.deliveryBonus.value then
+        reputationBonus = tonumber(level.deliveryBonus.value) or 1.0
+      end
+    end
+  end
+
+  reward = math.floor(reward * reputationBonus + 0.5)
+
+  if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
+    career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
+  elseif career_modules_payment and career_modules_payment.reward then
+    career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
+  end
+
+  local message = "You ticketed this driver: $" .. reward
+  if reputationBonus ~= 1 then
+    message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
+  end
+  ui_message(message, 5, "Police")
 end
 
 local function findVehicleAhead(playerVeh, range, coneDot)
@@ -650,6 +780,8 @@ local function resetTrafficStop()
   trafficStopTarget = nil
   trafficStopTimer = 0
   trafficStopInitiated = false
+  trafficStopComplying = false
+  trafficStopEnforceTimer = 0
   earlyFleeTimer = nil
   if hadStopState then
     guihooks.trigger('policeComputerStopProgress', nil)
@@ -665,7 +797,34 @@ updateTrafficStop = function(dtReal)
 
   local lightbar = getLightbarSignal(playerVeh, playerVehId)
   if lightbar ~= 1 then
+    if trafficStopInitiated and trafficStopComplying and trafficStopTarget then
+      awardTicketReward(trafficStopTarget)
+    end
     resetTrafficStop()
+    return
+  end
+
+  if trafficStopInitiated then
+    if trafficStopComplying then
+      trafficStopEnforceTimer = trafficStopEnforceTimer + dtReal
+      if trafficStopEnforceTimer >= STOP_ENFORCE_INTERVAL then
+        trafficStopEnforceTimer = 0
+        local targetObj = getObjectByID(trafficStopTarget)
+        if targetObj then
+          targetObj:queueLuaCommand('ai.setMode("stop")')
+          targetObj:queueLuaCommand('ai.setSpeedMode("set")')
+          targetObj:queueLuaCommand('ai.setTargetSpeed(0)')
+        else
+          resetTrafficStop()
+          return
+        end
+      end
+    else
+      -- Flee path should not remain latched in a traffic-stop session.
+      resetTrafficStop()
+      return
+    end
+    guihooks.trigger('policeComputerStopProgress', nil)
     return
   end
 
@@ -684,6 +843,8 @@ updateTrafficStop = function(dtReal)
     trafficStopTarget = target
     trafficStopTimer = 0
     trafficStopInitiated = false
+    trafficStopComplying = false
+    trafficStopEnforceTimer = 0
     earlyFleeTimer = nil
 
     local record = vehicleRecords[target]
@@ -706,11 +867,6 @@ updateTrafficStop = function(dtReal)
       guihooks.trigger('policeComputerStopProgress', nil)
       return
     end
-  end
-
-  if trafficStopInitiated then
-    guihooks.trigger('policeComputerStopProgress', nil)
-    return
   end
 
   trafficStopTimer = trafficStopTimer + dtReal
@@ -780,6 +936,14 @@ end
 
 function M.onExtensionLoaded()
   log('I', logTag, 'Police Computer module loaded')
+  local _, playerVehId = getPlayerPoliceVehicle()
+  local invId = getInventoryIdFromVehicleId(playerVehId)
+  if invId then
+    restoreStateForInventoryId(invId)
+  else
+    activeInventoryId = nil
+    setEmptyComputerState()
+  end
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.2 })
   end
@@ -793,9 +957,13 @@ function M.onExtensionUnloaded()
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
   seenTickCounter = 0
+  perVehicleComputerState = {}
+  activeInventoryId = nil
   trafficStopTarget = nil
   trafficStopTimer = 0
   trafficStopInitiated = false
+  trafficStopComplying = false
+  trafficStopEnforceTimer = 0
   trafficStopOwnedFlee = {}
   earlyFleeTimer = nil
   rabbitTarget = nil

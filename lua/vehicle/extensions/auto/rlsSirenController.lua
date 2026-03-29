@@ -24,7 +24,8 @@ end
 
 local function playTone(toneName)
   local src = sources[toneName]
-  if not src then return end
+  if not src then print("[rlsSirenController] playTone: no source for " .. toneName) return end
+  print("[rlsSirenController] playTone: " .. toneName .. " srcId=" .. tostring(src.id))
   obj:cutSFX(src.id)
   obj:setVolume(src.id, src.volume)
   obj:playSFX(src.id)
@@ -34,11 +35,19 @@ end
 
 -- Cycle through configured tones: Off -> tone1 -> tone2 -> ... -> Off
 local function cycleSiren()
-  if not configured or #toneOrder == 0 then return end
+  print("[rlsSirenController] cycleSiren called. configured=" .. tostring(configured) .. " toneCount=" .. #toneOrder)
+  if not configured or #toneOrder == 0 then
+    print("[rlsSirenController] NOT configured or no tones — aborting")
+    return
+  end
 
   -- Require lights to be on (lightbar_signal >= 1)
   local lightbar = electrics.values.lightbar_signal or 0
-  if lightbar < 1 then return end
+  print("[rlsSirenController] lightbar=" .. tostring(lightbar))
+  if lightbar < 1 then
+    print("[rlsSirenController] lightbar < 1 — aborting")
+    return
+  end
 
   -- Stop current tone
   if currentTone > 0 and toneOrder[currentTone] then
@@ -64,6 +73,7 @@ end
 -- Receive configuration from GE side (called via queueLuaCommand once at spawn)
 -- cfg = { tones = { {name="wail", event="event:>..."}, {name="yelp", event="event:>..."}, ... } }
 local function setConfig(cfg)
+  print("[rlsSirenController] setConfig called")
   stopAll()
 
   -- Clean up old sources
@@ -74,13 +84,18 @@ local function setConfig(cfg)
   toneOrder = {}
   configured = false
 
-  if not cfg or not cfg.tones or #cfg.tones == 0 then return end
+  if not cfg or not cfg.tones or #cfg.tones == 0 then
+    print("[rlsSirenController] setConfig: no tones provided")
+    return
+  end
 
   for _, tone in ipairs(cfg.tones) do
     if tone.event and tone.event ~= "" and tone.name and tone.name ~= "" then
       idCounter = idCounter + 1
       local uniqueName = "rlsSiren_" .. tone.name .. "_" .. obj:getID() .. "_" .. idCounter
+      print("[rlsSirenController] Creating SFXSource: " .. uniqueName .. " event=" .. tone.event)
       local srcId = obj:createSFXSource2(tone.event, "AudioDefaultLoop3D", uniqueName, v.data.refNodes[0].ref, 0)
+      print("[rlsSirenController] SFXSource result: " .. tostring(srcId))
       if srcId then
         sources[tone.name] = { id = srcId, volume = tone.volume or 1.5 }
         table.insert(toneOrder, tone.name)
@@ -89,6 +104,7 @@ local function setConfig(cfg)
   end
 
   configured = #toneOrder > 0
+  print("[rlsSirenController] setConfig done. configured=" .. tostring(configured) .. " tones=" .. #toneOrder)
 end
 
 local function isActive()
@@ -118,6 +134,7 @@ local function onReset()
 end
 
 local function onExtensionLoaded()
+  print("[rlsSirenController] Extension loaded on vehicle " .. tostring(obj:getID()))
   electrics.values.rlsSirenActive = 0
   electrics.values.rlsSirenTone = ""
 end
