@@ -106,10 +106,22 @@ local function generatePlate()
   return plate
 end
 
+local recordTTL = 30 -- seconds before a record expires and gets regenerated
+
 local function generateRecord(vehId)
-  if vehicleRecords[vehId] then
-    log('D', logTag, 'generateRecord: CACHED record for vehId=' .. vehId .. ' plate=' .. tostring(vehicleRecords[vehId].plate))
-    return vehicleRecords[vehId]
+  local existing = vehicleRecords[vehId]
+  if existing then
+    -- Expire records after TTL if the vehicle isn't currently in our scanned list
+    local inScanList = false
+    for _, sid in ipairs(scannedVehIds) do
+      if sid == vehId then inScanList = true break end
+    end
+    if not inScanList and existing.createdAt and (os.clock() - existing.createdAt) > recordTTL then
+      log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
+      removeTrackedVehicleRecord(vehId)
+    else
+      return existing
+    end
   end
   -- Seed with high-entropy source to guarantee uniqueness
   local seed = os.clock() * 1000000 + vehId * 31
@@ -142,11 +154,16 @@ local function generateRecord(vehId)
     plate = generatePlate() .. string.format('-%02d', vehId % 100)
   end
 
-  log('I', logTag, 'generateRecord: vehId=' .. vehId .. ' plate=' .. plate .. ' model=' .. vehicleName)
-
   local driverFirst = firstNames[math.random(1, #firstNames)]
   local driverLast = lastNames[math.random(1, #lastNames)]
   local driverName = driverFirst .. ' ' .. driverLast
+
+  local colorStr = 'unknown'
+  local paintData = core_vehicle_manager.getVehiclePaintsNames(vehId)
+  if paintData and paintData[1] then
+    colorStr = tostring(paintData[1])
+  end
+  log('I', logTag, 'generateRecord: NEW vehId=' .. vehId .. ' plate=' .. plate .. ' model=' .. vehicleName .. ' color=' .. colorStr .. ' driver=' .. driverName)
 
   -- Registered owner (usually same as driver, sometimes different)
   local ownerName = driverName
@@ -211,6 +228,7 @@ local function generateRecord(vehId)
     flagged = flagged,
     alerts = alerts,
     priors = priors,
+    createdAt = os.clock(),
   }
 
   vehicleRecords[vehId] = record
