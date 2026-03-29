@@ -10,8 +10,6 @@ local vehicleRecords = {} -- keyed by vehicle ID
 local plateOwners = {} -- keyed by plate string, value is vehId
 local vehicleLastSeenTick = {} -- keyed by vehicle ID, higher means more recent
 local retiredVehicleIds = {} -- vehicles evicted from ANPR history for this session
-local spawnGeneration = {} -- keyed by vehicle ID, increments each spawn to vary seeded randoms
-local globalSpawnCounter = 0 -- monotonic counter across all spawns
 local seenTickCounter = 0
 local perVehicleComputerState = {} -- keyed by inventoryId
 local activeInventoryId = nil
@@ -93,32 +91,10 @@ local TICKET_BASE_REWARD = 4000
 local updateTrafficStop
 local updateRabbit
 
--- Seeded random using vehicle ID + spawn generation for variety across respawns
-local function seededRandom(id, salt)
-  local gen = spawnGeneration[id] or 0
-  local seed = id * 31 + (salt or 0) + gen * 7919
-  math.randomseed(seed)
-  local val = math.random()
-  math.randomseed(os.clock() * 100000) -- restore randomness
-  return val
-end
-
-local function seededRandomInt(id, salt, min, max)
-  local gen = spawnGeneration[id] or 0
-  local seed = id * 31 + (salt or 0) + gen * 7919
-  math.randomseed(seed)
-  local val = math.random(min, max)
-  math.randomseed(os.clock() * 100000)
-  return val
-end
-
-local function generatePlate(id, variant)
-  local gen = spawnGeneration[id] or 0
-  variant = tonumber(variant) or 0
+-- True random plate generation — cache handles consistency within a vehicle's lifetime
+local function generatePlate()
   local letters = 'ABCDEFGHJKLMNPRSTUVWXYZ'
   local plate = ''
-  math.randomseed(id * 17 + 3 + gen * 4657 + variant * 1907)
-  -- Format: 3 letters + 4 digits (e.g. "ABC 1234")
   for i = 1, 3 do
     local idx = math.random(1, #letters)
     plate = plate .. letters:sub(idx, idx)
@@ -127,7 +103,6 @@ local function generatePlate(id, variant)
   for i = 1, 4 do
     plate = plate .. tostring(math.random(0, 9))
   end
-  math.randomseed(os.clock() * 100000)
   return plate
 end
 
@@ -147,49 +122,50 @@ local function generateRecord(vehId)
     vehicleName = model.Brand .. ' ' .. vehicleName
   end
 
+  -- Generate unique plate
   local plate
-  for attempt = 0, 99 do
-    local candidate = generatePlate(vehId, attempt)
-    local ownerId = plateOwners[candidate]
-    if not ownerId or ownerId == vehId then
+  for attempt = 1, 100 do
+    local candidate = generatePlate()
+    if not plateOwners[candidate] then
       plate = candidate
       break
     end
   end
   if not plate then
-    plate = generatePlate(vehId, 0) .. string.format('-%02d', vehId % 100)
+    plate = generatePlate() .. string.format('-%02d', vehId % 100)
   end
-  local driverFirst = firstNames[seededRandomInt(vehId, 1, 1, #firstNames)]
-  local driverLast = lastNames[seededRandomInt(vehId, 2, 1, #lastNames)]
+
+  local driverFirst = firstNames[math.random(1, #firstNames)]
+  local driverLast = lastNames[math.random(1, #lastNames)]
   local driverName = driverFirst .. ' ' .. driverLast
 
   -- Registered owner (usually same as driver, sometimes different)
   local ownerName = driverName
-  if seededRandom(vehId, 10) < 0.15 then
-    local ownerFirst = firstNames[seededRandomInt(vehId, 11, 1, #firstNames)]
-    local ownerLast = lastNames[seededRandomInt(vehId, 12, 1, #lastNames)]
+  if math.random() < 0.15 then
+    local ownerFirst = firstNames[math.random(1, #firstNames)]
+    local ownerLast = lastNames[math.random(1, #lastNames)]
     ownerName = ownerFirst .. ' ' .. ownerLast
   end
 
-  local address = tostring(seededRandomInt(vehId, 20, 100, 9999)) .. ' ' .. streetNames[seededRandomInt(vehId, 21, 1, #streetNames)]
+  local address = tostring(math.random(100, 9999)) .. ' ' .. streetNames[math.random(1, #streetNames)]
 
   -- Generate flags
-  local wanted = seededRandom(vehId, 30) < 0.01
-  local stolen = seededRandom(vehId, 31) < 0.005
-  local suspendedLicense = seededRandom(vehId, 32) < 0.02
-  local noInsurance = seededRandom(vehId, 33) < 0.015
-  local expiredRegistration = seededRandom(vehId, 34) < 0.025
-  local apb = seededRandom(vehId, 35) < 0.01
-  local apbReason = apb and apbReasons[seededRandomInt(vehId, 36, 1, #apbReasons)] or nil
+  local wanted = math.random() < 0.01
+  local stolen = math.random() < 0.005
+  local suspendedLicense = math.random() < 0.02
+  local noInsurance = math.random() < 0.015
+  local expiredRegistration = math.random() < 0.025
+  local apb = math.random() < 0.01
+  local apbReason = apb and apbReasons[math.random(1, #apbReasons)] or nil
 
   -- Generate prior offenses
   local priors = {}
   local numPriors = 0
-  if seededRandom(vehId, 40) < 0.30 then
-    numPriors = seededRandomInt(vehId, 41, 1, 4)
+  if math.random() < 0.30 then
+    numPriors = math.random(1, 4)
     for i = 1, numPriors do
-      local offense = offenseTypes[seededRandomInt(vehId, 50 + i, 1, #offenseTypes)]
-      local year = seededRandomInt(vehId, 60 + i, 2018, 2025)
+      local offense = offenseTypes[math.random(1, #offenseTypes)]
+      local year = math.random(2018, 2025)
       table.insert(priors, {
         offense = offense.label,
         severity = offense.severity,
@@ -614,10 +590,7 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
 end
 
 function M.onTrafficVehicleAdded(vehId)
-  -- Increment spawn generation so recycled vehicle IDs get fresh records
-  globalSpawnCounter = globalSpawnCounter + 1
-  spawnGeneration[vehId] = globalSpawnCounter
-  log('I', logTag, 'onTrafficVehicleAdded: vehId=' .. vehId .. ' gen=' .. globalSpawnCounter)
+  log('I', logTag, 'onTrafficVehicleAdded: vehId=' .. vehId)
 
   local record = generateRecord(vehId)
   if record and (record.wanted or record.stolen) then
@@ -639,8 +612,6 @@ function M.onTrafficVehicleRemoved(vehId)
   log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
   removeTrackedVehicleRecord(vehId)
   retiredVehicleIds[vehId] = nil
-  -- Keep spawnGeneration[vehId] intentionally — it ensures the next vehicle
-  -- with this recycled ID gets a different seed
   saveCurrentVehicleState()
 end
 
