@@ -15,6 +15,7 @@ local globalSpawnCounter = 0 -- monotonic counter across all spawns
 local seenTickCounter = 0
 local perVehicleComputerState = {} -- keyed by inventoryId
 local activeInventoryId = nil
+local elapsedRealtime = 0
 local scanTimer = 0
 local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
@@ -211,7 +212,7 @@ local function generateRecord(vehId)
 
   local record = {
     vehId = vehId,
-    createdAt = os.clock(),
+    createdAt = elapsedRealtime,
     plate = plate,
     vehicleName = vehicleName,
     driverName = driverName,
@@ -250,7 +251,7 @@ local function removeTrackedVehicleRecord(vehId)
 end
 
 local function purgeExpiredRecords()
-  local now = os.clock()
+  local now = elapsedRealtime
   local removedAny = false
 
   for vehId, record in pairs(vehicleRecords) do
@@ -617,6 +618,7 @@ end
 -- Hooks
 
 function M.onUpdate(dtReal, dtSim, dtRaw)
+  elapsedRealtime = elapsedRealtime + (dtReal or 0)
   checkPoliceVehicle()
 
   updateTrafficStop(dtReal)
@@ -1058,6 +1060,7 @@ end
 
 function M.onExtensionLoaded()
   log('I', logTag, 'Police Computer module loaded')
+  elapsedRealtime = 0
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1074,6 +1077,7 @@ end
 function M.onExtensionUnloaded()
   anprActive = false
   computerVisible = false
+  elapsedRealtime = 0
   scannedVehIds = {}
   vehicleRecords = {}
   plateOwners = {}
