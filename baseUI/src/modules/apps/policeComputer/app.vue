@@ -302,7 +302,7 @@ $clear-green: #3cff6e;
 
 .police-computer {
   font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 14px;
+  font-size: 18px;
   color: $text-primary;
   background: $bg-dark;
   border: 1px solid $border-color;
