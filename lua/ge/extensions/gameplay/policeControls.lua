@@ -2,10 +2,6 @@ local M = {}
 
 local logTag = "policeControls"
 
-local sirenStageByVehId = {}
-local lastSirenTapByVehId = {}
-local SIREN_DOUBLE_TAP_WINDOW = 0.35
-
 local function getPlayerPoliceVehicle()
   local playerVeh = be:getPlayerVehicle(0)
   if not playerVeh then return nil end
@@ -58,8 +54,15 @@ local function getLightbarState(playerVeh)
   return 0
 end
 
+-- Push siren FMOD config to the vehicle extension for the current police vehicle
+local function pushSirenConfig(vehId)
+  if career_modules_policeSirenSetup and career_modules_policeSirenSetup.pushSirenConfigToVehicle then
+    career_modules_policeSirenSetup.pushSirenConfigToVehicle(vehId)
+  end
+end
+
 -- Lights toggle: OFF <-> lights-only.
--- Turning lights off forces siren off and resets stage.
+-- Turning lights off kills siren sounds via the vehicle extension.
 -- Turning lights on triggers an immediate traffic stop on the vehicle ahead.
 function M.togglePoliceLights()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
@@ -70,8 +73,9 @@ function M.togglePoliceLights()
   playerVeh:queueLuaCommand(string.format("electrics.set_lightbar_signal(%d)", nextState))
 
   if nextState == 0 then
+    -- Lights off: stop siren sounds
     playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
-    sirenStageByVehId[playerVehId] = 0
+    playerVeh:queueLuaCommand("extensions.auto_rlsSirenController.stopAll()")
   else
     -- Lights just turned on — immediately try to initiate a traffic stop on the vehicle ahead
     if gameplay_policeComputer and gameplay_policeComputer.immediateTrafficStop then
@@ -80,65 +84,42 @@ function M.togglePoliceLights()
   end
 end
 
--- Siren control (with lights required):
--- single tap toggles siren on/off (lightbar 1 <-> 2), double tap turns everything off.
-function M.cyclePoliceSiren()
-  local playerVeh, playerVehId = getPlayerPoliceVehicle()
-  if not playerVeh then return end
-
-  local lightbar = getLightbarState(playerVeh)
-  if lightbar <= 0 then
-    sirenStageByVehId[playerVehId] = 0
-    lastSirenTapByVehId[playerVehId] = nil
-    return
+function M.onVehicleSwitched(oldId, newId)
+  -- Stop sirens on the old vehicle
+  if oldId then
+    local oldObj = be:getObjectByID(oldId)
+    if oldObj then
+      oldObj:queueLuaCommand("extensions.auto_rlsSirenController.stopAll()")
+    end
   end
-
-  local now = os.clock()
-  local lastTap = lastSirenTapByVehId[playerVehId]
-  local isDoubleTap = lastTap and (now - lastTap) <= SIREN_DOUBLE_TAP_WINDOW
-  lastSirenTapByVehId[playerVehId] = now
-
-  if isDoubleTap then
-    -- Double tap: turn everything off (back to lights only)
-    playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
-    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(1)")
-    sirenStageByVehId[playerVehId] = 0
-    lastSirenTapByVehId[playerVehId] = nil
-    return
-  end
-
-  local stage = sirenStageByVehId[playerVehId] or 0
-
-  if stage == 0 then
-    -- Siren on
-    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(2)")
-    sirenStageByVehId[playerVehId] = 1
-  else
-    -- Siren off (back to lights only)
-    playerVeh:queueLuaCommand("electrics.set_lightbar_signal(1)")
-    sirenStageByVehId[playerVehId] = 0
+  -- Push siren config to the new vehicle
+  if newId then
+    pushSirenConfig(newId)
   end
 end
 
-function M.onVehicleSwitched(oldId, newId)
-  if oldId then
-    sirenStageByVehId[oldId] = nil
-    lastSirenTapByVehId[oldId] = nil
+function M.onVehicleSpawned(vehId)
+  -- Push siren config when a vehicle spawns (covers initial spawn)
+  local playerVeh = be:getPlayerVehicle(0)
+  if playerVeh and playerVeh:getID() == vehId then
+    pushSirenConfig(vehId)
   end
 end
 
 function M.onTrafficVehicleRemoved(vehId)
-  sirenStageByVehId[vehId] = nil
-  lastSirenTapByVehId[vehId] = nil
+  -- No cleanup needed; vehicle extension handles its own teardown
 end
 
 function M.onExtensionLoaded()
   log("I", logTag, "Police controls loaded")
+  -- Push config to current vehicle if already spawned
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if playerVehId then
+    pushSirenConfig(playerVehId)
+  end
 end
 
 function M.onExtensionUnloaded()
-  table.clear(sirenStageByVehId)
-  table.clear(lastSirenTapByVehId)
 end
 
 return M

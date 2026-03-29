@@ -281,8 +281,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-$bg-dark: rgba(10, 14, 20, 0.92);
-$bg-panel: rgba(15, 22, 35, 0.95);
+$bg-dark: rgba(10, 14, 20, 0.98);
+$bg-panel: rgba(15, 22, 35, 0.99);
 $border-color: rgba(40, 80, 140, 0.5);
 $text-primary: #c8d8e8;
 $text-secondary: #7a8ea0;
@@ -293,13 +293,13 @@ $clear-green: #3cff6e;
 
 .police-computer {
   font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 14px;
   color: $text-primary;
   background: $bg-dark;
   border: 1px solid $border-color;
   border-radius: 4px;
-  min-width: 360px;
-  max-width: 420px;
+  min-width: 400px;
+  max-width: 460px;
   overflow: hidden;
   user-select: none;
 
@@ -337,7 +337,7 @@ $clear-green: #3cff6e;
 }
 
 .pc-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -356,7 +356,7 @@ $clear-green: #3cff6e;
   padding: 2px 10px;
   border-radius: 2px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   cursor: pointer;
   letter-spacing: 1px;
@@ -377,7 +377,7 @@ $clear-green: #3cff6e;
   padding: 1px 8px;
   border-radius: 2px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
   line-height: 1;
   transition: all 0.15s ease;
@@ -443,7 +443,7 @@ $clear-green: #3cff6e;
 .plate-vehicle {
   flex: 1;
   color: $text-secondary;
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -453,7 +453,7 @@ $clear-green: #3cff6e;
   width: 20px;
   text-align: center;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 16px;
 
   &.status-clear {
     color: $clear-green;
@@ -539,7 +539,7 @@ $clear-green: #3cff6e;
   display: flex;
   justify-content: space-between;
   padding: 1px 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .detail-label {
@@ -561,7 +561,7 @@ $clear-green: #3cff6e;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .prior-year {
@@ -636,7 +636,7 @@ $clear-green: #3cff6e;
   padding: 5px 10px;
   text-align: center;
   font-weight: bold;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 1.5px;
   animation: alertFlash 1s ease-in-out infinite;
 
@@ -675,7 +675,7 @@ $clear-green: #3cff6e;
   position: relative;
   display: block;
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: bold;
   letter-spacing: 1px;
   line-height: 18px;

@@ -46,6 +46,19 @@ local function findSlotNode(node, targetSlot)
   return nil
 end
 
+-- Extract the FMOD event path from a jBeam part's soundscape table
+-- soundscape format: { {"name","src"}, {"siren","event:>Vehicle>Electrics>Sirens>Police_11"} }
+local function extractFmodEvent(partData)
+  if not partData or not partData.soundscape then return nil end
+  for i = 2, #partData.soundscape do
+    local row = partData.soundscape[i]
+    if row and row[2] and type(row[2]) == "string" and row[2]:find("event:") then
+      return row[2]
+    end
+  end
+  return nil
+end
+
 -- Dynamically get available parts for the soundscape_siren slot from a spawned vehicle
 local function getAvailableSirenOptions(invId)
   local spawnedId = getSpawnedIdForInventory(invId)
@@ -61,16 +74,63 @@ local function getAvailableSirenOptions(invId)
   local options = {}
   for _, partName in ipairs(sirenNode.suitablePartNames) do
     local partInfo = availableParts[partName]
-    local partData = jbeamIO.getPart(vd.ioCtx, partName)
-    log("I", logTag, "=== DEBUG partInfo for " .. partName .. " ===")
-    log("I", logTag, dumps(partInfo))
-    log("I", logTag, "=== DEBUG partData for " .. partName .. " ===")
-    log("I", logTag, dumps(partData))
     local desc = partInfo and partInfo.description
     local label = (type(desc) == "table" and desc.description or desc) or partName
     table.insert(options, {value = partName, label = label})
   end
   return #options > 0 and options or nil
+end
+
+-- Build siren config (FMOD event paths) for a spawned police vehicle
+local function buildSirenConfig(vehId)
+  if not career_modules_inventory or not career_modules_inventory.getInventoryIdFromVehicleId then return nil end
+  local inventoryId = career_modules_inventory.getInventoryIdFromVehicleId(vehId)
+  if not inventoryId then return nil end
+  local vehicleData = getVehicleData(inventoryId)
+  if not vehicleData then return nil end
+  if not isPoliceVehicle(vehicleData, inventoryId) then return nil end
+
+  local vd = extensions.core_vehicle_manager and extensions.core_vehicle_manager.getVehicleData(vehId)
+  if not vd or not vd.ioCtx then return nil end
+
+  local stored = vehicleData.rlsPoliceSirenSetup
+  local primaryPart = stored and stored.primaryAudio or (vehicleData.config and vehicleData.config.parts and vehicleData.config.parts.soundscape_siren) or nil
+  local secondaryPart = stored and stored.secondaryAudio or nil
+
+  local tones = {}
+  if primaryPart and primaryPart ~= "" then
+    local partData = jbeamIO.getPart(vd.ioCtx, primaryPart)
+    local event = extractFmodEvent(partData)
+    if event then
+      table.insert(tones, {name = "wail", event = event})
+    end
+  end
+  if secondaryPart and secondaryPart ~= "" then
+    local partData = jbeamIO.getPart(vd.ioCtx, secondaryPart)
+    local event = extractFmodEvent(partData)
+    if event then
+      table.insert(tones, {name = "yelp", event = event})
+    end
+  end
+
+  return #tones > 0 and {tones = tones} or nil
+end
+
+-- Push siren FMOD config to the vehicle extension (called once at spawn/switch)
+local function pushSirenConfigToVehicle(vehId)
+  local config = buildSirenConfig(vehId)
+  if not config or not config.tones or #config.tones == 0 then return end
+
+  local parts = {}
+  for _, tone in ipairs(config.tones) do
+    table.insert(parts, string.format('{name="%s",event="%s",volume=%.1f}', tone.name, tone.event, tone.volume or 1.5))
+  end
+  local configStr = "{tones={" .. table.concat(parts, ",") .. "}}"
+
+  local obj = be:getObjectByID(vehId)
+  if not obj then return end
+  obj:queueLuaCommand("extensions.auto_rlsSirenController.setConfig(" .. configStr .. ")")
+  log("I", logTag, "Pushed siren config to vehicle " .. vehId .. ": " .. configStr)
 end
 
 local function getStoredConfig(vehicleData)
@@ -221,6 +281,7 @@ M.closeMenu = closeMenu
 M.getSetupData = getSetupData
 M.setSetupData = setSetupData
 M.getVehicleAudioSetupByVehicleId = getVehicleAudioSetupByVehicleId
+M.pushSirenConfigToVehicle = pushSirenConfigToVehicle
 M.onComputerAddFunctions = onComputerAddFunctions
 
 return M

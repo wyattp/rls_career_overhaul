@@ -5,13 +5,18 @@ local logTag = 'policeComputer'
 -- State
 local computerVisible = false
 local anprActive = false
-local scannedPlates = {} -- ordered list of scanned plate strings (most recent first)
+local scannedVehIds = {} -- ordered list of scanned vehicle IDs (most recent first)
 local vehicleRecords = {} -- keyed by vehicle ID
+local vehicleLastSeenTick = {} -- keyed by vehicle ID, higher means more recent
+local retiredVehicleIds = {} -- vehicles evicted from ANPR history for this session
+local spawnGeneration = {} -- keyed by vehicle ID, increments each spawn to vary seeded randoms
+local globalSpawnCounter = 0 -- monotonic counter across all spawns
+local seenTickCounter = 0
 local scanTimer = 0
 local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
-local maxScannedPlates = 12
+local maxScannedPlates = 8
 local scanRange = 40 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
 
@@ -78,9 +83,10 @@ local STOP_MAX_SPEED = 5
 local updateTrafficStop
 local updateRabbit
 
--- Seeded random using vehicle ID for consistency within a session
+-- Seeded random using vehicle ID + spawn generation for variety across respawns
 local function seededRandom(id, salt)
-  local seed = id * 31 + (salt or 0)
+  local gen = spawnGeneration[id] or 0
+  local seed = id * 31 + (salt or 0) + gen * 7919
   math.randomseed(seed)
   local val = math.random()
   math.randomseed(os.clock() * 100000) -- restore randomness
@@ -88,7 +94,8 @@ local function seededRandom(id, salt)
 end
 
 local function seededRandomInt(id, salt, min, max)
-  local seed = id * 31 + (salt or 0)
+  local gen = spawnGeneration[id] or 0
+  local seed = id * 31 + (salt or 0) + gen * 7919
   math.randomseed(seed)
   local val = math.random(min, max)
   math.randomseed(os.clock() * 100000)
@@ -96,9 +103,10 @@ local function seededRandomInt(id, salt, min, max)
 end
 
 local function generatePlate(id)
+  local gen = spawnGeneration[id] or 0
   local letters = 'ABCDEFGHJKLMNPRSTUVWXYZ'
   local plate = ''
-  math.randomseed(id * 17 + 3)
+  math.randomseed(id * 17 + 3 + gen * 4657)
   -- Format: 3 letters + 4 digits (e.g. "ABC 1234")
   for i = 1, 3 do
     local idx = math.random(1, #letters)
@@ -268,11 +276,18 @@ local function scanForVehicles()
   local trafficData = gameplay_traffic.getTrafficData()
 
   local closestDist = scanRange
+  local closestVehId = nil
   local closestPlate = nil
   local hasNewScan = false
+  local detected = {}
+  local trackedSet = {}
+
+  for _, vehId in ipairs(scannedVehIds) do
+    trackedSet[vehId] = true
+  end
 
   for vehId, tVeh in pairs(trafficData) do
-    if vehId ~= playerVehId and tVeh.roleName ~= 'police' then
+    if vehId ~= playerVehId and tVeh.roleName ~= 'police' and not retiredVehicleIds[vehId] then
       local obj = getObjectByID(vehId)
       if obj then
         local vehPos = obj:getPosition()
@@ -286,41 +301,24 @@ local function scanForVehicles()
             -- Track closest vehicle in cone
             if dist < closestDist then
               closestDist = dist
+              closestVehId = vehId
               closestPlate = record.plate
             end
 
-            -- Check if already scanned
-            local alreadyScanned = false
-            for i, p in ipairs(scannedPlates) do
-              if p == record.plate then
-                alreadyScanned = true
-                -- Move to front
-                table.remove(scannedPlates, i)
-                table.insert(scannedPlates, 1, record.plate)
-                break
-              end
-            end
-
-            if not alreadyScanned then
+            if not trackedSet[vehId] then
               hasNewScan = true
-              table.insert(scannedPlates, 1, record.plate)
-              if #scannedPlates > maxScannedPlates then
-                table.remove(scannedPlates, #scannedPlates)
-              end
-
-              -- Send new scan event to UI
               guihooks.trigger('policeComputerScan', {
                 record = record,
                 isNew = true
               })
-
-              -- Play alert sound if flagged
               if record.flagged then
                 Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Fail')
               end
-
               log('I', logTag, 'ANPR scanned plate: ' .. record.plate .. (record.flagged and ' [FLAGGED]' or ''))
+              trackedSet[vehId] = true
             end
+
+            table.insert(detected, {vehId = vehId, dist = dist})
           end
         end
       end
@@ -329,6 +327,39 @@ local function scanForVehicles()
 
   -- Always send which plate is currently ahead
   guihooks.trigger('policeComputerAhead', { plate = closestPlate })
+
+  if #detected > 0 then
+    -- Update recency for all vehicles currently in view, with the closest one treated as most recent.
+    table.sort(detected, function(a, b) return a.dist > b.dist end)
+    for _, entry in ipairs(detected) do
+      seenTickCounter = seenTickCounter + 1
+      vehicleLastSeenTick[entry.vehId] = seenTickCounter
+    end
+    if closestVehId then
+      seenTickCounter = seenTickCounter + 1
+      vehicleLastSeenTick[closestVehId] = seenTickCounter
+    end
+
+    local ordered = {}
+    for vehId, tick in pairs(vehicleLastSeenTick) do
+      if tick and not retiredVehicleIds[vehId] then
+        table.insert(ordered, {vehId = vehId, tick = tick})
+      end
+    end
+    table.sort(ordered, function(a, b) return a.tick > b.tick end)
+
+    scannedVehIds = {}
+    for i, entry in ipairs(ordered) do
+      if i <= maxScannedPlates then
+        table.insert(scannedVehIds, entry.vehId)
+      else
+        local evictedVehId = entry.vehId
+        vehicleLastSeenTick[evictedVehId] = nil
+        vehicleRecords[evictedVehId] = nil
+        retiredVehicleIds[evictedVehId] = true
+      end
+    end
+  end
 
   -- Push full state after any new scan so UI stays in sync
   if hasNewScan then
@@ -374,16 +405,14 @@ end
 
 function M.getScannedPlatesList()
   local list = {}
-  for _, plate in ipairs(scannedPlates) do
-    for vehId, record in pairs(vehicleRecords) do
-      if record.plate == plate then
-        table.insert(list, {
-          plate = record.plate,
-          vehicleName = record.vehicleName,
-          flagged = record.flagged
-        })
-        break
-      end
+  for _, vehId in ipairs(scannedVehIds) do
+    local record = vehicleRecords[vehId]
+    if record then
+      table.insert(list, {
+        plate = record.plate,
+        vehicleName = record.vehicleName,
+        flagged = record.flagged
+      })
     end
   end
   return list
@@ -397,7 +426,10 @@ function M.requestState()
 end
 
 function M.clearScans()
-  scannedPlates = {}
+  scannedVehIds = {}
+  vehicleLastSeenTick = {}
+  retiredVehicleIds = {}
+  seenTickCounter = 0
   guihooks.trigger('policeComputerState', {
     anprActive = anprActive,
     scannedPlates = {}
@@ -448,6 +480,10 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
 end
 
 function M.onTrafficVehicleAdded(vehId)
+  -- Increment spawn generation so recycled vehicle IDs get fresh records
+  globalSpawnCounter = globalSpawnCounter + 1
+  spawnGeneration[vehId] = globalSpawnCounter
+
   local record = generateRecord(vehId)
   if record and (record.wanted or record.stolen) then
     if gameplay_police then
@@ -458,6 +494,16 @@ end
 
 function M.onTrafficVehicleRemoved(vehId)
   vehicleRecords[vehId] = nil
+  vehicleLastSeenTick[vehId] = nil
+  retiredVehicleIds[vehId] = nil
+  -- Keep spawnGeneration[vehId] intentionally — it ensures the next vehicle
+  -- with this recycled ID gets a different seed
+  for i = #scannedVehIds, 1, -1 do
+    if scannedVehIds[i] == vehId then
+      table.remove(scannedVehIds, i)
+      break
+    end
+  end
 end
 
 function M.onVehicleSwitched(oldId, newId)
@@ -657,9 +703,14 @@ updateTrafficStop = function(dtReal)
       earlyFleeTimer = nil
       trafficStopInitiated = true
       fleeFromStop(trafficStopTarget, 2)
-      resetTrafficStop()
+      guihooks.trigger('policeComputerStopProgress', nil)
       return
     end
+  end
+
+  if trafficStopInitiated then
+    guihooks.trigger('policeComputerStopProgress', nil)
+    return
   end
 
   trafficStopTimer = trafficStopTimer + dtReal
@@ -672,7 +723,7 @@ updateTrafficStop = function(dtReal)
   if trafficStopTimer >= STOP_DWELL_TIME and not trafficStopInitiated then
     trafficStopInitiated = true
     initiateTrafficStop(target)
-    resetTrafficStop()
+    guihooks.trigger('policeComputerStopProgress', nil)
   end
 end
 
@@ -737,8 +788,11 @@ end
 function M.onExtensionUnloaded()
   anprActive = false
   computerVisible = false
-  scannedPlates = {}
+  scannedVehIds = {}
   vehicleRecords = {}
+  vehicleLastSeenTick = {}
+  retiredVehicleIds = {}
+  seenTickCounter = 0
   trafficStopTarget = nil
   trafficStopTimer = 0
   trafficStopInitiated = false

@@ -8,11 +8,11 @@
         "desc": "Toggle police lightbar lights only (siren remains off unless enabled separately)"
     },
     "cyclePoliceSiren": {
-        "cat": "gameplay",
+        "cat": "vehicle",
         "order": 261,
-        "ctx": "tlua",
-        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.cyclePoliceSiren() end",
+        "ctx": "vlua",
+        "onDown": "extensions.auto_rlsSirenController.cycleSiren()",
         "title": "Police: Cycle Siren",
-        "desc": "Single tap changes police siren tone (wail/yelp). Double tap turns siren off. Siren requires lights to be on."
+        "desc": "Cycle police siren tone (wail/yelp/piercer/off). Requires lights to be on."
     }
 }
