@@ -41,7 +41,7 @@
           :class="{ flagged: entry.flagged, selected: selectedVehId === entry.vehId, ahead: aheadPlate === entry.plate }"
           @click="selectPlate(entry)">
           <span class="plate-number">{{ entry.plate }}</span>
-          <span class="plate-vehicle">{{ truncate(entry.vehicleName, 14) }}</span>
+          <span class="plate-vehicle">{{ entry.vehicleName }}</span>
           <span class="plate-status" :class="entry.flagged ? 'status-alert' : 'status-clear'">
             {{ entry.flagged ? '!' : '&#10003;' }}
           </span>
@@ -176,11 +176,6 @@ function selectPlate(entry) {
   $game.api.engineLua(`gameplay_policeComputer.lookupPlate("${safePlate}")`)
 }
 
-function truncate(str, len) {
-  if (!str) return ''
-  return str.length > len ? str.substring(0, len) + '...' : str
-}
-
 function onStateUpdate(data) {
   anprActive.value = data.anprActive
   if (data.scannedPlates) {
@@ -204,7 +199,7 @@ function onScanResult(data) {
   })
 
   // Trim to max
-  if (scannedPlates.value.length > 12) {
+  if (scannedPlates.value.length > 4) {
     scannedPlates.value.pop()
   }
 }
@@ -409,6 +404,7 @@ $clear-green: #3cff6e;
 .plate-row {
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: 5px 10px;
   border-bottom: 1px solid rgba(40, 80, 140, 0.2);
   cursor: pointer;
@@ -445,21 +441,22 @@ $clear-green: #3cff6e;
 
 .plate-number {
   font-weight: bold;
-  width: 90px;
+  flex: 0 0 100px;
   letter-spacing: 1px;
 }
 
 .plate-vehicle {
   flex: 1;
   color: $text-secondary;
-  font-size: 12px;
+  min-width: 0;
+  font-size: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .plate-status {
-  width: 20px;
+  flex: 0 0 24px;
   text-align: center;
   font-weight: bold;
   font-size: 16px;

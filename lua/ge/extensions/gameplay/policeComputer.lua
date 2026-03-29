@@ -19,7 +19,7 @@ local scanTimer = 0
 local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
-local maxScannedPlates = 8
+local maxScannedPlates = 4
 local scanRange = 40 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
 
