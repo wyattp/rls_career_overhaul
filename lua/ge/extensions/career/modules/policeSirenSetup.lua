@@ -2,6 +2,7 @@ local M = {}
 
 M.dependencies = {"career_modules_inventory", "career_modules_computer"}
 
+local logTag = "policeSirenSetup"
 local jbeamIO = require('jbeam/io')
 
 local originComputerId
@@ -60,6 +61,11 @@ local function getAvailableSirenOptions(invId)
   local options = {}
   for _, partName in ipairs(sirenNode.suitablePartNames) do
     local partInfo = availableParts[partName]
+    local partData = jbeamIO.getPart(vd.ioCtx, partName)
+    log("I", logTag, "=== DEBUG partInfo for " .. partName .. " ===")
+    log("I", logTag, dumps(partInfo))
+    log("I", logTag, "=== DEBUG partData for " .. partName .. " ===")
+    log("I", logTag, dumps(partData))
     local desc = partInfo and partInfo.description
     local label = (type(desc) == "table" and desc.description or desc) or partName
     table.insert(options, {value = partName, label = label})
