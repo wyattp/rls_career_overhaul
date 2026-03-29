@@ -159,9 +159,10 @@ local function generateRecord(vehId)
   local driverName = driverFirst .. ' ' .. driverLast
 
   local colorStr = 'unknown'
-  local paintData = core_vehicle_manager.getVehiclePaintsNames(vehId)
-  if paintData and paintData[1] then
-    colorStr = tostring(paintData[1])
+  local vehData = core_vehicle_manager.getVehicleData(vehId)
+  if vehData and vehData.config and vehData.config.paints then
+    local p = vehData.config.paints[0] or vehData.config.paints[1] or vehData.config.paints['main']
+    if p then colorStr = tostring(p.baseColor or p) end
   end
   log('I', logTag, 'generateRecord: NEW vehId=' .. vehId .. ' plate=' .. plate .. ' model=' .. vehicleName .. ' color=' .. colorStr .. ' driver=' .. driverName)
 
