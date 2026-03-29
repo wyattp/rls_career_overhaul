@@ -110,7 +110,7 @@ local function generateRecord(vehId)
   if vehicleRecords[vehId] then
     return vehicleRecords[vehId]
   end
-  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId .. ' gen=' .. tostring(spawnGeneration[vehId] or 0))
+  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId)
 
   local obj = getObjectByID(vehId)
   if not obj then return nil end
