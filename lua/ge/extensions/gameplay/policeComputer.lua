@@ -20,6 +20,7 @@ local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
+local recordTtlSeconds = 30
 local scanRange = 40 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
 
@@ -173,12 +174,12 @@ local function generateRecord(vehId)
   local address = tostring(seededRandomInt(vehId, 20, 100, 9999)) .. ' ' .. streetNames[seededRandomInt(vehId, 21, 1, #streetNames)]
 
   -- Generate flags
-  local wanted = seededRandom(vehId, 30) < 0.05
-  local stolen = seededRandom(vehId, 31) < 0.03
-  local suspendedLicense = seededRandom(vehId, 32) < 0.10
-  local noInsurance = seededRandom(vehId, 33) < 0.08
-  local expiredRegistration = seededRandom(vehId, 34) < 0.12
-  local apb = seededRandom(vehId, 35) < 0.08
+  local wanted = seededRandom(vehId, 30) < 0.01
+  local stolen = seededRandom(vehId, 31) < 0.005
+  local suspendedLicense = seededRandom(vehId, 32) < 0.02
+  local noInsurance = seededRandom(vehId, 33) < 0.015
+  local expiredRegistration = seededRandom(vehId, 34) < 0.025
+  local apb = seededRandom(vehId, 35) < 0.01
   local apbReason = apb and apbReasons[seededRandomInt(vehId, 36, 1, #apbReasons)] or nil
 
   -- Generate prior offenses
@@ -210,6 +211,7 @@ local function generateRecord(vehId)
 
   local record = {
     vehId = vehId,
+    createdAt = os.clock(),
     plate = plate,
     vehicleName = vehicleName,
     driverName = driverName,
@@ -230,6 +232,35 @@ local function generateRecord(vehId)
   vehicleRecords[vehId] = record
   plateOwners[plate] = vehId
   return record
+end
+
+local function removeTrackedVehicleRecord(vehId)
+  local record = vehicleRecords[vehId]
+  if record and record.plate and plateOwners[record.plate] == vehId then
+    plateOwners[record.plate] = nil
+  end
+  vehicleRecords[vehId] = nil
+  vehicleLastSeenTick[vehId] = nil
+
+  for i = #scannedVehIds, 1, -1 do
+    if scannedVehIds[i] == vehId then
+      table.remove(scannedVehIds, i)
+    end
+  end
+end
+
+local function purgeExpiredRecords()
+  local now = os.clock()
+  local removedAny = false
+
+  for vehId, record in pairs(vehicleRecords) do
+    if record and record.createdAt and now - record.createdAt > recordTtlSeconds then
+      removeTrackedVehicleRecord(vehId)
+      removedAny = true
+    end
+  end
+
+  return removedAny
 end
 
 local function getPlayerPoliceVehicle()
@@ -343,9 +374,16 @@ local function isLightbarActive(lightbarSignal)
 end
 
 local function scanForVehicles()
+  local expiredRemoved = purgeExpiredRecords()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then
     guihooks.trigger('policeComputerAhead', { plate = nil })
+    if expiredRemoved then
+      guihooks.trigger('policeComputerState', {
+        anprActive = anprActive,
+        scannedPlates = M.getScannedPlatesList()
+      })
+    end
     return
   end
 
@@ -354,6 +392,12 @@ local function scanForVehicles()
 
   if not gameplay_traffic or not gameplay_traffic.getTrafficData() then
     guihooks.trigger('policeComputerAhead', { plate = nil })
+    if expiredRemoved then
+      guihooks.trigger('policeComputerState', {
+        anprActive = anprActive,
+        scannedPlates = M.getScannedPlatesList()
+      })
+    end
     return
   end
   local trafficData = gameplay_traffic.getTrafficData()
@@ -439,8 +483,7 @@ local function scanForVehicles()
         table.insert(scannedVehIds, entry.vehId)
       else
         local evictedVehId = entry.vehId
-        vehicleLastSeenTick[evictedVehId] = nil
-        vehicleRecords[evictedVehId] = nil
+        removeTrackedVehicleRecord(evictedVehId)
         retiredVehicleIds[evictedVehId] = true
       end
     end
@@ -458,7 +501,7 @@ local function scanForVehicles()
   end
 
   -- Push full state after any scan/history updates so UI stays in sync
-  if hasNewScan or historyChanged then
+  if expiredRemoved or hasNewScan or historyChanged then
     saveCurrentVehicleState()
     guihooks.trigger('policeComputerState', {
       anprActive = anprActive,
@@ -613,21 +656,10 @@ end
 
 function M.onTrafficVehicleRemoved(vehId)
   log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
-  local oldRecord = vehicleRecords[vehId]
-  if oldRecord and oldRecord.plate and plateOwners[oldRecord.plate] == vehId then
-    plateOwners[oldRecord.plate] = nil
-  end
-  vehicleRecords[vehId] = nil
-  vehicleLastSeenTick[vehId] = nil
+  removeTrackedVehicleRecord(vehId)
   retiredVehicleIds[vehId] = nil
   -- Keep spawnGeneration[vehId] intentionally — it ensures the next vehicle
   -- with this recycled ID gets a different seed
-  for i = #scannedVehIds, 1, -1 do
-    if scannedVehIds[i] == vehId then
-      table.remove(scannedVehIds, i)
-      break
-    end
-  end
   saveCurrentVehicleState()
 end
 
