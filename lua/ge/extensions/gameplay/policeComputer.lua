@@ -108,9 +108,16 @@ end
 
 local function generateRecord(vehId)
   if vehicleRecords[vehId] then
+    log('D', logTag, 'generateRecord: CACHED record for vehId=' .. vehId .. ' plate=' .. tostring(vehicleRecords[vehId].plate))
     return vehicleRecords[vehId]
   end
-  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId)
+  -- Seed with high-entropy source to guarantee uniqueness
+  local seed = os.clock() * 1000000 + vehId * 31
+  math.randomseed(seed)
+  -- Burn a few values to decorrelate
+  math.random(); math.random(); math.random()
+
+  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId .. ' seed=' .. tostring(seed))
 
   local obj = getObjectByID(vehId)
   if not obj then return nil end
@@ -134,6 +141,8 @@ local function generateRecord(vehId)
   if not plate then
     plate = generatePlate() .. string.format('-%02d', vehId % 100)
   end
+
+  log('I', logTag, 'generateRecord: vehId=' .. vehId .. ' plate=' .. plate .. ' model=' .. vehicleName)
 
   local driverFirst = firstNames[math.random(1, #firstNames)]
   local driverLast = lastNames[math.random(1, #lastNames)]
@@ -211,6 +220,11 @@ end
 
 local function removeTrackedVehicleRecord(vehId)
   local record = vehicleRecords[vehId]
+  if record then
+    log('I', logTag, 'removeTrackedVehicleRecord: CLEARING vehId=' .. vehId .. ' plate=' .. tostring(record.plate))
+  else
+    log('I', logTag, 'removeTrackedVehicleRecord: no record for vehId=' .. vehId)
+  end
   if record and record.plate and plateOwners[record.plate] == vehId then
     plateOwners[record.plate] = nil
   end
@@ -639,9 +653,23 @@ end
 
 -- Context A: Organic pursuit behavior based on criminal record
 function M.onPursuitAction(vehId, action, pursuitData)
+  if action == 'evade' then
+    if trafficStopOwnedFlee[vehId] then
+      notifyTrafficStopEscaped(vehId)
+      trafficStopOwnedFlee[vehId] = nil
+    end
+    return
+  end
+
+  if action == 'arrest' or action == 'release' or action == 'reset' then
+    if trafficStopOwnedFlee[vehId] then
+      trafficStopOwnedFlee[vehId] = nil
+    end
+    return
+  end
+
   if action ~= 'start' then return end
   if trafficStopOwnedFlee[vehId] then
-    trafficStopOwnedFlee[vehId] = nil
     return
   end
   local record = vehicleRecords[vehId]
@@ -891,8 +919,7 @@ updateTrafficStop = function(dtReal)
         end
       end
     else
-      -- Flee path should not remain latched in a traffic-stop session.
-      notifyTrafficStopEscaped(trafficStopTarget)
+      -- A stop-triggered flee hands off to pursuit; it has not escaped yet.
       resetTrafficStop()
       return
     end

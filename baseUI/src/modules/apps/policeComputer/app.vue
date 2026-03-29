@@ -532,7 +532,7 @@ $clear-green: #3cff6e;
 
 .detail-heading {
   color: $text-accent;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -544,15 +544,19 @@ $clear-green: #3cff6e;
 .detail-row {
   display: flex;
   justify-content: space-between;
-  padding: 1px 0;
-  font-size: 13px;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 3px 0;
+  font-size: 16px;
 }
 
 .detail-label {
   color: $text-secondary;
+  flex: 0 0 120px;
 }
 
 .detail-value {
+  flex: 1;
   color: $text-primary;
   font-weight: bold;
   text-align: right;

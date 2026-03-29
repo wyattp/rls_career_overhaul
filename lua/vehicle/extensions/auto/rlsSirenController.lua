@@ -33,7 +33,6 @@ local function playTone(toneName)
   electrics.values.rlsSirenTone = toneName
 end
 
--- Cycle through configured tones: Off -> tone1 -> tone2 -> ... -> Off
 local function cycleSiren()
   print("[rlsSirenController] cycleSiren called. configured=" .. tostring(configured) .. " toneCount=" .. #toneOrder)
   if not configured or #toneOrder == 0 then
@@ -53,25 +52,20 @@ local function cycleSiren()
     return
   end
 
-  -- Stop current tone
-  if currentTone > 0 and toneOrder[currentTone] then
+  -- Single tap should only cycle between configured tones.
+  -- Off is handled separately by the double-tap logic on the input side.
+  if currentTone <= 0 then
+    currentTone = 1
+  else
     local src = sources[toneOrder[currentTone]]
     if src then obj:stopSFX(src.id) end
+    currentTone = currentTone + 1
+    if currentTone > #toneOrder then
+      currentTone = 1
+    end
   end
 
-  -- Advance
-  currentTone = currentTone + 1
-  if currentTone > #toneOrder then
-    currentTone = 0
-  end
-
-  -- Play next tone (or silence if wrapped to 0)
-  if currentTone > 0 then
-    playTone(toneOrder[currentTone])
-  else
-    electrics.values.rlsSirenActive = 0
-    electrics.values.rlsSirenTone = ""
-  end
+  playTone(toneOrder[currentTone])
 end
 
 -- Receive configuration from GE side (called via queueLuaCommand once at spawn)
