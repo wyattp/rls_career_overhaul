@@ -144,7 +144,7 @@ local function resetPursuitVars() -- resets pursuit variables to default
     suspectFrequency = 0.5, -- this is disabled if traffic random events are disabled
     roadblockFrequency = 0.5, -- roadblock frequency modifier (set to 0 to disable)
     useVisibility = true, -- set to false to disable visibility checks for pursuit targets
-    autoRelease = true -- set to false to manually control the vehicle after an arrest
+    autoRelease = false -- keep arrested suspects immobilized until despawn unless explicitly re-enabled
   }
 end
 resetPursuitVars()
@@ -648,7 +648,7 @@ local function onUpdate(dt, dtSim)
         end
       -- release
       elseif pursuit.mode == -1 then
-        if (pursuit.timers.arrest <= -5 or not veh.role.flags.freeze) then
+        if vars.autoRelease and (pursuit.timers.arrest <= -5 or not veh.role.flags.freeze) then
           releaseVehicle(id, gameplay_traffic.showMessages)
         end
 

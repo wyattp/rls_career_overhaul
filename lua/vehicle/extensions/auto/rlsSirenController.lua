@@ -41,9 +41,13 @@ local function cycleSiren()
     return
   end
 
-  -- Require lights to be on (lightbar_signal >= 1)
-  local lightbar = electrics.values.lightbar_signal or 0
-  print("[rlsSirenController] lightbar=" .. tostring(lightbar))
+  -- Debug: dump all lightbar-related electrics values
+  local lb = electrics.values.lightbar or 0
+  local lbs = electrics.values.lightbar_signal or 0
+  print("[rlsSirenController] lightbar=" .. tostring(lb) .. " lightbar_signal=" .. tostring(lbs))
+
+  -- Check both possible names
+  local lightbar = math.max(lb, lbs)
   if lightbar < 1 then
     print("[rlsSirenController] lightbar < 1 — aborting")
     return
@@ -123,7 +127,7 @@ local function updateGFX(dt)
   if not configured then return end
 
   -- Auto-stop siren if lights turned off
-  local lightbar = electrics.values.lightbar_signal or 0
+  local lightbar = math.max(electrics.values.lightbar or 0, electrics.values.lightbar_signal or 0)
   if lightbar < 1 and currentTone > 0 then
     stopAll()
   end

@@ -37,9 +37,9 @@
         <div
           class="plate-row"
           v-for="entry in scannedPlates"
-          :key="entry.plate"
-          :class="{ flagged: entry.flagged, selected: selectedPlate === entry.plate, ahead: aheadPlate === entry.plate }"
-          @click="selectPlate(entry.plate)">
+          :key="entry.vehId || entry.plate"
+          :class="{ flagged: entry.flagged, selected: selectedVehId === entry.vehId, ahead: aheadPlate === entry.plate }"
+          @click="selectPlate(entry)">
           <span class="plate-number">{{ entry.plate }}</span>
           <span class="plate-vehicle">{{ truncate(entry.vehicleName, 14) }}</span>
           <span class="plate-status" :class="entry.flagged ? 'status-alert' : 'status-clear'">
@@ -54,7 +54,7 @@
 
       <!-- Detail panel -->
       <div class="detail-panel" v-if="selectedRecord" :class="{ 'detail-flagged': selectedRecord.flagged }">
-        <div class="detail-close" @click.stop="selectedPlate = null; selectedRecord = null">&times;</div>
+        <div class="detail-close" @click.stop="selectedVehId = null; selectedRecord = null">&times;</div>
         <!-- Alerts banner -->
         <div class="alerts-banner" v-if="selectedRecord.alerts && selectedRecord.alerts.length > 0">
           <div class="alert-item" v-for="alert in selectedRecord.alerts" :key="alert">
@@ -142,7 +142,7 @@ const isVisible = ref(false)
 const isCollapsed = ref(false)
 const anprActive = ref(false)
 const scannedPlates = ref([])
-const selectedPlate = ref(null)
+const selectedVehId = ref(null)
 const selectedRecord = ref(null)
 const actionBanner = ref(null)
 const stopProgress = ref(null)
@@ -157,13 +157,21 @@ function toggleANPR() {
   $game.api.engineLua('gameplay_policeComputer.toggleANPR()')
 }
 
-function selectPlate(plate) {
-  if (selectedPlate.value === plate) {
-    selectedPlate.value = null
+function selectPlate(entry) {
+  if (!entry) return
+  const vehId = Number(entry.vehId)
+  if (selectedVehId.value === vehId) {
+    selectedVehId.value = null
     selectedRecord.value = null
     return
   }
-  selectedPlate.value = plate
+  selectedVehId.value = vehId
+  if (Number.isFinite(vehId) && vehId > 0) {
+    $game.api.engineLua(`gameplay_policeComputer.lookupVehicle(${vehId})`)
+    return
+  }
+
+  const plate = entry.plate || ''
   const safePlate = plate.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   $game.api.engineLua(`gameplay_policeComputer.lookupPlate("${safePlate}")`)
 }
@@ -184,11 +192,12 @@ function onScanResult(data) {
   if (!data || !data.record) return
 
   // Add to front of list, remove duplicate if exists
-  const existing = scannedPlates.value.findIndex(p => p.plate === data.record.plate)
+  const existing = scannedPlates.value.findIndex(p => p.vehId === data.record.vehId)
   if (existing >= 0) {
     scannedPlates.value.splice(existing, 1)
   }
   scannedPlates.value.unshift({
+    vehId: data.record.vehId,
     plate: data.record.plate,
     vehicleName: data.record.vehicleName,
     flagged: data.record.flagged
@@ -248,7 +257,7 @@ function onVisibilityChange(data) {
   isVisible.value = data.visible
   if (!data.visible) {
     // Reset state when hiding
-    selectedPlate.value = null
+    selectedVehId.value = null
     selectedRecord.value = null
   }
 }

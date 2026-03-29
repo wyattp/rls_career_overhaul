@@ -7,6 +7,7 @@ local computerVisible = false
 local anprActive = false
 local scannedVehIds = {} -- ordered list of scanned vehicle IDs (most recent first)
 local vehicleRecords = {} -- keyed by vehicle ID
+local plateOwners = {} -- keyed by plate string, value is vehId
 local vehicleLastSeenTick = {} -- keyed by vehicle ID, higher means more recent
 local retiredVehicleIds = {} -- vehicles evicted from ANPR history for this session
 local spawnGeneration = {} -- keyed by vehicle ID, increments each spawn to vary seeded randoms
@@ -71,6 +72,7 @@ local trafficStopTimer = 0
 local trafficStopInitiated = false
 local trafficStopComplying = false
 local trafficStopEnforceTimer = 0
+local trafficStopReachedStop = false
 local trafficStopOwnedFlee = {}
 local earlyFleeTimer = nil
 local rabbitTarget = nil
@@ -83,6 +85,7 @@ local STOP_RANGE = 15
 local STOP_CONE_DOT = 0.92
 local STOP_MAX_SPEED = 5
 local STOP_ENFORCE_INTERVAL = 0.35
+local STOP_SETTLED_SPEED = 1.0
 local TICKET_BASE_REWARD = 4000
 
 -- Forward declarations used by onUpdate.
@@ -108,11 +111,12 @@ local function seededRandomInt(id, salt, min, max)
   return val
 end
 
-local function generatePlate(id)
+local function generatePlate(id, variant)
   local gen = spawnGeneration[id] or 0
+  variant = tonumber(variant) or 0
   local letters = 'ABCDEFGHJKLMNPRSTUVWXYZ'
   local plate = ''
-  math.randomseed(id * 17 + 3 + gen * 4657)
+  math.randomseed(id * 17 + 3 + gen * 4657 + variant * 1907)
   -- Format: 3 letters + 4 digits (e.g. "ABC 1234")
   for i = 1, 3 do
     local idx = math.random(1, #letters)
@@ -130,6 +134,7 @@ local function generateRecord(vehId)
   if vehicleRecords[vehId] then
     return vehicleRecords[vehId]
   end
+  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId .. ' gen=' .. tostring(spawnGeneration[vehId] or 0))
 
   local obj = getObjectByID(vehId)
   if not obj then return nil end
@@ -141,7 +146,18 @@ local function generateRecord(vehId)
     vehicleName = model.Brand .. ' ' .. vehicleName
   end
 
-  local plate = generatePlate(vehId)
+  local plate
+  for attempt = 0, 99 do
+    local candidate = generatePlate(vehId, attempt)
+    local ownerId = plateOwners[candidate]
+    if not ownerId or ownerId == vehId then
+      plate = candidate
+      break
+    end
+  end
+  if not plate then
+    plate = generatePlate(vehId, 0) .. string.format('-%02d', vehId % 100)
+  end
   local driverFirst = firstNames[seededRandomInt(vehId, 1, 1, #firstNames)]
   local driverLast = lastNames[seededRandomInt(vehId, 2, 1, #lastNames)]
   local driverName = driverFirst .. ' ' .. driverLast
@@ -212,6 +228,7 @@ local function generateRecord(vehId)
   }
 
   vehicleRecords[vehId] = record
+  plateOwners[plate] = vehId
   return record
 end
 
@@ -256,6 +273,7 @@ local function setEmptyComputerState()
   anprActive = false
   scannedVehIds = {}
   vehicleRecords = {}
+  plateOwners = {}
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
   seenTickCounter = 0
@@ -290,6 +308,12 @@ local function restoreStateForInventoryId(invId)
   anprActive = saved.anprActive and true or false
   scannedVehIds = deepcopy(saved.scannedVehIds or {})
   vehicleRecords = deepcopy(saved.vehicleRecords or {})
+  plateOwners = {}
+  for vehId, record in pairs(vehicleRecords) do
+    if record and record.plate then
+      plateOwners[record.plate] = vehId
+    end
+  end
   vehicleLastSeenTick = deepcopy(saved.vehicleLastSeenTick or {})
   retiredVehicleIds = deepcopy(saved.retiredVehicleIds or {})
   seenTickCounter = saved.seenTickCounter or 0
@@ -312,6 +336,10 @@ local function getLightbarSignal(vehObj, vehId)
   end
 
   return 0
+end
+
+local function isLightbarActive(lightbarSignal)
+  return (tonumber(lightbarSignal) or 0) > 0
 end
 
 local function scanForVehicles()
@@ -474,12 +502,24 @@ function M.lookupPlate(plate)
   return nil
 end
 
+function M.lookupVehicle(vehId)
+  vehId = tonumber(vehId)
+  if not vehId then return nil end
+  local record = vehicleRecords[vehId]
+  if record then
+    guihooks.trigger('policeComputerLookup', record)
+    return record
+  end
+  return nil
+end
+
 function M.getScannedPlatesList()
   local list = {}
   for _, vehId in ipairs(scannedVehIds) do
     local record = vehicleRecords[vehId]
     if record then
       table.insert(list, {
+        vehId = vehId,
         plate = record.plate,
         vehicleName = record.vehicleName,
         flagged = record.flagged
@@ -561,6 +601,7 @@ function M.onTrafficVehicleAdded(vehId)
   -- Increment spawn generation so recycled vehicle IDs get fresh records
   globalSpawnCounter = globalSpawnCounter + 1
   spawnGeneration[vehId] = globalSpawnCounter
+  log('I', logTag, 'onTrafficVehicleAdded: vehId=' .. vehId .. ' gen=' .. globalSpawnCounter)
 
   local record = generateRecord(vehId)
   if record and (record.wanted or record.stolen) then
@@ -571,6 +612,11 @@ function M.onTrafficVehicleAdded(vehId)
 end
 
 function M.onTrafficVehicleRemoved(vehId)
+  log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
+  local oldRecord = vehicleRecords[vehId]
+  if oldRecord and oldRecord.plate and plateOwners[oldRecord.plate] == vehId then
+    plateOwners[oldRecord.plate] = nil
+  end
   vehicleRecords[vehId] = nil
   vehicleLastSeenTick[vehId] = nil
   retiredVehicleIds[vehId] = nil
@@ -692,6 +738,7 @@ local function initiateTrafficStop(vehId)
   else
     trafficStopComplying = true
     trafficStopEnforceTimer = 0
+    trafficStopReachedStop = false
     obj:queueLuaCommand('ai.setMode("stop")')
     obj:queueLuaCommand('ai.setSpeedMode("set")')
     obj:queueLuaCommand('ai.setTargetSpeed(0)')
@@ -712,6 +759,13 @@ local function initiateTrafficStop(vehId)
       end
     end
   end
+end
+
+local function notifyTrafficStopEscaped(vehId)
+  local record = vehId and vehicleRecords[vehId] or nil
+  local plate = record and record.plate or nil
+  guihooks.trigger('policeComputerEscaped', { plate = plate })
+  ui_message('Suspect has escaped' .. (plate and (' - ' .. plate) or ''), 5, 'Police')
 end
 
 local function awardTicketReward(vehId)
@@ -775,16 +829,45 @@ local function findVehicleAhead(playerVeh, range, coneDot)
   return bestId
 end
 
+local function releaseStoppedTarget(vehId)
+  if not vehId then return end
+
+  local trafficData = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData() or nil
+  local tVeh = trafficData and trafficData[vehId] or nil
+  if tVeh and tVeh.setAiMode then
+    -- Restore normal civilian behavior after a completed compliant stop.
+    tVeh:setAiMode('traffic')
+    return
+  end
+
+  local obj = getObjectByID(vehId)
+  if not obj then return end
+  obj:queueLuaCommand('ai.setMode("traffic")')
+  obj:queueLuaCommand('ai.setSpeedMode("legal")')
+  obj:queueLuaCommand('ai.driveInLane("on")')
+  obj:queueLuaCommand('ai.reset()')
+end
+
 local function resetTrafficStop()
+  local releaseTargetId = nil
+  if trafficStopInitiated and trafficStopComplying and trafficStopTarget then
+    releaseTargetId = trafficStopTarget
+  end
+
   local hadStopState = trafficStopTarget ~= nil or trafficStopTimer > 0 or earlyFleeTimer ~= nil
   trafficStopTarget = nil
   trafficStopTimer = 0
   trafficStopInitiated = false
   trafficStopComplying = false
+  trafficStopReachedStop = false
   trafficStopEnforceTimer = 0
   earlyFleeTimer = nil
   if hadStopState then
     guihooks.trigger('policeComputerStopProgress', nil)
+  end
+
+  if releaseTargetId then
+    releaseStoppedTarget(releaseTargetId)
   end
 end
 
@@ -796,8 +879,8 @@ updateTrafficStop = function(dtReal)
   end
 
   local lightbar = getLightbarSignal(playerVeh, playerVehId)
-  if lightbar ~= 1 then
-    if trafficStopInitiated and trafficStopComplying and trafficStopTarget then
+  if not isLightbarActive(lightbar) then
+    if trafficStopInitiated and trafficStopComplying and trafficStopReachedStop and trafficStopTarget then
       awardTicketReward(trafficStopTarget)
     end
     resetTrafficStop()
@@ -814,13 +897,18 @@ updateTrafficStop = function(dtReal)
           targetObj:queueLuaCommand('ai.setMode("stop")')
           targetObj:queueLuaCommand('ai.setSpeedMode("set")')
           targetObj:queueLuaCommand('ai.setTargetSpeed(0)')
+          if targetObj:getVelocity():length() <= STOP_SETTLED_SPEED then
+            trafficStopReachedStop = true
+          end
         else
+          notifyTrafficStopEscaped(trafficStopTarget)
           resetTrafficStop()
           return
         end
       end
     else
       -- Flee path should not remain latched in a traffic-stop session.
+      notifyTrafficStopEscaped(trafficStopTarget)
       resetTrafficStop()
       return
     end
@@ -844,6 +932,7 @@ updateTrafficStop = function(dtReal)
     trafficStopTimer = 0
     trafficStopInitiated = false
     trafficStopComplying = false
+    trafficStopReachedStop = false
     trafficStopEnforceTimer = 0
     earlyFleeTimer = nil
 
@@ -927,6 +1016,7 @@ function M.immediateTrafficStop()
   -- Initiate immediately — no dwell timer
   trafficStopTarget = target
   trafficStopInitiated = true
+  trafficStopReachedStop = false
   earlyFleeTimer = nil
   trafficStopTimer = 0
   initiateTrafficStop(target)
@@ -954,6 +1044,7 @@ function M.onExtensionUnloaded()
   computerVisible = false
   scannedVehIds = {}
   vehicleRecords = {}
+  plateOwners = {}
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
   seenTickCounter = 0
@@ -963,6 +1054,7 @@ function M.onExtensionUnloaded()
   trafficStopTimer = 0
   trafficStopInitiated = false
   trafficStopComplying = false
+  trafficStopReachedStop = false
   trafficStopEnforceTimer = 0
   trafficStopOwnedFlee = {}
   earlyFleeTimer = nil
