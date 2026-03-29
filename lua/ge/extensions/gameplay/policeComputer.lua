@@ -21,7 +21,6 @@ local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
-local recordTtlSeconds = 30
 local scanRange = 40 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
 
@@ -212,7 +211,6 @@ local function generateRecord(vehId)
 
   local record = {
     vehId = vehId,
-    createdAt = elapsedRealtime,
     plate = plate,
     vehicleName = vehicleName,
     driverName = driverName,
@@ -248,20 +246,6 @@ local function removeTrackedVehicleRecord(vehId)
       table.remove(scannedVehIds, i)
     end
   end
-end
-
-local function purgeExpiredRecords()
-  local now = elapsedRealtime
-  local removedAny = false
-
-  for vehId, record in pairs(vehicleRecords) do
-    if record and record.createdAt and now - record.createdAt > recordTtlSeconds then
-      removeTrackedVehicleRecord(vehId)
-      removedAny = true
-    end
-  end
-
-  return removedAny
 end
 
 local function getPlayerPoliceVehicle()
@@ -375,16 +359,9 @@ local function isLightbarActive(lightbarSignal)
 end
 
 local function scanForVehicles()
-  local expiredRemoved = purgeExpiredRecords()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then
     guihooks.trigger('policeComputerAhead', { plate = nil })
-    if expiredRemoved then
-      guihooks.trigger('policeComputerState', {
-        anprActive = anprActive,
-        scannedPlates = M.getScannedPlatesList()
-      })
-    end
     return
   end
 
@@ -393,12 +370,6 @@ local function scanForVehicles()
 
   if not gameplay_traffic or not gameplay_traffic.getTrafficData() then
     guihooks.trigger('policeComputerAhead', { plate = nil })
-    if expiredRemoved then
-      guihooks.trigger('policeComputerState', {
-        anprActive = anprActive,
-        scannedPlates = M.getScannedPlatesList()
-      })
-    end
     return
   end
   local trafficData = gameplay_traffic.getTrafficData()
@@ -502,7 +473,7 @@ local function scanForVehicles()
   end
 
   -- Push full state after any scan/history updates so UI stays in sync
-  if expiredRemoved or hasNewScan or historyChanged then
+  if hasNewScan or historyChanged then
     saveCurrentVehicleState()
     guihooks.trigger('policeComputerState', {
       anprActive = anprActive,
@@ -654,6 +625,14 @@ function M.onTrafficVehicleAdded(vehId)
       gameplay_police.setSuspect(vehId)
     end
   end
+end
+
+function M.onTrafficVehicleRespawn(vehId)
+  log('I', logTag, 'onTrafficVehicleRespawn: vehId=' .. vehId)
+  removeTrackedVehicleRecord(vehId)
+  retiredVehicleIds[vehId] = nil
+  M.onTrafficVehicleAdded(vehId)
+  saveCurrentVehicleState()
 end
 
 function M.onTrafficVehicleRemoved(vehId)

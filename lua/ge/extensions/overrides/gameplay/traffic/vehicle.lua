@@ -705,6 +705,7 @@ function C:onRespawn() -- triggers after vehicle respawns in traffic
   self.respawnActive = true
   self.crashActive = nil
   self.state = 'reset'
+  extensions.hook('onTrafficVehicleRespawn', self.id)
 end
 
 function C:onRefresh() -- triggers whenever vehicle data needs to be refreshed (usually after respawning)
