@@ -108,6 +108,10 @@ local STOP_ACTION_ALLOWED_WARRANT = {
 local STOP_ACTION_ALLOWED_APB = {
   [STOP_ACTION_DETAIN] = true
 }
+local STOP_ACTION_ALLOWED_LICENSE = {
+  [STOP_ACTION_ARREST] = true,
+  [STOP_ACTION_DETAIN] = true
+}
 local STOP_ACTION_ALLOWED_PAPERWORK = {
   [STOP_ACTION_TICKET] = true,
   [STOP_ACTION_DETAIN] = true,
@@ -169,7 +173,7 @@ local function evaluateStopActionSelection(targetVehId, record, selectedAction)
   local allowedSet = STOP_ACTION_ALLOWED_NONE
 
   -- Priority order:
-  -- 1) fleeing, 2) warrant (wanted), 3) APB, 4) insurance/registration issues.
+  -- 1) fleeing, 2) warrant (wanted), 3) APB, 4) suspended/expired license, 5) insurance/registration issues.
   if targetVehId and trafficStopOwnedFlee[targetVehId] then
     condition = 'fleeing'
     reason = 'Target is fleeing from stop'
@@ -182,6 +186,10 @@ local function evaluateStopActionSelection(targetVehId, record, selectedAction)
     condition = 'apb'
     reason = 'Target has an active APB'
     allowedSet = STOP_ACTION_ALLOWED_APB
+  elseif record and record.suspendedLicense then
+    condition = 'license'
+    reason = 'Target has a suspended/expired driver license'
+    allowedSet = STOP_ACTION_ALLOWED_LICENSE
   elseif record and (record.noInsurance or record.expiredRegistration) then
     condition = 'paperwork'
     reason = 'Target has insurance/registration violations'
@@ -1239,14 +1247,11 @@ local function finalizePendingStopAction()
 
   local rewardGranted = false
   local rewardAmount = 0
-  if evaluation.appropriate then
-    rewardAmount = awardTicketReward(targetVehId, action) or 0
-    rewardGranted = rewardAmount > 0
-    if rewardGranted then
-      clearRecordAfterStopResolution(record)
-    end
-  else
-    ui_message('Inappropriate action - no reward', 5, 'Police')
+  local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
+  rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier) or 0
+  rewardGranted = rewardAmount > 0
+  if rewardGranted then
+    clearRecordAfterStopResolution(record)
   end
 
   guihooks.trigger('policeComputerStopActionMenuConfirmed', {
@@ -1266,7 +1271,7 @@ local function finalizePendingStopAction()
   return true
 end
 
-awardTicketReward = function(vehId, action)
+awardTicketReward = function(vehId, action, actionProfitMultiplier)
   local record = vehicleRecords[vehId]
   if record and record.ticketed then
     log('I', logTag, 'Already ticketed vehId=' .. vehId .. ', skipping')
@@ -1323,6 +1328,14 @@ awardTicketReward = function(vehId, action)
     end
   end
 
+  actionProfitMultiplier = tonumber(actionProfitMultiplier) or 1
+  if actionProfitMultiplier < 0 then
+    actionProfitMultiplier = 0
+  end
+  if actionProfitMultiplier ~= 1 then
+    reward = math.floor(reward * actionProfitMultiplier + 0.5)
+  end
+
   if reward > 0 then
     if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
       career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
@@ -1331,9 +1344,9 @@ awardTicketReward = function(vehId, action)
     end
   end
 
-  local message = "Appropriate action - no reward - " .. getStopActionLabel(action)
+  local message = "Stop action resolved - no reward - " .. getStopActionLabel(action)
   if reward > 0 then
-    message = "Appropriate action - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
+    message = "Stop action resolved - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
   end
   if reward > 0 and reputationBonus ~= 1 then
     message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"

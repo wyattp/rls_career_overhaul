@@ -365,20 +365,15 @@ function onStopActionMenuConfirmed(data) {
   const selectedAction = normalizeStopActionSelection(data.action)
   const label = STOP_ACTION_MENU_LABELS[selectedAction] || 'Unknown'
   const plateSuffix = data.plate ? ` - ${data.plate}` : ''
-  if (data.appropriate && data.rewardGranted) {
+  if (data.rewardGranted) {
     const amountSuffix = Number.isFinite(Number(data.rewardAmount)) && Number(data.rewardAmount) > 0
       ? ` ($${Number(data.rewardAmount)})`
       : ''
-    showActionBanner('info', `APPROPRIATE ACTION - REWARD GRANTED${amountSuffix}: ${label.toUpperCase()}${plateSuffix}`, 3000)
+    showActionBanner('info', `ACTION RESOLVED - REWARD${amountSuffix}: ${label.toUpperCase()}${plateSuffix}`, 3000)
     return
   }
 
-  if (data.appropriate) {
-    showActionBanner('info', `APPROPRIATE ACTION - NO REWARD: ${label.toUpperCase()}${plateSuffix}`, 3000)
-    return
-  }
-
-  showActionBanner('danger', `INAPPROPRIATE ACTION - NO REWARD: ${label.toUpperCase()}${plateSuffix}`, 3200)
+  showActionBanner('info', `ACTION RESOLVED - NO REWARD: ${label.toUpperCase()}${plateSuffix}`, 3000)
 }
 
 function onSelectEntry(data) {
