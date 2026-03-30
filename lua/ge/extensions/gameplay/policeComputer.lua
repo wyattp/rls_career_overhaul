@@ -149,7 +149,8 @@ local function generateRecord(vehId)
   local existing = vehicleRecords[vehId]
   if existing then
     local lastActive = existing.lastSeenAt or existing.createdAt
-    if lastActive and (os.clock() - lastActive) > recordTTL then
+    local isActiveEvent = trafficStopTarget == vehId or trafficStopOwnedFlee[vehId]
+    if lastActive and (os.clock() - lastActive) > recordTTL and not isActiveEvent then
       log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
       -- Inline cleanup (can't call removeTrackedVehicleRecord — not defined yet)
       if existing.plate and plateOwners[existing.plate] == vehId then
@@ -166,6 +167,8 @@ local function generateRecord(vehId)
       end
       -- Remove from retired list so ANPR can pick it up again
       retiredVehicleIds[vehId] = nil
+      -- Notify UI so detail panel closes if this record was selected
+      guihooks.trigger('policeComputerRecordExpired', { vehId = vehId })
     else
       return existing
     end
@@ -667,6 +670,7 @@ function M.clearScans()
 end
 
 function M.cycleANPR(direction)
+  log('I', logTag, 'cycleANPR called, direction=' .. tostring(direction) .. ' scannedVehIds=' .. tostring(#scannedVehIds))
   guihooks.trigger('policeComputerCycleEntry', { direction = direction })
 end
 
@@ -774,6 +778,8 @@ function M.onPursuitAction(vehId, action, pursuitData)
     if trafficStopOwnedFlee[vehId] then
       notifyTrafficStopEscaped(vehId)
       trafficStopOwnedFlee[vehId] = nil
+    elseif vehicleRecords[vehId] then
+      notifyTrafficStopEscaped(vehId)
     end
     return
   end
@@ -1289,7 +1295,7 @@ function M.openGarageComputer()
     return
   end
 
-  career_modules_computer.openMenu(bestComputer)
+  career_modules_computer.openMenu(bestComputer, false, nil, true)
 end
 
 return M

@@ -267,17 +267,45 @@ function onAhead(data) {
   coneLeftHit.value = !!(data && data.coneLeft)
 }
 
+function onRecordExpired(data) {
+  if (!data) return
+  const vehId = Number(data.vehId)
+  if (selectedVehId.value === vehId) {
+    selectedVehId.value = null
+    selectedRecord.value = null
+  }
+  // Remove from scanned plates list
+  const idx = scannedPlates.value.findIndex(p => p.vehId === vehId)
+  if (idx >= 0) scannedPlates.value.splice(idx, 1)
+}
+
 function onCycleEntry(data) {
-  if (!data || !scannedPlates.value.length) return
-  const dir = data.direction || 1
-  const currentIdx = scannedPlates.value.findIndex(p => p.vehId === selectedVehId.value)
+  console.log('[ANPR] onCycleEntry fired', data, 'plates:', scannedPlates.value.length, 'selectedVehId:', selectedVehId.value)
+  const plates = scannedPlates.value
+  if (!plates || !plates.length) { console.log('[ANPR] no plates, returning'); return }
+  const dir = (data && data.direction) || 1
+
+  // Find current selection index
+  let currentIdx = -1
+  if (selectedVehId.value != null) {
+    const selId = Number(selectedVehId.value)
+    for (let i = 0; i < plates.length; i++) {
+      if (Number(plates[i].vehId) === selId) {
+        currentIdx = i
+        break
+      }
+    }
+  }
+
   let nextIdx
   if (currentIdx < 0) {
-    nextIdx = dir > 0 ? 0 : scannedPlates.value.length - 1
+    // Nothing selected — jump to first entry
+    nextIdx = 0
   } else {
-    nextIdx = (currentIdx + dir + scannedPlates.value.length) % scannedPlates.value.length
+    nextIdx = (currentIdx + dir + plates.length) % plates.length
   }
-  selectPlate(scannedPlates.value[nextIdx])
+  console.log('[ANPR] cycling from', currentIdx, 'to', nextIdx, 'plate:', plates[nextIdx])
+  selectPlate(plates[nextIdx])
 }
 
 function onVisibilityChange(data) {
@@ -300,6 +328,7 @@ onMounted(() => {
   $game.events.on('policeComputerRabbit', onRabbit)
   $game.events.on('policeComputerAhead', onAhead)
   $game.events.on('policeComputerCycleEntry', onCycleEntry)
+  $game.events.on('policeComputerRecordExpired', onRecordExpired)
   $game.api.engineLua('gameplay_policeComputer.requestState()')
 })
 
@@ -314,6 +343,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerRabbit', onRabbit)
   $game.events.off('policeComputerAhead', onAhead)
   $game.events.off('policeComputerCycleEntry', onCycleEntry)
+  $game.events.off('policeComputerRecordExpired', onRecordExpired)
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
 })
 </script>
