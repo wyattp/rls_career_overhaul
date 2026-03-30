@@ -6,7 +6,7 @@
         <span class="pc-badge">ANPR</span>
         <span class="pc-label">Police Computer</span>
         <span class="cone-indicators" v-if="anprActive">
-          <span class="cone-icon cone-left" :class="{ active: coneLeftHit }" title="Left ANPR">&#8598;</span>
+          <span class="cone-icon cone-left" :class="{ active: coneLeftHit }" title="Left ANPR">&#8592;</span>
           <span class="cone-icon cone-front" :class="{ active: coneFrontHit }" title="Front ANPR">&#8593;</span>
         </span>
       </div>
@@ -267,6 +267,19 @@ function onAhead(data) {
   coneLeftHit.value = !!(data && data.coneLeft)
 }
 
+function onCycleEntry(data) {
+  if (!data || !scannedPlates.value.length) return
+  const dir = data.direction || 1
+  const currentIdx = scannedPlates.value.findIndex(p => p.vehId === selectedVehId.value)
+  let nextIdx
+  if (currentIdx < 0) {
+    nextIdx = dir > 0 ? 0 : scannedPlates.value.length - 1
+  } else {
+    nextIdx = (currentIdx + dir + scannedPlates.value.length) % scannedPlates.value.length
+  }
+  selectPlate(scannedPlates.value[nextIdx])
+}
+
 function onVisibilityChange(data) {
   isVisible.value = data.visible
   if (!data.visible) {
@@ -286,6 +299,7 @@ onMounted(() => {
   $game.events.on('policeComputerStopProgress', onStopProgress)
   $game.events.on('policeComputerRabbit', onRabbit)
   $game.events.on('policeComputerAhead', onAhead)
+  $game.events.on('policeComputerCycleEntry', onCycleEntry)
   $game.api.engineLua('gameplay_policeComputer.requestState()')
 })
 
@@ -299,6 +313,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerStopProgress', onStopProgress)
   $game.events.off('policeComputerRabbit', onRabbit)
   $game.events.off('policeComputerAhead', onAhead)
+  $game.events.off('policeComputerCycleEntry', onCycleEntry)
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
 })
 </script>

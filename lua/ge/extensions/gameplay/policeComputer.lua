@@ -22,7 +22,7 @@ local maxScannedPlates = 4
 local scanRange = 25 -- meters
 local scanConeAngle = 0.99 -- dot product threshold (~7 degree half-angle, ~20ft wide at max range)
 local scanRangeLeft = 15 -- meters, short range for passing traffic
-local scanConeAngleLeft = 0.90 -- wider cone for left side (~25 degree half-angle)
+local scanConeAngleLeft = 0.50 -- wider cone for left side (~60 degree half-angle)
 local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
 local scanVerticalMax = 20 -- meters above player allowed
 
@@ -631,6 +631,10 @@ function M.clearScans()
     anprActive = anprActive,
     scannedPlates = {}
   })
+end
+
+function M.cycleANPR(direction)
+  guihooks.trigger('policeComputerCycleEntry', { direction = direction })
 end
 
 -- Visibility

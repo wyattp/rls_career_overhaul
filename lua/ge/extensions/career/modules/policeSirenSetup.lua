@@ -97,6 +97,15 @@ local function buildSirenConfig(vehId)
   local primaryPart = stored and stored.primaryAudio or (vehicleData.config and vehicleData.config.parts and vehicleData.config.parts.soundscape_siren) or nil
   local secondaryPart = stored and stored.secondaryAudio or nil
 
+  -- If no primary siren configured, auto-pick the first available siren part
+  if not primaryPart or primaryPart == "" then
+    local options = getAvailableSirenOptions(career_modules_inventory.getInventoryIdFromVehicleId(vehId))
+    if options and #options > 0 then
+      primaryPart = options[1].value
+      log("I", logTag, "Auto-selected default siren part: " .. primaryPart .. " for vehId=" .. vehId)
+    end
+  end
+
   local tones = {}
   if primaryPart and primaryPart ~= "" then
     local partData = jbeamIO.getPart(vd.ioCtx, primaryPart)

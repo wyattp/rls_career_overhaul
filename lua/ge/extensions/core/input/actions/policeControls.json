@@ -7,6 +7,22 @@
         "title": "Police: Toggle Lights",
         "desc": "Toggle police lightbar lights only (siren remains off unless enabled separately)"
     },
+    "anprNextEntry": {
+        "cat": "gameplay",
+        "order": 262,
+        "ctx": "tlua",
+        "onDown": "if gameplay_policeComputer then gameplay_policeComputer.cycleANPR(1) end",
+        "title": "Police: ANPR Next Entry",
+        "desc": "Cycle to the next entry in the ANPR scanned plates list"
+    },
+    "anprPrevEntry": {
+        "cat": "gameplay",
+        "order": 263,
+        "ctx": "tlua",
+        "onDown": "if gameplay_policeComputer then gameplay_policeComputer.cycleANPR(-1) end",
+        "title": "Police: ANPR Previous Entry",
+        "desc": "Cycle to the previous entry in the ANPR scanned plates list"
+    },
     "cyclePoliceSiren": {
         "cat": "vehicle",
         "order": 261,
