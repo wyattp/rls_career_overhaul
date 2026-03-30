@@ -185,7 +185,7 @@ function selectPlate(entry) {
 function onStateUpdate(data) {
   anprActive.value = data.anprActive
   if (data.scannedPlates) {
-    scannedPlates.value = data.scannedPlates
+    scannedPlates.value = Array.isArray(data.scannedPlates) ? data.scannedPlates : Object.values(data.scannedPlates)
   }
 }
 

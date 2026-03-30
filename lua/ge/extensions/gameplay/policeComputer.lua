@@ -126,6 +126,7 @@ end
 
 -- Forward declarations used by onUpdate.
 local updateTrafficStop
+local notifyTrafficStopEscaped
 local updateRabbit
 
 -- True random plate generation — cache handles consistency within a vehicle's lifetime
@@ -960,7 +961,7 @@ local function initiateTrafficStop(vehId)
   end
 end
 
-local function notifyTrafficStopEscaped(vehId)
+notifyTrafficStopEscaped = function(vehId)
   local record = vehId and vehicleRecords[vehId] or nil
   local plate = record and record.plate or nil
   guihooks.trigger('policeComputerEscaped', { plate = plate })
