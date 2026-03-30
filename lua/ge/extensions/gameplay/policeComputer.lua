@@ -19,8 +19,10 @@ local scanInterval = 0.5 -- seconds between scans
 local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
-local scanRange = 40 -- meters
+local scanRange = 25 -- meters
 local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
+local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
+local scanVerticalMax = 20 -- meters above player allowed
 
 -- Name pools for NPC generation
 local firstNames = {
@@ -409,9 +411,18 @@ local function scanForVehicles()
         local dist = playerPos:distance(vehPos)
         local dot = playerDir:dot(dirToVeh)
 
-        if dist < scanRange and dot > scanConeAngle then
+        local verticalDiff = vehPos.z - playerPos.z
+
+        if dist < scanRange and dot > scanConeAngle and verticalDiff >= scanVerticalMin and verticalDiff <= scanVerticalMax then
           local record = generateRecord(vehId)
           if record then
+            local wasTracked = trackedSet[vehId]
+            local action = wasTracked and 'EXISTING' or 'NEW_SCAN'
+            log('I', logTag, string.format('ANPR cone: %s vehId=%d dist=%.1fm vDiff=%.1fm dot=%.2f plate=%s model=%s jbeam=%s driver=%s age=%.1fs',
+              action, vehId, dist, verticalDiff, dot, record.plate, record.vehicleName, tostring(obj.jbeam),
+              record.driverName or '?',
+              record.createdAt and (os.clock() - record.createdAt) or -1))
+
             -- Track closest vehicle in cone
             if dist < closestDist then
               closestDist = dist
@@ -419,7 +430,7 @@ local function scanForVehicles()
               closestPlate = record.plate
             end
 
-            if not trackedSet[vehId] then
+            if not wasTracked then
               hasNewScan = true
               guihooks.trigger('policeComputerScan', {
                 record = record,
@@ -428,7 +439,6 @@ local function scanForVehicles()
               if record.flagged then
                 Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Fail')
               end
-              log('I', logTag, 'ANPR scanned plate: ' .. record.plate .. (record.flagged and ' [FLAGGED]' or ''))
               trackedSet[vehId] = true
             end
 
