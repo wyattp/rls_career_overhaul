@@ -409,6 +409,7 @@ local function scanForVehicles()
   for vehId, tVeh in pairs(trafficData) do
     if vehId ~= playerVehId then
       local obj = getObjectByID(vehId)
+      if obj and obj.jbeam == 'walking' then obj = nil end -- skip pedestrians
       if obj then
         local vehPos = obj:getPosition()
         local dirToVeh = (vehPos - playerPos):normalized()
@@ -810,7 +811,7 @@ local function initiateTrafficStop(vehId)
     trafficStopReachedStop = false
     obj:queueLuaCommand('ai.setMode("stop")')
     obj:queueLuaCommand('ai.setSpeedMode("set")')
-    obj:queueLuaCommand('ai.setTargetSpeed(0)')
+    obj:queueLuaCommand('ai.setSpeed(0)')
     guihooks.trigger('policeComputerStopInitiated', { plate = record and record.plate })
     log('I', logTag, 'Traffic stop: vehicle ' .. vehId .. ' complying')
 
@@ -965,7 +966,7 @@ updateTrafficStop = function(dtReal)
         if targetObj then
           targetObj:queueLuaCommand('ai.setMode("stop")')
           targetObj:queueLuaCommand('ai.setSpeedMode("set")')
-          targetObj:queueLuaCommand('ai.setTargetSpeed(0)')
+          targetObj:queueLuaCommand('ai.setSpeed(0)')
           if targetObj:getVelocity():length() <= STOP_SETTLED_SPEED then
             trafficStopReachedStop = true
           end
