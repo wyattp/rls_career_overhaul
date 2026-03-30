@@ -90,7 +90,8 @@ function C:update(data)
     --simpleDebugText3d(idx, area.iconPos, 0.25)
     screenObjTemp = scenetree.findObjectById(area.screenObjId) or nil
 
-    local overlap = data.isWalking and (data.cruisingSpeedFactor < 1) and overlapsOBB_OBB(data.bbCenter, data.bbHalfAxis0, data.bbHalfAxis1, data.bbHalfAxis2, area.areaPos, area.xVec, area.yVec, area.zVec)
+    local inArea = overlapsOBB_OBB(data.bbCenter, data.bbHalfAxis0, data.bbHalfAxis1, data.bbHalfAxis2, area.areaPos, area.xVec, area.yVec, area.zVec)
+    local overlap = inArea and (data.isWalking and (data.cruisingSpeedFactor < 1) or (not data.isWalking and data.parkingSpeedFactor and data.parkingSpeedFactor > 0))
     anyOverlap = anyOverlap or overlap
     if overlap and not area.overlap then
       if screenObjTemp then

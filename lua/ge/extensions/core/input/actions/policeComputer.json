@@ -4,7 +4,7 @@
         "order": 259,
         "ctx": "tlua",
         "onDown": "if gameplay_policeComputer then gameplay_policeComputer.toggleANPR() end",
-        "title": "Toggle ANPR Scanner",
+        "title": "Police: Toggle ANPR Scanner",
         "desc": "Toggle the Automatic Number Plate Recognition scanner in a police vehicle"
     }
 }
