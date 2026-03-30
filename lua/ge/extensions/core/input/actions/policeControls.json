@@ -39,6 +39,46 @@
         "title": "Police: Cancel Stop Action Menu",
         "desc": "Close the traffic stop action menu without selecting an action."
     },
+    "stopActionMenuUp": {
+        "cat": "gameplay",
+        "order": 266,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.navigateTrafficStopActionMenu('up') end",
+        "title": "Police: Stop Action Up",
+        "desc": "Select the top option in the traffic stop action menu."
+    },
+    "stopActionMenuDown": {
+        "cat": "gameplay",
+        "order": 267,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.navigateTrafficStopActionMenu('down') end",
+        "title": "Police: Stop Action Down",
+        "desc": "Select the bottom option in the traffic stop action menu."
+    },
+    "stopActionMenuLeft": {
+        "cat": "gameplay",
+        "order": 268,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.navigateTrafficStopActionMenu('left') end",
+        "title": "Police: Stop Action Left",
+        "desc": "Select the left option in the traffic stop action menu."
+    },
+    "stopActionMenuRight": {
+        "cat": "gameplay",
+        "order": 269,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.navigateTrafficStopActionMenu('right') end",
+        "title": "Police: Stop Action Right",
+        "desc": "Select the right option in the traffic stop action menu."
+    },
+    "confirmTrafficStopActionMenu": {
+        "cat": "gameplay",
+        "order": 270,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.confirmTrafficStopActionMenu() end",
+        "title": "Police: Confirm Stop Action",
+        "desc": "Confirm the currently selected traffic stop action."
+    },
     "cyclePoliceSiren": {
         "cat": "vehicle",
         "order": 261,

@@ -84,6 +84,15 @@ local rabbitDelay = 0
 local rabbitRolled = false
 local stopActionMenuOpen = false
 local stopActionMenuTarget = nil
+local stopActionMenuSelection = 'up'
+
+local STOP_ACTION_MENU_DEFAULT = 'up'
+local STOP_ACTION_MENU_DIRECTIONS = {
+  up = true,
+  down = true,
+  left = true,
+  right = true
+}
 
 local STOP_DWELL_TIME = 3.0
 local STOP_RANGE = 15
@@ -101,16 +110,11 @@ local function isTrafficStopFullyCommenced()
   return getObjectByID(trafficStopTarget) ~= nil
 end
 
-local function setStopActionMenuOpen(open, reason)
-  if open then
-    if not isTrafficStopFullyCommenced() then
-      open = false
-    end
-  end
+local function isValidStopActionMenuDirection(direction)
+  return STOP_ACTION_MENU_DIRECTIONS[direction] == true
+end
 
-  stopActionMenuOpen = open and true or false
-  stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
-
+local function triggerStopActionMenuEvent(reason)
   local plate = nil
   if stopActionMenuTarget and vehicleRecords[stopActionMenuTarget] then
     plate = vehicleRecords[stopActionMenuTarget].plate
@@ -120,8 +124,25 @@ local function setStopActionMenuOpen(open, reason)
     open = stopActionMenuOpen,
     targetVehId = stopActionMenuTarget,
     plate = plate,
-    reason = reason
+    reason = reason,
+    selection = stopActionMenuSelection
   })
+end
+
+local function setStopActionMenuOpen(open, reason)
+  if open then
+    if not isTrafficStopFullyCommenced() then
+      open = false
+    end
+  end
+
+  stopActionMenuOpen = open and true or false
+  stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
+  if stopActionMenuOpen then
+    stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
+  end
+
+  triggerStopActionMenuEvent(reason)
 end
 
 -- Forward declarations used by onUpdate.
@@ -1216,11 +1237,52 @@ function M.cancelStopActionMenu()
   return true
 end
 
+function M.navigateStopActionMenu(direction)
+  if not stopActionMenuOpen then
+    return false
+  end
+
+  if not isValidStopActionMenuDirection(direction) then
+    return false
+  end
+
+  stopActionMenuSelection = direction
+  triggerStopActionMenuEvent('navigate')
+  return true
+end
+
+function M.confirmStopActionMenu()
+  if not stopActionMenuOpen then
+    return false
+  end
+
+  if not isTrafficStopFullyCommenced() then
+    setStopActionMenuOpen(false, 'confirmInvalid')
+    return false
+  end
+
+  local targetVehId = stopActionMenuTarget
+  local plate = nil
+  if targetVehId and vehicleRecords[targetVehId] then
+    plate = vehicleRecords[targetVehId].plate
+  end
+
+  guihooks.trigger('policeComputerStopActionMenuConfirmed', {
+    action = stopActionMenuSelection,
+    targetVehId = targetVehId,
+    plate = plate
+  })
+
+  setStopActionMenuOpen(false, 'confirmSelection')
+  return true
+end
+
 function M.onExtensionLoaded()
   log('I', logTag, 'Police Computer module loaded')
   elapsedRealtime = 0
   stopActionMenuOpen = false
   stopActionMenuTarget = nil
+  stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1259,6 +1321,7 @@ function M.onExtensionUnloaded()
   rabbitRolled = false
   stopActionMenuOpen = false
   stopActionMenuTarget = nil
+  stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.5 })
   end
