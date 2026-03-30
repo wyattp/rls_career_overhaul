@@ -118,7 +118,12 @@ local function generateRecord(vehId)
     end
     if not inScanList and existing.createdAt and (os.clock() - existing.createdAt) > recordTTL then
       log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
-      removeTrackedVehicleRecord(vehId)
+      -- Inline cleanup (can't call removeTrackedVehicleRecord — not defined yet)
+      if existing.plate and plateOwners[existing.plate] == vehId then
+        plateOwners[existing.plate] = nil
+      end
+      vehicleRecords[vehId] = nil
+      vehicleLastSeenTick[vehId] = nil
     else
       return existing
     end
