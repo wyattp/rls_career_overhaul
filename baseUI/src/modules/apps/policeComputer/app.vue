@@ -209,7 +209,7 @@ const stopActionMenu = reactive({
   open: false,
   targetVehId: null,
   plate: null,
-  selection: 'up'
+  selection: null
 })
 let actionBannerTimeout = null
 const STOP_ACTION_MENU_DEFAULT = 'up'
@@ -230,6 +230,7 @@ function normalizeStopActionSelection(selection) {
 function selectStopAction(direction) {
   if (!stopActionMenu.open) return
   const action = normalizeStopActionSelection(direction)
+  stopActionMenu.selection = action
   $game.api.engineLua(`if gameplay_policeComputer then gameplay_policeComputer.selectStopActionMenu("${action}") end`)
 }
 
@@ -339,14 +340,24 @@ function onStopActionMenu(data) {
     stopActionMenu.open = false
     stopActionMenu.targetVehId = null
     stopActionMenu.plate = null
-    stopActionMenu.selection = STOP_ACTION_MENU_DEFAULT
+    stopActionMenu.selection = null
     return
   }
 
   stopActionMenu.open = !!data.open
   stopActionMenu.targetVehId = Number.isFinite(Number(data.targetVehId)) ? Number(data.targetVehId) : null
   stopActionMenu.plate = data.plate || null
-  stopActionMenu.selection = normalizeStopActionSelection(data.selection)
+  if (!stopActionMenu.open) {
+    stopActionMenu.selection = null
+    return
+  }
+
+  // Only show a highlighted option after an actual selection event.
+  if (data.reason === 'navigate') {
+    stopActionMenu.selection = normalizeStopActionSelection(data.selection)
+  } else {
+    stopActionMenu.selection = null
+  }
 }
 
 function onStopActionMenuConfirmed(data) {
