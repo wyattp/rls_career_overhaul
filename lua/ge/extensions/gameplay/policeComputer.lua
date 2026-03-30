@@ -26,6 +26,8 @@ local scanConeAngleLeft = 0.50 -- wider cone for left side (~60 degree half-angl
 local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
 local scanVerticalMax = 20 -- meters above player allowed
 
+local DEBUG_HIGH_FLAG_RATES = true -- multiply flag chances by 4x for testing
+
 -- Name pools for NPC generation
 local firstNames = {
   'James', 'Robert', 'John', 'Michael', 'David', 'William', 'Richard', 'Joseph', 'Thomas', 'Daniel',
@@ -257,12 +259,13 @@ local function generateRecord(vehId)
   local address = tostring(math.random(100, 9999)) .. ' ' .. streetNames[math.random(1, #streetNames)]
 
   -- Generate flags
-  local wanted = math.random() < 0.01
-  local stolen = math.random() < 0.005
-  local suspendedLicense = math.random() < 0.02
-  local noInsurance = math.random() < 0.015
-  local expiredRegistration = math.random() < 0.025
-  local apb = math.random() < 0.01
+  local flagMul = DEBUG_HIGH_FLAG_RATES and 4 or 1
+  local wanted = math.random() < 0.01 * flagMul
+  local stolen = math.random() < 0.005 * flagMul
+  local suspendedLicense = math.random() < 0.02 * flagMul
+  local noInsurance = math.random() < 0.015 * flagMul
+  local expiredRegistration = math.random() < 0.025 * flagMul
+  local apb = math.random() < 0.01 * flagMul
   local apbReason = apb and apbReasons[math.random(1, #apbReasons)] or nil
 
   -- Generate prior offenses
@@ -990,7 +993,26 @@ notifyTrafficStopEscaped = function(vehId)
 end
 
 local function awardTicketReward(vehId)
-  local reward = TICKET_BASE_REWARD
+  local record = vehicleRecords[vehId]
+  if record and record.ticketed then
+    log('I', logTag, 'Already ticketed vehId=' .. vehId .. ', skipping')
+    ui_message("Already ticketed this driver", 5, "Police")
+    return
+  end
+
+  -- Scale reward based on violation severity
+  local rewardMultiplier = 0.25 -- minor violations (no insurance, expired reg, suspended license)
+  if record then
+    if record.wanted or record.stolen then
+      rewardMultiplier = 1.0
+    elseif record.apb then
+      rewardMultiplier = 0.75
+    elseif record.suspendedLicense then
+      rewardMultiplier = 0.35
+    end
+  end
+
+  local reward = math.floor(TICKET_BASE_REWARD * rewardMultiplier + 0.5)
   local reputationBonus = 1.0
 
   if freeroam_organizations and freeroam_organizations.getOrganization then
@@ -1107,6 +1129,17 @@ updateTrafficStop = function(dtReal)
       local rec = vehicleRecords[trafficStopTarget]
       if rec and rec.flagged then
         awardTicketReward(trafficStopTarget)
+        -- Clear offenses so ANPR shows clean and can't be re-ticketed
+        rec.ticketed = true
+        rec.wanted = false
+        rec.stolen = false
+        rec.suspendedLicense = false
+        rec.noInsurance = false
+        rec.expiredRegistration = false
+        rec.apb = false
+        rec.apbReason = nil
+        rec.flagged = false
+        rec.alerts = {}
       else
         ui_message("No violations found — driver released", 5, "Police")
       end
@@ -1264,16 +1297,21 @@ function M.isStopActionMenuOpen()
 end
 
 function M.toggleStopActionMenu()
+  log('I', logTag, string.format('toggleStopActionMenu: open=%s target=%s initiated=%s complying=%s reachedStop=%s',
+    tostring(stopActionMenuOpen), tostring(trafficStopTarget), tostring(trafficStopInitiated),
+    tostring(trafficStopComplying), tostring(trafficStopReachedStop)))
   if stopActionMenuOpen then
     setStopActionMenuOpen(false, 'toggleClose')
     return true
   end
 
   if not isTrafficStopFullyCommenced() then
+    log('I', logTag, 'toggleStopActionMenu: stop not fully commenced, cannot open')
     return false
   end
 
   setStopActionMenuOpen(true, 'toggleOpen')
+  log('I', logTag, 'toggleStopActionMenu: opened')
   return true
 end
 

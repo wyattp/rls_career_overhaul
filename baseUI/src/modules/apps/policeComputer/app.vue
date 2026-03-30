@@ -704,8 +704,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
 }
 
 .pc-body {
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 .plates-list {
