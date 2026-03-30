@@ -20,7 +20,7 @@ local stateTimer = 0
 local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
 local scanRange = 25 -- meters
-local scanConeAngle = 0.7 -- dot product threshold (~45 degree cone)
+local scanConeAngle = 0.99 -- dot product threshold (~7 degree half-angle, ~20ft wide at max range)
 local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
 local scanVerticalMax = 20 -- meters above player allowed
 
@@ -431,16 +431,19 @@ local function scanForVehicles()
             if p then colorStr = tostring(p.baseColor or p) end
           end
 
-          -- Build status string
-          local status = inCone and 'IN_CONE' or 'OUT'
-          if isPolice then status = status .. '|POLICE' end
-          if isRetired then status = status .. '|RETIRED' end
-          if wasTracked then status = status .. '|TRACKED' end
+          -- Only log and act on vehicles inside the cone
+          if inCone then
+            -- Build status string
+            local status = 'IN_CONE'
+            if isPolice then status = status .. '|POLICE' end
+            if isRetired then status = status .. '|RETIRED' end
+            if wasTracked then status = status .. '|TRACKED' end
 
-          log('I', logTag, string.format('ANPR scan: %s vehId=%d dist=%.1fm vDiff=%.1fm dot=%.2f plate=%s model=%s color=%s driver=%s age=%.1fs',
-            status, vehId, dist, verticalDiff, dot, record.plate, record.vehicleName, colorStr,
-            record.driverName or '?',
-            record.createdAt and (os.clock() - record.createdAt) or -1))
+            log('I', logTag, string.format('ANPR scan: %s vehId=%d dist=%.1fm vDiff=%.1fm dot=%.2f plate=%s model=%s color=%s driver=%s age=%.1fs',
+              status, vehId, dist, verticalDiff, dot, record.plate, record.vehicleName, colorStr,
+              record.driverName or '?',
+              record.createdAt and (os.clock() - record.createdAt) or -1))
+          end
 
           -- Only act on vehicles that are: in cone, not police, not retired
           if inCone and not isPolice and not isRetired then
@@ -734,36 +737,36 @@ function M.onPursuitAction(vehId, action, pursuitData)
     if math.random() < 0.95 then
       gameplay_police.setPursuitMode(2, vehId)
       getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
     else
       gameplay_police.setPursuitMode(0, vehId)
-      guihooks.trigger('policeComputerAlert', { type = 'complying', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle complying plate=' .. tostring(record.plate))
     end
   elseif record.stolen then
     if math.random() < 0.95 then
       gameplay_police.setPursuitMode(2, vehId)
       getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
     else
       gameplay_police.setPursuitMode(0, vehId)
-      guihooks.trigger('policeComputerAlert', { type = 'complying', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle complying plate=' .. tostring(record.plate))
     end
   elseif record.apb then
     local r = math.random()
     if r < 0.10 then
       gameplay_police.setPursuitMode(2, vehId)
       getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
     elseif r < 0.40 then
       gameplay_police.setPursuitMode(1, vehId)
-      guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
     end
   elseif record.suspendedLicense and math.random() < 0.25 then
     gameplay_police.setPursuitMode(1, vehId)
-    guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+    log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
   elseif record.noInsurance and math.random() < 0.10 then
     gameplay_police.setPursuitMode(1, vehId)
-    guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record.plate })
+    log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
   end
 end
 
@@ -778,8 +781,7 @@ local function fleeFromStop(vehId, mode)
     getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
   end
   local record = vehicleRecords[vehId]
-  guihooks.trigger('policeComputerAlert', { type = 'fleeing', plate = record and record.plate })
-  log('I', logTag, 'Traffic stop: vehicle ' .. vehId .. ' fleeing (mode ' .. mode .. ')')
+  log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record and record.plate) .. ' mode=' .. tostring(mode))
 end
 
 local function initiateTrafficStop(vehId)
