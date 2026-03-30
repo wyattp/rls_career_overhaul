@@ -265,6 +265,7 @@ end
 local updateTrafficStop
 local notifyTrafficStopEscaped
 local updateRabbit
+local resetTrafficStop
 
 -- True random plate generation — cache handles consistency within a vehicle's lifetime
 local function generatePlate()
@@ -923,6 +924,15 @@ end
 
 function M.onTrafficVehicleRespawn(vehId)
   log('I', logTag, 'onTrafficVehicleRespawn: vehId=' .. vehId)
+  if trafficStopTarget == vehId then
+    setStopActionMenuOpen(false, 'targetRespawned')
+    resetTrafficStop()
+  end
+  if rabbitTarget == vehId then
+    rabbitTarget = nil
+    rabbitRolled = false
+    rabbitTimer = 0
+  end
   removeTrackedVehicleRecord(vehId)
   retiredVehicleIds[vehId] = nil
   M.onTrafficVehicleAdded(vehId)
@@ -931,12 +941,26 @@ end
 
 function M.onTrafficVehicleRemoved(vehId)
   log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
+  if trafficStopTarget == vehId then
+    setStopActionMenuOpen(false, 'targetRemoved')
+    resetTrafficStop()
+  end
+  if rabbitTarget == vehId then
+    rabbitTarget = nil
+    rabbitRolled = false
+    rabbitTimer = 0
+  end
   removeTrackedVehicleRecord(vehId)
   retiredVehicleIds[vehId] = nil
   saveCurrentVehicleState()
 end
 
 function M.onVehicleSwitched(oldId, newId)
+  if trafficStopTarget or stopActionMenuOpen then
+    setStopActionMenuOpen(false, 'vehicleSwitched')
+    resetTrafficStop()
+  end
+
   local oldInvId = getInventoryIdFromVehicleId(oldId)
   if oldInvId then
     saveStateForInventoryId(oldInvId)
@@ -967,6 +991,10 @@ function M.onPursuitAction(vehId, action, pursuitData)
     elseif vehicleRecords[vehId] then
       notifyTrafficStopEscaped(vehId)
     end
+    if vehId == trafficStopTarget then
+      setStopActionMenuOpen(false, 'pursuitEvade')
+      resetTrafficStop()
+    end
     return
   end
 
@@ -992,10 +1020,19 @@ function M.onPursuitAction(vehId, action, pursuitData)
       end
       log('I', logTag, 'Vehicle arrested and retired vehId=' .. vehId)
     end
+    if vehId == trafficStopTarget then
+      setStopActionMenuOpen(false, 'pursuitResolved')
+      resetTrafficStop()
+    end
     return
   end
 
   if action ~= 'start' then return end
+  if vehId == trafficStopTarget then
+    setStopActionMenuOpen(false, 'pursuitStart')
+    resetTrafficStop()
+    return
+  end
   if trafficStopOwnedFlee[vehId] then
     return
   end
@@ -1106,12 +1143,34 @@ notifyTrafficStopEscaped = function(vehId)
   ui_message('Suspect has escaped' .. (plate and (' - ' .. plate) or ''), 5, 'Police')
 end
 
-local function awardTicketReward(vehId)
+local function getStopActionLabel(action)
+  if action == STOP_ACTION_ARREST then return 'Arrest' end
+  if action == STOP_ACTION_WARN_DETAIN then return 'Warning/Detain' end
+  if action == STOP_ACTION_GO_FREE then return 'Go Free' end
+  if action == STOP_ACTION_TICKET then return 'Ticket' end
+  return 'Action'
+end
+
+local function clearRecordAfterStopResolution(record)
+  if not record then return end
+  record.ticketed = true
+  record.wanted = false
+  record.stolen = false
+  record.suspendedLicense = false
+  record.noInsurance = false
+  record.expiredRegistration = false
+  record.apb = false
+  record.apbReason = nil
+  record.flagged = false
+  record.alerts = {}
+end
+
+local function awardTicketReward(vehId, action)
   local record = vehicleRecords[vehId]
   if record and record.ticketed then
     log('I', logTag, 'Already ticketed vehId=' .. vehId .. ', skipping')
     ui_message("Already ticketed this driver", 5, "Police")
-    return
+    return 0
   end
 
   -- Scale reward based on violation severity
@@ -1148,11 +1207,12 @@ local function awardTicketReward(vehId)
     career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
   end
 
-  local message = "You ticketed this driver: $" .. reward
+  local message = "Appropriate action - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
   if reputationBonus ~= 1 then
     message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
   end
   ui_message(message, 5, "Police")
+  return reward
 end
 
 local function findVehicleAhead(playerVeh, range, coneDot)
@@ -1213,7 +1273,7 @@ local function forcePoliceLightsOffForStopResolution()
   playerVeh:queueLuaCommand('extensions.auto_rlsSirenController.stopAll()')
 end
 
-local function resetTrafficStop()
+resetTrafficStop = function()
   setStopActionMenuOpen(false, 'trafficStopReset')
 
   local releaseTargetId = nil
@@ -1230,6 +1290,10 @@ local function resetTrafficStop()
   trafficStopEnforceTimer = 0
   stopActionMenuResolutionInProgress = false
   earlyFleeTimer = nil
+  rabbitTarget = nil
+  rabbitRolled = false
+  rabbitTimer = 0
+  rabbitDelay = 0
   if hadStopState then
     guihooks.trigger('policeComputerStopProgress', nil)
   end
@@ -1249,23 +1313,7 @@ updateTrafficStop = function(dtReal)
   local lightbar = getLightbarSignal(playerVeh, playerVehId)
   if not isLightbarActive(lightbar) then
     if isTrafficStopFullyCommenced() then
-      local rec = vehicleRecords[trafficStopTarget]
-      if rec and rec.flagged then
-        awardTicketReward(trafficStopTarget)
-        -- Clear offenses so ANPR shows clean and can't be re-ticketed
-        rec.ticketed = true
-        rec.wanted = false
-        rec.stolen = false
-        rec.suspendedLicense = false
-        rec.noInsurance = false
-        rec.expiredRegistration = false
-        rec.apb = false
-        rec.apbReason = nil
-        rec.flagged = false
-        rec.alerts = {}
-      else
-        ui_message("No violations found — driver released", 5, "Police")
-      end
+      ui_message("Traffic stop ended without confirmed action", 5, "Police")
     end
     resetTrafficStop()
     return
@@ -1482,6 +1530,17 @@ function M.confirmStopActionMenu()
     plate = vehicleRecords[targetVehId].plate
   end
   local evaluation = evaluateStopActionSelection(record, stopActionMenuSelection)
+  local rewardGranted = false
+  local rewardAmount = 0
+  if evaluation.appropriate then
+    rewardAmount = awardTicketReward(targetVehId, stopActionMenuSelection) or 0
+    rewardGranted = rewardAmount > 0
+    if rewardGranted then
+      clearRecordAfterStopResolution(record)
+    end
+  else
+    ui_message('Inappropriate action - no reward', 5, 'Police')
+  end
 
   guihooks.trigger('policeComputerStopActionMenuConfirmed', {
     action = stopActionMenuSelection,
@@ -1490,7 +1549,9 @@ function M.confirmStopActionMenu()
     condition = evaluation.condition,
     reason = evaluation.reason,
     appropriate = evaluation.appropriate,
-    allowedActions = evaluation.allowedActions
+    allowedActions = evaluation.allowedActions,
+    rewardGranted = rewardGranted,
+    rewardAmount = rewardAmount
   })
 
   stopActionMenuResolutionInProgress = true
