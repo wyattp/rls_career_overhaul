@@ -1,0 +1,188 @@
+Police Computer Traffic Stop Radial Menu Plan
+
+Status
+- Planning document only.
+- No code changes included in this file.
+
+Feature Summary
+- During an active/full traffic stop, pressing the default input (Xbox LB) opens a center-screen circular action menu.
+- The game continues running in the background while the menu is open (no pause).
+- The player can close/exit the menu at any time with LB or B.
+
+Entry Conditions
+- The radial menu can only open after the traffic stop is fully commenced.
+- If no valid active stop target exists, LB does not open the menu.
+
+Menu Visual Design
+- Position: center of screen.
+- Background: transparent dark gray overlay.
+- Layout: 4-way circular menu (not a list).
+- Slots:
+  - Up/Top: Arrest (small text + white handcuffs icon)
+  - Down/Bottom: Go Free (small text + release icon)
+  - Left: Ticket (small text + ticket/citation icon)
+  - Right: Warning/Detain (small text + warning/detain icon)
+
+Default Controls
+- Open menu: Xbox LB.
+- Close menu without selection: Xbox LB or Xbox B.
+- Navigate options: Xbox D-pad Up/Down/Left/Right.
+- Confirm selection: default confirm action (A) or equivalent existing UI confirm input.
+
+Controls and Rebinding Requirement
+- All radial-menu inputs must be implemented as action bindings (not hardcoded gamepad button polling).
+- New actions must appear under Options -> Controls -> Gameplay so players can remap them.
+- Recommended action set:
+  - Police: Open/Close Stop Action Menu
+  - Police: Stop Action Up
+  - Police: Stop Action Down
+  - Police: Stop Action Left
+  - Police: Stop Action Right
+  - Police: Stop Action Confirm
+  - Police: Stop Action Cancel
+- Defaults should map to LB/B/D-pad/A as described, but all defaults must be user-changeable through control settings.
+- UI/logic should read only from the action system so remapped keys/controllers work automatically.
+
+Selection Behavior
+- When an option is confirmed:
+  - Apply selected traffic stop outcome.
+  - Close the radial menu.
+  - Turn off police lights.
+  - End/resolve the current traffic stop flow.
+
+Outcome and Reward Rules
+- Reward is only granted when the selected action is appropriate for the stop reason.
+
+Case A: No insurance or no registration
+- Appropriate options:
+  - Ticket
+  - Warning/Detain
+  - Go Free
+- Not appropriate:
+  - Arrest
+- Reward result:
+  - Reward granted for appropriate options only.
+  - No reward if Arrest is selected.
+
+Case B: Warrant present
+- Appropriate option:
+  - Arrest only
+- Not appropriate:
+  - Ticket, Warning/Detain, Go Free
+- Reward result:
+  - Reward granted only for Arrest.
+  - No reward for all other selections.
+
+Case C: APB present (user text said "app"; interpreted as APB)
+- Appropriate option:
+  - Warning/Detain only
+- Not appropriate:
+  - Arrest, Ticket, Go Free
+- Reward result:
+  - Reward granted only for Warning/Detain.
+  - No reward for all other selections.
+
+Priority Rules (if multiple violations exist)
+- Priority order for appropriateness checks:
+  1. Warrant
+  2. APB
+  3. Insurance/Registration issues
+- Highest-priority active condition decides which actions are considered appropriate.
+
+UX Feedback
+- On selection, show immediate feedback text:
+  - "Appropriate action - reward granted" or
+  - "Inappropriate action - no reward"
+- Optional: show reason context (for example "Target has active warrant").
+
+State and Safety Notes
+- Menu cannot be opened twice simultaneously.
+- If stop target despawns/flees while menu is open, auto-close menu and cancel resolution.
+- Exiting with LB/B does not resolve the stop and does not change rewards.
+
+Acceptance Criteria
+- LB opens radial menu only during fully commenced stops.
+- Menu stays in center with transparent dark gray background.
+- Four options are displayed in circular directional layout as specified.
+- D-pad selects directional option correctly.
+- LB/B exits menu at any time.
+- Confirming an option closes menu, turns off police lights, and resolves stop.
+- Rewards are only granted for appropriate action according to rule matrix.
+- All radial-menu actions are visible and rebindable in Options -> Controls -> Gameplay.
+- After rebinding, the new bindings fully replace defaults for open, navigate, confirm, and cancel.
+
+Phased Implementation and Test Plan
+Phase 1 - Stop State and Menu Gate
+Implementation
+- Add a single source of truth for "full stop commenced" state.
+- Add radial menu open/close state.
+- Register gameplay action bindings for menu open/close/cancel (default LB/B).
+- Bind action handlers (not raw button checks) so rebinding is supported.
+- Open menu only when a valid full stop target exists.
+Test
+- LB does nothing when no active full stop exists.
+- LB opens menu when full stop is active.
+- LB and B both close menu cleanly.
+- Opening the menu twice is prevented.
+- Rebind open/cancel actions in controls menu and verify new bindings work.
+
+Phase 2 - Radial UI and Input Navigation
+Implementation
+- Build center-screen transparent dark gray overlay.
+- Render 4 directional options in circular layout (up/down/left/right).
+- Register and use directional action bindings for up/down/left/right (default D-pad).
+- Register and use confirm action binding (default A).
+Test
+- UI appears centered with background and correct 4 option positions.
+- D-pad reliably changes selected quadrant.
+- Confirm input selects highlighted option.
+- Game simulation continues while menu is open.
+- Rebind navigation/confirm actions and verify menu uses new bindings correctly.
+
+Phase 3 - Stop Resolution Hook
+Implementation
+- On confirmed selection: close menu, turn off police lights, resolve stop.
+- Ensure resolve action runs once per selection.
+- Preserve behavior where LB/B exit does not resolve stop.
+Test
+- Any confirmed option ends stop and turns lights off.
+- Exit via LB/B leaves stop unresolved.
+- No duplicate resolve/reward events from repeated input.
+
+Phase 4 - Rule Engine for Appropriateness
+Implementation
+- Add condition detection for:
+  - Warrant
+  - APB
+  - No insurance/registration
+- Implement priority order:
+  1. Warrant
+  2. APB
+  3. Insurance/Registration
+- Map condition to valid action set.
+Test
+- Warrant case accepts only Arrest as appropriate.
+- APB case accepts only Warning/Detain as appropriate.
+- Insurance/registration case accepts Ticket, Warning/Detain, Go Free.
+- Mixed-condition cases obey priority order.
+
+Phase 5 - Reward and Feedback
+Implementation
+- Add reward gate using appropriateness result.
+- Grant reward only when selected action is appropriate.
+- Show immediate feedback message for appropriate vs inappropriate outcomes.
+Test
+- Correct action grants reward in each case.
+- Incorrect action gives no reward.
+- Feedback message matches reward outcome.
+
+Phase 6 - Stability, Edge Cases, and Controller Polish
+Implementation
+- Handle despawn/flee while menu open (auto-close + cancel resolution).
+- Validate behavior on vehicle switch, pursuit end, and stop interruption.
+- Verify default bindings (LB open/close, B close, D-pad navigate).
+Test
+- Despawn/flee does not crash or soft-lock menu/state.
+- Menu state resets correctly after interrupted stops.
+- Controller-only flow works end-to-end without keyboard.
+- Regression pass confirms existing ANPR/traffic-stop flow still works.

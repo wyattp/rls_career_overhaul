@@ -61,6 +61,12 @@ local function pushSirenConfig(vehId)
   end
 end
 
+local function ensurePoliceComputerLoaded()
+  if gameplay_policeComputer then return true end
+  extensions.load('gameplay_policeComputer')
+  return gameplay_policeComputer ~= nil
+end
+
 -- Lights toggle: OFF <-> lights-only.
 -- Turning lights off kills siren sounds via the vehicle extension.
 -- Turning lights on triggers an immediate traffic stop on the vehicle ahead.
@@ -82,6 +88,22 @@ function M.togglePoliceLights()
       gameplay_policeComputer.immediateTrafficStop()
     end
   end
+end
+
+function M.toggleTrafficStopActionMenu()
+  if not ensurePoliceComputerLoaded() then return false end
+  if gameplay_policeComputer and gameplay_policeComputer.toggleStopActionMenu then
+    return gameplay_policeComputer.toggleStopActionMenu()
+  end
+  return false
+end
+
+function M.cancelTrafficStopActionMenu()
+  if not ensurePoliceComputerLoaded() then return false end
+  if gameplay_policeComputer and gameplay_policeComputer.cancelStopActionMenu then
+    return gameplay_policeComputer.cancelStopActionMenu()
+  end
+  return false
 end
 
 function M.onVehicleSwitched(oldId, newId)
