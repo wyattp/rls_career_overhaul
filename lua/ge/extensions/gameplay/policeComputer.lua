@@ -169,33 +169,33 @@ end
 
 local recordTTL = 30 -- seconds before a record expires and gets regenerated
 
+local function expireRecordIfStale(vehId)
+  local existing = vehicleRecords[vehId]
+  if not existing then return end
+  local lastActive = existing.lastSeenAt or existing.createdAt
+  local isActiveEvent = trafficStopTarget == vehId or trafficStopOwnedFlee[vehId]
+  if lastActive and (os.clock() - lastActive) > recordTTL and not isActiveEvent then
+    log('I', logTag, 'expireRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
+    if existing.plate and plateOwners[existing.plate] == vehId then
+      plateOwners[existing.plate] = nil
+    end
+    vehicleRecords[vehId] = nil
+    vehicleLastSeenTick[vehId] = nil
+    for i = #scannedVehIds, 1, -1 do
+      if scannedVehIds[i] == vehId then
+        table.remove(scannedVehIds, i)
+        break
+      end
+    end
+    retiredVehicleIds[vehId] = nil
+    guihooks.trigger('policeComputerRecordExpired', { vehId = vehId })
+  end
+end
+
 local function generateRecord(vehId)
   local existing = vehicleRecords[vehId]
   if existing then
-    local lastActive = existing.lastSeenAt or existing.createdAt
-    local isActiveEvent = trafficStopTarget == vehId or trafficStopOwnedFlee[vehId]
-    if lastActive and (os.clock() - lastActive) > recordTTL and not isActiveEvent then
-      log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
-      -- Inline cleanup (can't call removeTrackedVehicleRecord — not defined yet)
-      if existing.plate and plateOwners[existing.plate] == vehId then
-        plateOwners[existing.plate] = nil
-      end
-      vehicleRecords[vehId] = nil
-      vehicleLastSeenTick[vehId] = nil
-      -- Remove from scanned list so it gets a fresh NEW_SCAN
-      for i = #scannedVehIds, 1, -1 do
-        if scannedVehIds[i] == vehId then
-          table.remove(scannedVehIds, i)
-          break
-        end
-      end
-      -- Remove from retired list so ANPR can pick it up again
-      retiredVehicleIds[vehId] = nil
-      -- Notify UI so detail panel closes if this record was selected
-      guihooks.trigger('policeComputerRecordExpired', { vehId = vehId })
-    else
-      return existing
-    end
+    return existing
   end
   -- Seed with high-entropy source to guarantee uniqueness
   local seed = os.clock() * 1000000 + vehId * 31
@@ -530,6 +530,11 @@ local function scanForVehicles()
               status, vehId, dist, verticalDiff, dot, dotLeft, record.plate, record.vehicleName, colorStr,
               record.driverName or '?',
               record.createdAt and (os.clock() - record.createdAt) or -1))
+          end
+
+          -- Expire stale records for vehicles outside the cone
+          if not inCone then
+            expireRecordIfStale(vehId)
           end
 
           -- Only act on vehicles that are: in cone, not police, not retired
@@ -932,8 +937,12 @@ local function fleeFromStop(vehId, mode)
   trafficStopComplying = false
   trafficStopOwnedFlee[vehId] = true
   gameplay_police.setPursuitMode(mode, vehId)
-  if mode == 2 then
-    getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
+  local obj = getObjectByID(vehId)
+  if obj then
+    obj:queueLuaCommand('ai.setMode("flee")')
+    if mode == 2 then
+      obj:queueLuaCommand('ai.setAggression(1.0)')
+    end
   end
   local record = vehicleRecords[vehId]
   log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record and record.plate) .. ' mode=' .. tostring(mode))
