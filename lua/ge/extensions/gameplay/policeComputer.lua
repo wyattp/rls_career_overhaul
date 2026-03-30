@@ -636,9 +636,49 @@ function M.clearScans()
   })
 end
 
+local anprSelectedVehId = nil
+
 function M.cycleANPR(direction)
-  log('I', logTag, 'cycleANPR called, direction=' .. tostring(direction) .. ' scannedVehIds=' .. tostring(#scannedVehIds))
-  guihooks.trigger('policeComputerCycleEntry', { direction = direction })
+  direction = direction or 1
+  log('I', logTag, 'cycleANPR called, direction=' .. tostring(direction) .. ' scannedVehIds=' .. tostring(#scannedVehIds) .. ' selected=' .. tostring(anprSelectedVehId))
+
+  if #scannedVehIds == 0 then return end
+
+  -- Find current index
+  local currentIdx = nil
+  if anprSelectedVehId then
+    for i, vid in ipairs(scannedVehIds) do
+      if vid == anprSelectedVehId then
+        currentIdx = i
+        break
+      end
+    end
+  end
+
+  if not currentIdx then
+    -- Nothing selected — select first
+    anprSelectedVehId = scannedVehIds[1]
+    log('I', logTag, 'cycleANPR: selecting first, vehId=' .. tostring(anprSelectedVehId))
+  else
+    local nextIdx = currentIdx + direction
+    if nextIdx < 1 or nextIdx > #scannedVehIds then
+      -- Past the end — deselect
+      anprSelectedVehId = nil
+      log('I', logTag, 'cycleANPR: past end, deselecting')
+      guihooks.trigger('policeComputerSelectEntry', { vehId = nil })
+      return
+    else
+      anprSelectedVehId = scannedVehIds[nextIdx]
+      log('I', logTag, 'cycleANPR: selecting idx=' .. nextIdx .. ' vehId=' .. tostring(anprSelectedVehId))
+    end
+  end
+
+  -- Send selection + lookup
+  local record = vehicleRecords[anprSelectedVehId]
+  guihooks.trigger('policeComputerSelectEntry', { vehId = anprSelectedVehId })
+  if record then
+    guihooks.trigger('policeComputerLookup', record)
+  end
 end
 
 -- Visibility
