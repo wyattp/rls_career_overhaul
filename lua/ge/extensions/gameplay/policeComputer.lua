@@ -113,12 +113,7 @@ local recordTTL = 30 -- seconds before a record expires and gets regenerated
 local function generateRecord(vehId)
   local existing = vehicleRecords[vehId]
   if existing then
-    -- Expire records after TTL if the vehicle isn't currently in our scanned list
-    local inScanList = false
-    for _, sid in ipairs(scannedVehIds) do
-      if sid == vehId then inScanList = true break end
-    end
-    if not inScanList and existing.createdAt and (os.clock() - existing.createdAt) > recordTTL then
+    if existing.createdAt and (os.clock() - existing.createdAt) > recordTTL then
       log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
       -- Inline cleanup (can't call removeTrackedVehicleRecord — not defined yet)
       if existing.plate and plateOwners[existing.plate] == vehId then
@@ -126,6 +121,15 @@ local function generateRecord(vehId)
       end
       vehicleRecords[vehId] = nil
       vehicleLastSeenTick[vehId] = nil
+      -- Remove from scanned list so it gets a fresh NEW_SCAN
+      for i = #scannedVehIds, 1, -1 do
+        if scannedVehIds[i] == vehId then
+          table.remove(scannedVehIds, i)
+          break
+        end
+      end
+      -- Remove from retired list so ANPR can pick it up again
+      retiredVehicleIds[vehId] = nil
     else
       return existing
     end
@@ -403,46 +407,51 @@ local function scanForVehicles()
   end
 
   for vehId, tVeh in pairs(trafficData) do
-    if vehId ~= playerVehId and tVeh.roleName ~= 'police' and not retiredVehicleIds[vehId] then
+    if vehId ~= playerVehId and tVeh.roleName ~= 'police' then
       local obj = getObjectByID(vehId)
       if obj then
         local vehPos = obj:getPosition()
         local dirToVeh = (vehPos - playerPos):normalized()
         local dist = playerPos:distance(vehPos)
         local dot = playerDir:dot(dirToVeh)
-
         local verticalDiff = vehPos.z - playerPos.z
 
         if dist < scanRange and dot > scanConeAngle and verticalDiff >= scanVerticalMin and verticalDiff <= scanVerticalMax then
           local record = generateRecord(vehId)
           if record then
+            local isRetired = retiredVehicleIds[vehId] and true or false
             local wasTracked = trackedSet[vehId]
-            local action = wasTracked and 'EXISTING' or 'NEW_SCAN'
+            local action = isRetired and 'RETIRED' or (wasTracked and 'EXISTING' or 'NEW_SCAN')
             log('I', logTag, string.format('ANPR cone: %s vehId=%d dist=%.1fm vDiff=%.1fm dot=%.2f plate=%s model=%s jbeam=%s driver=%s age=%.1fs',
               action, vehId, dist, verticalDiff, dot, record.plate, record.vehicleName, tostring(obj.jbeam),
               record.driverName or '?',
               record.createdAt and (os.clock() - record.createdAt) or -1))
 
-            -- Track closest vehicle in cone
-            if dist < closestDist then
-              closestDist = dist
-              closestVehId = vehId
-              closestPlate = record.plate
-            end
-
-            if not wasTracked then
-              hasNewScan = true
-              guihooks.trigger('policeComputerScan', {
-                record = record,
-                isNew = true
-              })
-              if record.flagged then
-                Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Fail')
+            -- Skip retired vehicles for tracking/UI but still log them
+            if isRetired then
+              -- do nothing — just logged above
+            else
+              -- Track closest vehicle in cone
+              if dist < closestDist then
+                closestDist = dist
+                closestVehId = vehId
+                closestPlate = record.plate
               end
-              trackedSet[vehId] = true
-            end
 
-            table.insert(detected, {vehId = vehId, dist = dist})
+              if not wasTracked then
+                hasNewScan = true
+                guihooks.trigger('policeComputerScan', {
+                  record = record,
+                  isNew = true
+                })
+                if record.flagged then
+                  Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Fail')
+                end
+                trackedSet[vehId] = true
+              end
+
+              table.insert(detected, {vehId = vehId, dist = dist})
+            end
           end
         end
       end
