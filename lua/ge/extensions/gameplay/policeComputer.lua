@@ -113,7 +113,8 @@ local recordTTL = 30 -- seconds before a record expires and gets regenerated
 local function generateRecord(vehId)
   local existing = vehicleRecords[vehId]
   if existing then
-    if existing.createdAt and (os.clock() - existing.createdAt) > recordTTL then
+    local lastActive = existing.lastSeenAt or existing.createdAt
+    if lastActive and (os.clock() - lastActive) > recordTTL then
       log('I', logTag, 'generateRecord: EXPIRED record for vehId=' .. vehId .. ' plate=' .. tostring(existing.plate))
       -- Inline cleanup (can't call removeTrackedVehicleRecord — not defined yet)
       if existing.plate and plateOwners[existing.plate] == vehId then
@@ -144,6 +145,14 @@ local function generateRecord(vehId)
 
   local obj = getObjectByID(vehId)
   if not obj then return nil end
+
+  local jbeamName = tostring(obj.jbeam or '')
+  local jbeamLower = jbeamName:lower()
+  -- Skip pedestrians/walking NPCs
+  if jbeamLower:find('walk') or jbeamLower:find('ped') or jbeamName == '' then
+    log('D', logTag, 'generateRecord: skipping non-vehicle vehId=' .. vehId .. ' jbeam=' .. jbeamName)
+    return nil
+  end
 
   local modelData = core_vehicles.getModel(obj.jbeam)
   local model = modelData and modelData.model or {}
@@ -409,7 +418,6 @@ local function scanForVehicles()
   for vehId, tVeh in pairs(trafficData) do
     if vehId ~= playerVehId then
       local obj = getObjectByID(vehId)
-      if obj and obj.jbeam == 'walking' then obj = nil end -- skip pedestrians
       if obj then
         local vehPos = obj:getPosition()
         local dirToVeh = (vehPos - playerPos):normalized()
@@ -434,6 +442,8 @@ local function scanForVehicles()
 
           -- Only log and act on vehicles inside the cone
           if inCone then
+            -- Keep record alive while vehicle is visible
+            record.lastSeenAt = os.clock()
             -- Build status string
             local status = 'IN_CONE'
             if isPolice then status = status .. '|POLICE' end
