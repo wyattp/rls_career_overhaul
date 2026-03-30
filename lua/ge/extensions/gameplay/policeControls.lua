@@ -106,6 +106,22 @@ function M.cancelTrafficStopActionMenu()
   return false
 end
 
+function M.navigateTrafficStopActionMenu(direction)
+  if not ensurePoliceComputerLoaded() then return false end
+  if gameplay_policeComputer and gameplay_policeComputer.navigateStopActionMenu then
+    return gameplay_policeComputer.navigateStopActionMenu(direction)
+  end
+  return false
+end
+
+function M.confirmTrafficStopActionMenu()
+  if not ensurePoliceComputerLoaded() then return false end
+  if gameplay_policeComputer and gameplay_policeComputer.confirmStopActionMenu then
+    return gameplay_policeComputer.confirmStopActionMenu()
+  end
+  return false
+end
+
 function M.onVehicleSwitched(oldId, newId)
   -- Stop sirens on the old vehicle
   if oldId then
