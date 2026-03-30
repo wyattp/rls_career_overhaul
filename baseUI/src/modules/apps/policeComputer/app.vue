@@ -5,6 +5,10 @@
       <div class="pc-title">
         <span class="pc-badge">ANPR</span>
         <span class="pc-label">Police Computer</span>
+        <span class="cone-indicators" v-if="anprActive">
+          <span class="cone-icon cone-left" :class="{ active: coneLeftHit }" title="Left ANPR">&#8598;</span>
+          <span class="cone-icon cone-front" :class="{ active: coneFrontHit }" title="Front ANPR">&#8593;</span>
+        </span>
       </div>
       <div class="pc-controls">
         <button
@@ -147,6 +151,8 @@ const selectedRecord = ref(null)
 const actionBanner = ref(null)
 const stopProgress = ref(null)
 const aheadPlate = ref(null)
+const coneFrontHit = ref(false)
+const coneLeftHit = ref(false)
 let actionBannerTimeout = null
 
 function toggleCollapse() {
@@ -246,6 +252,8 @@ function onRabbit(data) {
 
 function onAhead(data) {
   aheadPlate.value = data && data.plate ? data.plate : null
+  coneFrontHit.value = !!(data && data.coneFront)
+  coneLeftHit.value = !!(data && data.coneLeft)
 }
 
 function onVisibilityChange(data) {
@@ -345,6 +353,26 @@ $clear-green: #3cff6e;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.cone-indicators {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.cone-icon {
+  font-size: 14px;
+  font-weight: bold;
+  color: rgba(122, 142, 160, 0.3);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+  line-height: 1;
+
+  &.active {
+    color: $clear-green;
+    text-shadow: 0 0 6px rgba(60, 255, 110, 0.6);
+  }
 }
 
 .pc-controls {

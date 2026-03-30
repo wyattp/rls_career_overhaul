@@ -21,6 +21,8 @@ local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
 local scanRange = 25 -- meters
 local scanConeAngle = 0.99 -- dot product threshold (~7 degree half-angle, ~20ft wide at max range)
+local scanRangeLeft = 10 -- meters, short range for passing traffic
+local scanConeAngleLeft = 0.90 -- wider cone for left side (~25 degree half-angle)
 local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
 local scanVerticalMax = 20 -- meters above player allowed
 
@@ -396,6 +398,7 @@ local function scanForVehicles()
 
   local playerPos = playerVeh:getPosition()
   local playerDir = playerVeh:getDirectionVector()
+  local playerLeft = (playerDir:cross(vec3(0, 0, 1)):normalized()) * -1
 
   if not gameplay_traffic or not gameplay_traffic.getTrafficData() then
     guihooks.trigger('policeComputerAhead', { plate = nil })
@@ -410,6 +413,8 @@ local function scanForVehicles()
   local historyChanged = false
   local detected = {}
   local trackedSet = {}
+  local coneFrontHit = false
+  local coneLeftHit = false
 
   for _, vehId in ipairs(scannedVehIds) do
     trackedSet[vehId] = true
@@ -428,7 +433,10 @@ local function scanForVehicles()
         -- Always generate record and log — no pre-filtering
         local record = generateRecord(vehId)
         if record then
-          local inCone = dist < scanRange and dot > scanConeAngle and verticalDiff >= scanVerticalMin and verticalDiff <= scanVerticalMax
+          local dotLeft = playerLeft:dot(dirToVeh)
+          local inFrontCone = dist < scanRange and dot > scanConeAngle
+          local inLeftCone = dist < scanRangeLeft and dotLeft > scanConeAngleLeft
+          local inCone = (inFrontCone or inLeftCone) and verticalDiff >= scanVerticalMin and verticalDiff <= scanVerticalMax
           local isRetired = retiredVehicleIds[vehId] and true or false
           local isPolice = tVeh.roleName == 'police'
           local wasTracked = trackedSet[vehId]
@@ -445,19 +453,22 @@ local function scanForVehicles()
             -- Keep record alive while vehicle is visible
             record.lastSeenAt = os.clock()
             -- Build status string
-            local status = 'IN_CONE'
+            local coneSrc = inFrontCone and 'FRONT' or 'LEFT'
+            local status = 'IN_CONE(' .. coneSrc .. ')'
             if isPolice then status = status .. '|POLICE' end
             if isRetired then status = status .. '|RETIRED' end
             if wasTracked then status = status .. '|TRACKED' end
 
-            log('I', logTag, string.format('ANPR scan: %s vehId=%d dist=%.1fm vDiff=%.1fm dot=%.2f plate=%s model=%s color=%s driver=%s age=%.1fs',
-              status, vehId, dist, verticalDiff, dot, record.plate, record.vehicleName, colorStr,
+            log('I', logTag, string.format('ANPR scan: %s vehId=%d dist=%.1fm vDiff=%.1fm dotFwd=%.2f dotLeft=%.2f plate=%s model=%s color=%s driver=%s age=%.1fs',
+              status, vehId, dist, verticalDiff, dot, dotLeft, record.plate, record.vehicleName, colorStr,
               record.driverName or '?',
               record.createdAt and (os.clock() - record.createdAt) or -1))
           end
 
           -- Only act on vehicles that are: in cone, not police, not retired
           if inCone and not isPolice and not isRetired then
+            if inFrontCone then coneFrontHit = true end
+            if inLeftCone then coneLeftHit = true end
             -- Track closest vehicle in cone
             if dist < closestDist then
               closestDist = dist
@@ -484,8 +495,8 @@ local function scanForVehicles()
     end
   end
 
-  -- Always send which plate is currently ahead
-  guihooks.trigger('policeComputerAhead', { plate = closestPlate })
+  -- Always send which plate is currently ahead + cone status
+  guihooks.trigger('policeComputerAhead', { plate = closestPlate, coneFront = coneFrontHit, coneLeft = coneLeftHit })
 
   if #detected > 0 then
     local oldIds = deepcopy(scannedVehIds)
@@ -733,6 +744,24 @@ function M.onPursuitAction(vehId, action, pursuitData)
   if action == 'arrest' or action == 'release' or action == 'reset' then
     if trafficStopOwnedFlee[vehId] then
       trafficStopOwnedFlee[vehId] = nil
+    end
+    if action == 'arrest' then
+      local record = vehicleRecords[vehId]
+      if record and record.arrested then
+        log('I', logTag, 'Arrest already processed for vehId=' .. vehId .. ', ignoring duplicate')
+        return
+      end
+      if record then
+        record.arrested = true
+      end
+      retiredVehicleIds[vehId] = true
+      local obj = getObjectByID(vehId)
+      if obj then
+        obj:queueLuaCommand('ai.setMode("stop")')
+        obj:queueLuaCommand('ai.setSpeedMode("set")')
+        obj:queueLuaCommand('ai.setSpeed(0)')
+      end
+      log('I', logTag, 'Vehicle arrested and retired vehId=' .. vehId)
     end
     return
   end
