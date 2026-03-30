@@ -481,6 +481,12 @@ local function scanForVehicles()
     if vehId ~= playerVehId then
       local obj = getObjectByID(vehId)
       if obj then
+        -- Skip pedestrians early before any processing
+        local jbeam = tostring(obj.jbeam or ''):lower()
+        if jbeam:find('walk') or jbeam:find('ped') or jbeam:find('character') or jbeam == '' then
+          -- not a vehicle, skip entirely
+        else
+
         local vehPos = obj:getPosition()
         local dirToVeh = (vehPos - playerPos):normalized()
         local dist = playerPos:distance(vehPos)
@@ -548,6 +554,7 @@ local function scanForVehicles()
             table.insert(detected, {vehId = vehId, dist = dist})
           end
         end
+        end -- else (not pedestrian)
       end
     end
   end
@@ -690,9 +697,49 @@ function M.clearScans()
   })
 end
 
+local anprSelectedVehId = nil
+
 function M.cycleANPR(direction)
-  log('I', logTag, 'cycleANPR called, direction=' .. tostring(direction) .. ' scannedVehIds=' .. tostring(#scannedVehIds))
-  guihooks.trigger('policeComputerCycleEntry', { direction = direction })
+  direction = direction or 1
+  log('I', logTag, 'cycleANPR called, direction=' .. tostring(direction) .. ' scannedVehIds=' .. tostring(#scannedVehIds) .. ' selected=' .. tostring(anprSelectedVehId))
+
+  if #scannedVehIds == 0 then return end
+
+  -- Find current index
+  local currentIdx = nil
+  if anprSelectedVehId then
+    for i, vid in ipairs(scannedVehIds) do
+      if vid == anprSelectedVehId then
+        currentIdx = i
+        break
+      end
+    end
+  end
+
+  if not currentIdx then
+    -- Nothing selected — select first
+    anprSelectedVehId = scannedVehIds[1]
+    log('I', logTag, 'cycleANPR: selecting first, vehId=' .. tostring(anprSelectedVehId))
+  else
+    local nextIdx = currentIdx + direction
+    if nextIdx < 1 or nextIdx > #scannedVehIds then
+      -- Past the end — deselect
+      anprSelectedVehId = nil
+      log('I', logTag, 'cycleANPR: past end, deselecting')
+      guihooks.trigger('policeComputerSelectEntry', { vehId = nil })
+      return
+    else
+      anprSelectedVehId = scannedVehIds[nextIdx]
+      log('I', logTag, 'cycleANPR: selecting idx=' .. nextIdx .. ' vehId=' .. tostring(anprSelectedVehId))
+    end
+  end
+
+  -- Send selection + lookup
+  local record = vehicleRecords[anprSelectedVehId]
+  guihooks.trigger('policeComputerSelectEntry', { vehId = anprSelectedVehId })
+  if record then
+    guihooks.trigger('policeComputerLookup', record)
+  end
 end
 
 -- Visibility
@@ -1292,7 +1339,7 @@ function M.onExtensionLoaded()
     setEmptyComputerState()
   end
   if gameplay_police and gameplay_police.setPursuitVars then
-    gameplay_police.setPursuitVars({ suspectFrequency = 0.2 })
+    gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
 end
 
@@ -1323,42 +1370,10 @@ function M.onExtensionUnloaded()
   stopActionMenuTarget = nil
   stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   if gameplay_police and gameplay_police.setPursuitVars then
-    gameplay_police.setPursuitVars({ suspectFrequency = 0.5 })
+    gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
 end
 
-function M.openGarageComputer()
-  local computers = freeroam_facilities.getFacilitiesByType("computer")
-  if not computers then
-    ui_message("No garage computers available", 5, "Police")
-    return
-  end
 
-  local playerVeh = getPlayerVehicle(0)
-  local playerPos = playerVeh and playerVeh:getPosition() or nil
-
-  -- Find the closest accessible garage computer
-  local bestComputer = nil
-  local bestDist = math.huge
-  for _, comp in pairs(computers) do
-    if comp.garageId and career_modules_garageManager.isAccessibleGarage(comp.garageId) then
-      local compPos = freeroam_facilities.getAverageDoorPositionForFacility(comp)
-      if compPos and playerPos then
-        local dist = playerPos:distance(compPos)
-        if dist < bestDist then
-          bestDist = dist
-          bestComputer = comp
-        end
-      end
-    end
-  end
-
-  if not bestComputer then
-    ui_message("No owned garage found", 5, "Police")
-    return
-  end
-
-  career_modules_computer.openMenu(bestComputer, false, nil, true)
-end
 
 return M

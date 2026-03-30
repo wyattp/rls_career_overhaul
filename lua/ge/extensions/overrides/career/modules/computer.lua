@@ -15,7 +15,7 @@ local computerId
 local computerFacilityName
 local menuData = {}
 
-local function openMenu(computerFacility, resetActiveVehicleIndex, activityElement, skipTether)
+local function openMenu(computerFacility, resetActiveVehicleIndex, activityElement)
   computerFunctions = {general = {}, vehicleSpecific = {}}
   computerId = computerFacility.id
   computerFacilityName = computerFacility.name
@@ -44,16 +44,14 @@ local function openMenu(computerFacility, resetActiveVehicleIndex, activityEleme
 
   extensions.hook("onComputerAddFunctions", menuData, computerFunctions)
 
+  local computerPos = freeroam_facilities.getAverageDoorPositionForFacility(computerFacility)
+  local door = computerFacility.doors[1]
   tether = nil
-  if not skipTether then
-    local computerPos = freeroam_facilities.getAverageDoorPositionForFacility(computerFacility)
-    local door = computerFacility.doors[1]
-    if door then
-      tether = career_modules_tether.startDoorTether(door, computerTetherRangeBox, M.closeMenu)
-    end
-    if not tether then
-      tether = career_modules_tether.startSphereTether(computerPos, computerTetherRangeSphere, M.closeMenu)
-    end
+  if door then
+    tether = career_modules_tether.startDoorTether(door, computerTetherRangeBox, M.closeMenu)
+  end
+  if not tether then
+    tether = career_modules_tether.startSphereTether(computerPos, computerTetherRangeSphere, M.closeMenu)
   end
 
   guihooks.trigger('ChangeState', {state = 'computer'})

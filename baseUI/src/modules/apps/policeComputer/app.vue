@@ -132,13 +132,6 @@
           <div class="stolen-banner">REPORTED STOLEN</div>
         </div>
       </div>
-
-      <!-- Quick access toolbar -->
-      <div class="pc-toolbar">
-        <button class="toolbar-btn" @click.stop="openGarageComputer" title="Garage Computer">
-          &#9881; Garage Computer
-        </button>
-      </div>
     </div>
   </div>
 
@@ -241,10 +234,6 @@ function toggleCollapse() {
 
 function toggleANPR() {
   $game.api.engineLua('gameplay_policeComputer.toggleANPR()')
-}
-
-function openGarageComputer() {
-  $game.api.engineLua('gameplay_policeComputer.openGarageComputer()')
 }
 
 function selectPlate(entry) {
@@ -363,6 +352,17 @@ function onStopActionMenuConfirmed(data) {
   showActionBanner('info', `STOP ACTION SELECTED: ${label.toUpperCase()}${plateSuffix}`, 2200)
 }
 
+function onSelectEntry(data) {
+  console.log('[ANPR] onSelectEntry fired', data)
+  if (!data || data.vehId == null) {
+    selectedVehId.value = null
+    selectedRecord.value = null
+    return
+  }
+  selectedVehId.value = Number(data.vehId)
+  // Record comes via policeComputerLookup which fires right after
+}
+
 function onRecordExpired(data) {
   if (!data) return
   const vehId = Number(data.vehId)
@@ -393,15 +393,22 @@ function onCycleEntry(data) {
     }
   }
 
-  let nextIdx
   if (currentIdx < 0) {
-    // Nothing selected — jump to first entry
-    nextIdx = 0
+    // Nothing selected — select first entry
+    console.log('[ANPR] nothing selected, selecting first')
+    selectPlate(plates[0])
   } else {
-    nextIdx = (currentIdx + dir + plates.length) % plates.length
+    const nextIdx = currentIdx + dir
+    if (nextIdx < 0 || nextIdx >= plates.length) {
+      // Past the end — close detail panel
+      console.log('[ANPR] past end, closing detail')
+      selectedVehId.value = null
+      selectedRecord.value = null
+    } else {
+      console.log('[ANPR] cycling from', currentIdx, 'to', nextIdx)
+      selectPlate(plates[nextIdx])
+    }
   }
-  console.log('[ANPR] cycling from', currentIdx, 'to', nextIdx, 'plate:', plates[nextIdx])
-  selectPlate(plates[nextIdx])
 }
 
 function onVisibilityChange(data) {
@@ -426,6 +433,7 @@ onMounted(() => {
   $game.events.on('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.on('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.on('policeComputerCycleEntry', onCycleEntry)
+  $game.events.on('policeComputerSelectEntry', onSelectEntry)
   $game.events.on('policeComputerRecordExpired', onRecordExpired)
   $game.api.engineLua('gameplay_policeComputer.requestState()')
 })
@@ -443,6 +451,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.off('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.off('policeComputerCycleEntry', onCycleEntry)
+  $game.events.off('policeComputerSelectEntry', onSelectEntry)
   $game.events.off('policeComputerRecordExpired', onRecordExpired)
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
 })
