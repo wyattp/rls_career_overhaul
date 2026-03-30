@@ -87,6 +87,7 @@ local rabbitRolled = false
 local stopActionMenuOpen = false
 local stopActionMenuTarget = nil
 local stopActionMenuSelection = 'up'
+local stopActionMenuResolutionInProgress = false
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -95,6 +96,50 @@ local STOP_ACTION_MENU_DIRECTIONS = {
   left = true,
   right = true
 }
+local STOP_ACTION_ARREST = 'up'
+local STOP_ACTION_GO_FREE = 'down'
+local STOP_ACTION_TICKET = 'left'
+local STOP_ACTION_WARN_DETAIN = 'right'
+local STOP_ACTION_ALLOWED_WARRANT = {
+  [STOP_ACTION_ARREST] = true
+}
+local STOP_ACTION_ALLOWED_APB = {
+  [STOP_ACTION_WARN_DETAIN] = true
+}
+local STOP_ACTION_ALLOWED_PAPERWORK = {
+  [STOP_ACTION_TICKET] = true,
+  [STOP_ACTION_WARN_DETAIN] = true,
+  [STOP_ACTION_GO_FREE] = true
+}
+local STOP_ACTION_ALLOWED_NONE = {
+  [STOP_ACTION_ARREST] = true,
+  [STOP_ACTION_WARN_DETAIN] = true,
+  [STOP_ACTION_GO_FREE] = true,
+  [STOP_ACTION_TICKET] = true
+}
+local STOP_ACTION_MENU_BLOCK_GROUP = 'policeStopActionMenuBlockedActions'
+local STOP_ACTION_MENU_ALLOWED_ACTIONS = {
+  'toggleTrafficStopActionMenu',
+  'cancelTrafficStopActionMenu',
+  'stopActionMenuUp',
+  'stopActionMenuDown',
+  'stopActionMenuLeft',
+  'stopActionMenuRight',
+  'confirmTrafficStopActionMenu'
+}
+local STOP_ACTION_MENU_BLOCKED_ACTION_CATEGORIES = {
+  'vehicleTeleporting',
+  'vehicleMenues',
+  'physicsControls',
+  'aiControls',
+  'vehicleSwitching',
+  'funStuff',
+  'dropPlayerAtCameraNoReset',
+  'walkingMode',
+  'bigMap'
+}
+local stopActionMenuBlockedInputTemplate = nil
+local stopActionMenuInputBlocked = false
 
 local STOP_DWELL_TIME = 3.0
 local STOP_RANGE = 15
@@ -114,6 +159,74 @@ end
 
 local function isValidStopActionMenuDirection(direction)
   return STOP_ACTION_MENU_DIRECTIONS[direction] == true
+end
+
+local function buildStopActionList(allowedSet)
+  local orderedActions = {
+    STOP_ACTION_ARREST,
+    STOP_ACTION_WARN_DETAIN,
+    STOP_ACTION_GO_FREE,
+    STOP_ACTION_TICKET
+  }
+  local list = {}
+  for _, action in ipairs(orderedActions) do
+    if allowedSet[action] then
+      table.insert(list, action)
+    end
+  end
+  return list
+end
+
+local function evaluateStopActionSelection(record, selectedAction)
+  local condition = 'none'
+  local reason = 'No priority violation'
+  local allowedSet = STOP_ACTION_ALLOWED_NONE
+
+  -- Priority order:
+  -- 1) warrant (wanted), 2) APB, 3) insurance/registration issues.
+  if record and record.wanted then
+    condition = 'warrant'
+    reason = 'Target has an active warrant'
+    allowedSet = STOP_ACTION_ALLOWED_WARRANT
+  elseif record and record.apb then
+    condition = 'apb'
+    reason = 'Target has an active APB'
+    allowedSet = STOP_ACTION_ALLOWED_APB
+  elseif record and (record.noInsurance or record.expiredRegistration) then
+    condition = 'paperwork'
+    reason = 'Target has insurance/registration violations'
+    allowedSet = STOP_ACTION_ALLOWED_PAPERWORK
+  end
+
+  return {
+    condition = condition,
+    reason = reason,
+    appropriate = allowedSet[selectedAction] == true,
+    allowedActions = buildStopActionList(allowedSet)
+  }
+end
+
+local function setStopActionMenuInputBlocking(block)
+  block = block and true or false
+  if stopActionMenuInputBlocked == block then
+    return
+  end
+
+  if not core_input_actionFilter then
+    stopActionMenuInputBlocked = false
+    return
+  end
+
+  if not stopActionMenuBlockedInputTemplate then
+    stopActionMenuBlockedInputTemplate = core_input_actionFilter.createActionTemplate(
+      STOP_ACTION_MENU_BLOCKED_ACTION_CATEGORIES,
+      STOP_ACTION_MENU_ALLOWED_ACTIONS
+    )
+  end
+
+  core_input_actionFilter.setGroup(STOP_ACTION_MENU_BLOCK_GROUP, stopActionMenuBlockedInputTemplate)
+  core_input_actionFilter.addAction(0, STOP_ACTION_MENU_BLOCK_GROUP, block)
+  stopActionMenuInputBlocked = block
 end
 
 local function triggerStopActionMenuEvent(reason)
@@ -144,6 +257,7 @@ local function setStopActionMenuOpen(open, reason)
     stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   end
 
+  setStopActionMenuInputBlocking(stopActionMenuOpen)
   triggerStopActionMenuEvent(reason)
 end
 
@@ -1091,6 +1205,14 @@ local function releaseStoppedTarget(vehId)
   obj:queueLuaCommand('ai.reset()')
 end
 
+local function forcePoliceLightsOffForStopResolution()
+  local playerVeh = getPlayerPoliceVehicle()
+  if not playerVeh then return end
+  playerVeh:queueLuaCommand('electrics.set_lightbar_signal(0)')
+  playerVeh:queueLuaCommand('if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end')
+  playerVeh:queueLuaCommand('extensions.auto_rlsSirenController.stopAll()')
+end
+
 local function resetTrafficStop()
   setStopActionMenuOpen(false, 'trafficStopReset')
 
@@ -1106,6 +1228,7 @@ local function resetTrafficStop()
   trafficStopComplying = false
   trafficStopReachedStop = false
   trafficStopEnforceTimer = 0
+  stopActionMenuResolutionInProgress = false
   earlyFleeTimer = nil
   if hadStopState then
     guihooks.trigger('policeComputerStopProgress', nil)
@@ -1342,6 +1465,10 @@ function M.confirmStopActionMenu()
     return false
   end
 
+  if stopActionMenuResolutionInProgress then
+    return false
+  end
+
   if not isTrafficStopFullyCommenced() then
     setStopActionMenuOpen(false, 'confirmInvalid')
     return false
@@ -1349,17 +1476,27 @@ function M.confirmStopActionMenu()
 
   local targetVehId = stopActionMenuTarget
   local plate = nil
+  local record = nil
   if targetVehId and vehicleRecords[targetVehId] then
+    record = vehicleRecords[targetVehId]
     plate = vehicleRecords[targetVehId].plate
   end
+  local evaluation = evaluateStopActionSelection(record, stopActionMenuSelection)
 
   guihooks.trigger('policeComputerStopActionMenuConfirmed', {
     action = stopActionMenuSelection,
     targetVehId = targetVehId,
-    plate = plate
+    plate = plate,
+    condition = evaluation.condition,
+    reason = evaluation.reason,
+    appropriate = evaluation.appropriate,
+    allowedActions = evaluation.allowedActions
   })
 
+  stopActionMenuResolutionInProgress = true
   setStopActionMenuOpen(false, 'confirmSelection')
+  forcePoliceLightsOffForStopResolution()
+  resetTrafficStop()
   return true
 end
 
@@ -1369,6 +1506,9 @@ function M.onExtensionLoaded()
   stopActionMenuOpen = false
   stopActionMenuTarget = nil
   stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
+  stopActionMenuResolutionInProgress = false
+  stopActionMenuBlockedInputTemplate = nil
+  setStopActionMenuInputBlocking(false)
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1408,6 +1548,9 @@ function M.onExtensionUnloaded()
   stopActionMenuOpen = false
   stopActionMenuTarget = nil
   stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
+  stopActionMenuResolutionInProgress = false
+  setStopActionMenuInputBlocking(false)
+  stopActionMenuBlockedInputTemplate = nil
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end

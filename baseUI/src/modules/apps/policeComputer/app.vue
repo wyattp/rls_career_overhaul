@@ -180,11 +180,6 @@
         </svg>
         <span class="stop-action-label">Ticket</span>
       </div>
-
-      <div class="stop-action-center">
-        <span class="center-title">Stop Action</span>
-        <span class="center-plate" v-if="stopActionMenu.plate">{{ stopActionMenu.plate }}</span>
-      </div>
     </div>
   </div>
 </template>
@@ -551,39 +546,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   text-transform: uppercase;
   letter-spacing: 0.8px;
   line-height: 1;
-}
-
-.stop-action-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 146px;
-  height: 146px;
-  border-radius: 50%;
-  border: 1px solid rgba(188, 213, 243, 0.32);
-  background: rgba(13, 18, 26, 0.74);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
-  box-shadow: inset 0 0 15px rgba(74, 158, 255, 0.16);
-}
-
-.center-title {
-  font-size: 11px;
-  color: rgba(206, 226, 248, 0.88);
-  text-transform: uppercase;
-  letter-spacing: 1.3px;
-}
-
-.center-plate {
-  font-size: 14px;
-  font-weight: bold;
-  color: #f1f7ff;
-  letter-spacing: 1.4px;
 }
 
 .police-computer {
@@ -1053,15 +1015,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   .stop-action-option {
     width: 116px;
     height: 74px;
-  }
-
-  .stop-action-center {
-    width: 126px;
-    height: 126px;
-  }
-
-  .center-plate {
-    font-size: 12px;
   }
 }
 </style>
