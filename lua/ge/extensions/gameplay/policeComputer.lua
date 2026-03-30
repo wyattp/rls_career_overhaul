@@ -88,6 +88,7 @@ local stopActionMenuOpen = false
 local stopActionMenuTarget = nil
 local stopActionMenuSelection = 'up'
 local stopActionMenuResolutionInProgress = false
+local stopActionMenuAutoOpenedForCurrentStop = false
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -255,6 +256,7 @@ local function setStopActionMenuOpen(open, reason)
   stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
   if stopActionMenuOpen then
     stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
+    stopActionMenuAutoOpenedForCurrentStop = true
   end
 
   setStopActionMenuInputBlocking(stopActionMenuOpen)
@@ -1289,6 +1291,7 @@ resetTrafficStop = function()
   trafficStopReachedStop = false
   trafficStopEnforceTimer = 0
   stopActionMenuResolutionInProgress = false
+  stopActionMenuAutoOpenedForCurrentStop = false
   earlyFleeTimer = nil
   rabbitTarget = nil
   rabbitRolled = false
@@ -1346,6 +1349,15 @@ updateTrafficStop = function(dtReal)
       resetTrafficStop()
       return
     end
+
+    if isTrafficStopFullyCommenced()
+      and not stopActionMenuOpen
+      and not stopActionMenuAutoOpenedForCurrentStop
+      and playerVeh:getVelocity():length() <= STOP_SETTLED_SPEED then
+      setStopActionMenuOpen(true, 'autoOpenStopped')
+      stopActionMenuAutoOpenedForCurrentStop = stopActionMenuOpen
+    end
+
     guihooks.trigger('policeComputerStopProgress', nil)
     return
   end
@@ -1368,6 +1380,7 @@ updateTrafficStop = function(dtReal)
     trafficStopComplying = false
     trafficStopReachedStop = false
     trafficStopEnforceTimer = 0
+    stopActionMenuAutoOpenedForCurrentStop = false
     earlyFleeTimer = nil
 
     local record = vehicleRecords[target]
@@ -1452,6 +1465,7 @@ function M.immediateTrafficStop()
   trafficStopTarget = target
   trafficStopInitiated = true
   trafficStopReachedStop = false
+  stopActionMenuAutoOpenedForCurrentStop = false
   earlyFleeTimer = nil
   trafficStopTimer = 0
   initiateTrafficStop(target)
@@ -1532,6 +1546,7 @@ function M.confirmStopActionMenu()
   local evaluation = evaluateStopActionSelection(record, stopActionMenuSelection)
   local rewardGranted = false
   local rewardAmount = 0
+
   if evaluation.appropriate then
     rewardAmount = awardTicketReward(targetVehId, stopActionMenuSelection) or 0
     rewardGranted = rewardAmount > 0
@@ -1568,6 +1583,7 @@ function M.onExtensionLoaded()
   stopActionMenuTarget = nil
   stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   stopActionMenuResolutionInProgress = false
+  stopActionMenuAutoOpenedForCurrentStop = false
   stopActionMenuBlockedInputTemplate = nil
   setStopActionMenuInputBlocking(false)
   local _, playerVehId = getPlayerPoliceVehicle()
@@ -1605,11 +1621,13 @@ function M.onExtensionUnloaded()
   earlyFleeTimer = nil
   rabbitTarget = nil
   rabbitTimer = 0
+  rabbitDelay = 0
   rabbitRolled = false
   stopActionMenuOpen = false
   stopActionMenuTarget = nil
   stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
   stopActionMenuResolutionInProgress = false
+  stopActionMenuAutoOpenedForCurrentStop = false
   setStopActionMenuInputBlocking(false)
   stopActionMenuBlockedInputTemplate = nil
   if gameplay_police and gameplay_police.setPursuitVars then
