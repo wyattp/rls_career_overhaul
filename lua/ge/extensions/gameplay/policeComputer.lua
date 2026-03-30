@@ -551,21 +551,33 @@ local function setEmptyComputerState()
   seenTickCounter = 0
 end
 
-local function saveStateForInventoryId(invId)
+local function saveStateForInventoryId(invId, detach)
   if not invId then return end
-  perVehicleComputerState[invId] = {
-    anprActive = anprActive and true or false,
-    scannedVehIds = scannedVehIds,
-    vehicleRecords = vehicleRecords,
-    vehicleLastSeenTick = vehicleLastSeenTick,
-    retiredVehicleIds = retiredVehicleIds,
-    seenTickCounter = seenTickCounter or 0,
-  }
-  -- Detach references so the saved state isn't mutated by the active tables
-  scannedVehIds = {}
-  vehicleRecords = {}
-  vehicleLastSeenTick = {}
-  retiredVehicleIds = {}
+  if detach then
+    -- Zero-copy handoff: give tables to saved state, create fresh empties for active use
+    perVehicleComputerState[invId] = {
+      anprActive = anprActive and true or false,
+      scannedVehIds = scannedVehIds,
+      vehicleRecords = vehicleRecords,
+      vehicleLastSeenTick = vehicleLastSeenTick,
+      retiredVehicleIds = retiredVehicleIds,
+      seenTickCounter = seenTickCounter or 0,
+    }
+    scannedVehIds = {}
+    vehicleRecords = {}
+    vehicleLastSeenTick = {}
+    retiredVehicleIds = {}
+  else
+    -- Snapshot: copy tables so active state is preserved
+    perVehicleComputerState[invId] = {
+      anprActive = anprActive and true or false,
+      scannedVehIds = deepcopy(scannedVehIds),
+      vehicleRecords = deepcopy(vehicleRecords),
+      vehicleLastSeenTick = deepcopy(vehicleLastSeenTick),
+      retiredVehicleIds = deepcopy(retiredVehicleIds),
+      seenTickCounter = seenTickCounter or 0,
+    }
+  end
 end
 
 local function saveCurrentVehicleState()
@@ -1031,7 +1043,7 @@ function M.onVehicleSwitched(oldId, newId)
 
   local oldInvId = getInventoryIdFromVehicleId(oldId)
   if oldInvId then
-    saveStateForInventoryId(oldInvId)
+    saveStateForInventoryId(oldInvId, true)
   end
 
   local newInvId = getInventoryIdFromVehicleId(newId)

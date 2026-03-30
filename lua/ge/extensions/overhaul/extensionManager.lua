@@ -186,6 +186,7 @@ local function onModDeactivated(modData)
 end
 
 local function onVehicleSpawned(_, veh)
+    if veh.jbeam == 'unicycle' then return end
     veh:queueLuaCommand("extensions.load('fuelMultiplier')")
     veh:queueLuaCommand([[
         extensions.load('overrideAI')
