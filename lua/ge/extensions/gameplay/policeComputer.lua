@@ -555,12 +555,17 @@ local function saveStateForInventoryId(invId)
   if not invId then return end
   perVehicleComputerState[invId] = {
     anprActive = anprActive and true or false,
-    scannedVehIds = deepcopy(scannedVehIds),
-    vehicleRecords = deepcopy(vehicleRecords),
-    vehicleLastSeenTick = deepcopy(vehicleLastSeenTick),
-    retiredVehicleIds = deepcopy(retiredVehicleIds),
+    scannedVehIds = scannedVehIds,
+    vehicleRecords = vehicleRecords,
+    vehicleLastSeenTick = vehicleLastSeenTick,
+    retiredVehicleIds = retiredVehicleIds,
     seenTickCounter = seenTickCounter or 0,
   }
+  -- Detach references so the saved state isn't mutated by the active tables
+  scannedVehIds = {}
+  vehicleRecords = {}
+  vehicleLastSeenTick = {}
+  retiredVehicleIds = {}
 end
 
 local function saveCurrentVehicleState()
@@ -578,16 +583,16 @@ local function restoreStateForInventoryId(invId)
   end
 
   anprActive = saved.anprActive and true or false
-  scannedVehIds = deepcopy(saved.scannedVehIds or {})
-  vehicleRecords = deepcopy(saved.vehicleRecords or {})
+  scannedVehIds = saved.scannedVehIds or {}
+  vehicleRecords = saved.vehicleRecords or {}
   plateOwners = {}
   for vehId, record in pairs(vehicleRecords) do
     if record and record.plate then
       plateOwners[record.plate] = vehId
     end
   end
-  vehicleLastSeenTick = deepcopy(saved.vehicleLastSeenTick or {})
-  retiredVehicleIds = deepcopy(saved.retiredVehicleIds or {})
+  vehicleLastSeenTick = saved.vehicleLastSeenTick or {}
+  retiredVehicleIds = saved.retiredVehicleIds or {}
   seenTickCounter = saved.seenTickCounter or 0
 end
 
