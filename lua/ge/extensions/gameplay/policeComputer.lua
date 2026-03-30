@@ -98,24 +98,24 @@ local STOP_ACTION_MENU_DIRECTIONS = {
   right = true
 }
 local STOP_ACTION_ARREST = 'up'
-local STOP_ACTION_GO_FREE = 'down'
+local STOP_ACTION_GO_FREE_WARNING = 'down'
 local STOP_ACTION_TICKET = 'left'
-local STOP_ACTION_WARN_DETAIN = 'right'
+local STOP_ACTION_DETAIN = 'right'
 local STOP_ACTION_ALLOWED_WARRANT = {
   [STOP_ACTION_ARREST] = true
 }
 local STOP_ACTION_ALLOWED_APB = {
-  [STOP_ACTION_WARN_DETAIN] = true
+  [STOP_ACTION_DETAIN] = true
 }
 local STOP_ACTION_ALLOWED_PAPERWORK = {
   [STOP_ACTION_TICKET] = true,
-  [STOP_ACTION_WARN_DETAIN] = true,
-  [STOP_ACTION_GO_FREE] = true
+  [STOP_ACTION_DETAIN] = true,
+  [STOP_ACTION_GO_FREE_WARNING] = true
 }
 local STOP_ACTION_ALLOWED_NONE = {
   [STOP_ACTION_ARREST] = true,
-  [STOP_ACTION_WARN_DETAIN] = true,
-  [STOP_ACTION_GO_FREE] = true,
+  [STOP_ACTION_DETAIN] = true,
+  [STOP_ACTION_GO_FREE_WARNING] = true,
   [STOP_ACTION_TICKET] = true
 }
 local STOP_ACTION_MENU_BLOCK_GROUP = 'policeStopActionMenuBlockedActions'
@@ -125,8 +125,7 @@ local STOP_ACTION_MENU_ALLOWED_ACTIONS = {
   'stopActionMenuUp',
   'stopActionMenuDown',
   'stopActionMenuLeft',
-  'stopActionMenuRight',
-  'confirmTrafficStopActionMenu'
+  'stopActionMenuRight'
 }
 local STOP_ACTION_MENU_BLOCKED_ACTION_CATEGORIES = {
   'vehicleTeleporting',
@@ -165,8 +164,8 @@ end
 local function buildStopActionList(allowedSet)
   local orderedActions = {
     STOP_ACTION_ARREST,
-    STOP_ACTION_WARN_DETAIN,
-    STOP_ACTION_GO_FREE,
+    STOP_ACTION_DETAIN,
+    STOP_ACTION_GO_FREE_WARNING,
     STOP_ACTION_TICKET
   }
   local list = {}
@@ -1147,8 +1146,8 @@ end
 
 local function getStopActionLabel(action)
   if action == STOP_ACTION_ARREST then return 'Arrest' end
-  if action == STOP_ACTION_WARN_DETAIN then return 'Warning/Detain' end
-  if action == STOP_ACTION_GO_FREE then return 'Go Free' end
+  if action == STOP_ACTION_DETAIN then return 'Detain' end
+  if action == STOP_ACTION_GO_FREE_WARNING then return 'Go Free/Warning' end
   if action == STOP_ACTION_TICKET then return 'Ticket' end
   return 'Action'
 end
@@ -1175,8 +1174,9 @@ local function awardTicketReward(vehId, action)
     return 0
   end
 
-  -- Scale reward based on violation severity
-  local rewardMultiplier = 0.25 -- minor violations (no insurance, expired reg, suspended license)
+  -- Scale reward based on violation severity.
+  -- Clean stops (no violations) do not award money.
+  local rewardMultiplier = 0
   if record then
     if record.wanted or record.stolen then
       rewardMultiplier = 1.0
@@ -1184,6 +1184,8 @@ local function awardTicketReward(vehId, action)
       rewardMultiplier = 0.75
     elseif record.suspendedLicense then
       rewardMultiplier = 0.35
+    elseif record.noInsurance or record.expiredRegistration then
+      rewardMultiplier = 0.25
     end
   end
 
@@ -1203,14 +1205,19 @@ local function awardTicketReward(vehId, action)
 
   reward = math.floor(reward * reputationBonus + 0.5)
 
-  if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
-    career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
-  elseif career_modules_payment and career_modules_payment.reward then
-    career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
+  if reward > 0 then
+    if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
+      career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
+    elseif career_modules_payment and career_modules_payment.reward then
+      career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
+    end
   end
 
-  local message = "Appropriate action - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
-  if reputationBonus ~= 1 then
+  local message = "Appropriate action - no reward - " .. getStopActionLabel(action)
+  if reward > 0 then
+    message = "Appropriate action - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
+  end
+  if reward > 0 and reputationBonus ~= 1 then
     message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
   end
   ui_message(message, 5, "Police")
@@ -1519,7 +1526,11 @@ function M.navigateStopActionMenu(direction)
 
   stopActionMenuSelection = direction
   triggerStopActionMenuEvent('navigate')
-  return true
+  return M.confirmStopActionMenu()
+end
+
+function M.selectStopActionMenu(direction)
+  return M.navigateStopActionMenu(direction)
 end
 
 function M.confirmStopActionMenu()

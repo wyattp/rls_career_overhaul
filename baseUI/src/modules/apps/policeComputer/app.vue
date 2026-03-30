@@ -139,7 +139,8 @@
     <div class="stop-action-menu">
       <div
         class="stop-action-option option-up"
-        :class="{ selected: stopActionMenu.selection === 'up' }">
+        :class="{ selected: stopActionMenu.selection === 'up' }"
+        @click.stop="selectStopAction('up')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="7" cy="12" r="4.1" />
           <circle cx="17" cy="12" r="4.1" />
@@ -150,29 +151,32 @@
 
       <div
         class="stop-action-option option-right"
-        :class="{ selected: stopActionMenu.selection === 'right' }">
+        :class="{ selected: stopActionMenu.selection === 'right' }"
+        @click.stop="selectStopAction('right')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 3l9 16H3z" />
           <path d="M12 9v5" />
           <circle cx="12" cy="17" r="0.8" />
         </svg>
-        <span class="stop-action-label">Warning/Detain</span>
+        <span class="stop-action-label">Detain</span>
       </div>
 
       <div
         class="stop-action-option option-down"
-        :class="{ selected: stopActionMenu.selection === 'down' }">
+        :class="{ selected: stopActionMenu.selection === 'down' }"
+        @click.stop="selectStopAction('down')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="10" width="16" height="10" rx="2" />
           <path d="M8 10V7a4 4 0 0 1 6.9-2.7" />
           <path d="M16.5 5.7l-2 0.1V3.8" />
         </svg>
-        <span class="stop-action-label">Go Free</span>
+        <span class="stop-action-label">Go Free/Warning</span>
       </div>
 
       <div
         class="stop-action-option option-left"
-        :class="{ selected: stopActionMenu.selection === 'left' }">
+        :class="{ selected: stopActionMenu.selection === 'left' }"
+        @click.stop="selectStopAction('left')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="6" width="16" height="12" rx="1.8" />
           <path d="M7 10h10" />
@@ -211,9 +215,9 @@ let actionBannerTimeout = null
 const STOP_ACTION_MENU_DEFAULT = 'up'
 const STOP_ACTION_MENU_LABELS = {
   up: 'Arrest',
-  down: 'Go Free',
+  down: 'Go Free/Warning',
   left: 'Ticket',
-  right: 'Warning/Detain'
+  right: 'Detain'
 }
 
 function normalizeStopActionSelection(selection) {
@@ -221,6 +225,12 @@ function normalizeStopActionSelection(selection) {
     return selection
   }
   return STOP_ACTION_MENU_DEFAULT
+}
+
+function selectStopAction(direction) {
+  if (!stopActionMenu.open) return
+  const action = normalizeStopActionSelection(direction)
+  $game.api.engineLua(`if gameplay_policeComputer then gameplay_policeComputer.selectStopActionMenu("${action}") end`)
 }
 
 function toggleCollapse() {
@@ -492,6 +502,7 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   position: relative;
   width: 380px;
   height: 380px;
+  pointer-events: auto;
   border-radius: 50%;
   border: 1px solid rgba(190, 210, 236, 0.24);
   background: radial-gradient(circle at center, rgba(24, 31, 44, 0.74) 0%, rgba(12, 16, 24, 0.62) 72%, rgba(8, 11, 17, 0.4) 100%);
@@ -512,6 +523,7 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   gap: 5px;
   transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
   color: #f4f7fb;
+  cursor: pointer;
 
   &.selected {
     border-color: rgba(210, 231, 255, 0.94);
