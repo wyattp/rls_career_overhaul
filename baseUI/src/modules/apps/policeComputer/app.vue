@@ -132,6 +132,13 @@
           <div class="stolen-banner">REPORTED STOLEN</div>
         </div>
       </div>
+
+      <!-- Quick access toolbar -->
+      <div class="pc-toolbar">
+        <button class="toolbar-btn" @click.stop="openGarageComputer" title="Garage Computer">
+          &#9881; Garage Computer
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -161,6 +168,10 @@ function toggleCollapse() {
 
 function toggleANPR() {
   $game.api.engineLua('gameplay_policeComputer.toggleANPR()')
+}
+
+function openGarageComputer() {
+  $game.api.engineLua('gameplay_policeComputer.openGarageComputer()')
 }
 
 function selectPlate(entry) {
@@ -734,5 +745,32 @@ $clear-green: #3cff6e;
 @keyframes alertFlash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+.pc-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid $border-color;
+}
+
+.toolbar-btn {
+  flex: 1;
+  background: rgba(40, 80, 140, 0.2);
+  color: $text-accent;
+  border: 1px solid rgba(40, 80, 140, 0.4);
+  padding: 4px 8px;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(40, 80, 140, 0.4);
+    border-color: $text-accent;
+  }
 }
 </style>

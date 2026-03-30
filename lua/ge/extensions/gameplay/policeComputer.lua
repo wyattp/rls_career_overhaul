@@ -21,7 +21,7 @@ local stateInterval = 1.0 -- seconds between full state pushes to UI
 local maxScannedPlates = 4
 local scanRange = 25 -- meters
 local scanConeAngle = 0.99 -- dot product threshold (~7 degree half-angle, ~20ft wide at max range)
-local scanRangeLeft = 10 -- meters, short range for passing traffic
+local scanRangeLeft = 15 -- meters, short range for passing traffic
 local scanConeAngleLeft = 0.90 -- wider cone for left side (~25 degree half-angle)
 local scanVerticalMin = -3 -- meters below player allowed (for downhill scanning)
 local scanVerticalMax = 20 -- meters above player allowed
@@ -1179,6 +1179,40 @@ function M.onExtensionUnloaded()
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.5 })
   end
+end
+
+function M.openGarageComputer()
+  local computers = freeroam_facilities.getFacilitiesByType("computer")
+  if not computers then
+    ui_message("No garage computers available", 5, "Police")
+    return
+  end
+
+  local playerVeh = getPlayerVehicle(0)
+  local playerPos = playerVeh and playerVeh:getPosition() or nil
+
+  -- Find the closest accessible garage computer
+  local bestComputer = nil
+  local bestDist = math.huge
+  for _, comp in pairs(computers) do
+    if comp.garageId and career_modules_garageManager.isAccessibleGarage(comp.garageId) then
+      local compPos = freeroam_facilities.getAverageDoorPositionForFacility(comp)
+      if compPos and playerPos then
+        local dist = playerPos:distance(compPos)
+        if dist < bestDist then
+          bestDist = dist
+          bestComputer = comp
+        end
+      end
+    end
+  end
+
+  if not bestComputer then
+    ui_message("No owned garage found", 5, "Police")
+    return
+  end
+
+  career_modules_computer.openMenu(bestComputer)
 end
 
 return M
