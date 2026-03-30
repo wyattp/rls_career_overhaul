@@ -13,6 +13,6 @@
         "ctx": "vlua",
         "onDown": "extensions.auto_rlsSirenController.cycleSiren()",
         "title": "Police: Cycle Siren",
-        "desc": "Cycle police siren tone between configured tones while lights are on. Siren off is handled separately."
+        "desc": "Single tap cycles police siren tones while lights are on. Double tap turns the siren off."
     }
 }

@@ -9,6 +9,15 @@ local toneOrder = {}     -- ordered list of tone names, e.g. {"wail", "yelp", "p
 local currentTone = 0    -- 0 = off, 1..#toneOrder = active tone index
 local idCounter = 0
 local configured = false
+local elapsedRealtime = 0
+local lastTapTime = -math.huge
+local doubleTapWindow = 0.35
+
+local function hasActiveLights()
+  local lb = electrics.values.lightbar or 0
+  local lbs = electrics.values.lightbar_signal or 0
+  return math.max(lb, lbs) >= 1
+end
 
 -- Safety: stop all active sounds
 local function stopAll()
@@ -45,15 +54,18 @@ local function cycleSiren()
   local lbs = electrics.values.lightbar_signal or 0
   print("[rlsSirenController] lightbar=" .. tostring(lb) .. " lightbar_signal=" .. tostring(lbs))
 
-  -- Check both possible names
-  local lightbar = math.max(lb, lbs)
-  if lightbar < 1 then
+  if not hasActiveLights() then
     print("[rlsSirenController] lightbar < 1 — aborting")
     return
   end
 
-  -- Single tap should only cycle between configured tones.
-  -- Off is handled separately by the double-tap logic on the input side.
+  if (elapsedRealtime - lastTapTime) <= doubleTapWindow then
+    print("[rlsSirenController] double tap detected — stopping siren")
+    stopAll()
+    lastTapTime = -math.huge
+    return
+  end
+
   if currentTone <= 0 then
     currentTone = 1
   else
@@ -66,6 +78,7 @@ local function cycleSiren()
   end
 
   playTone(toneOrder[currentTone])
+  lastTapTime = elapsedRealtime
 end
 
 -- Receive configuration from GE side (called via queueLuaCommand once at spawn)
@@ -118,23 +131,28 @@ end
 
 -- Called every frame
 local function updateGFX(dt)
+  elapsedRealtime = elapsedRealtime + (dt or 0)
   if not configured then return end
 
   -- Auto-stop siren if lights turned off
-  local lightbar = math.max(electrics.values.lightbar or 0, electrics.values.lightbar_signal or 0)
-  if lightbar < 1 and currentTone > 0 then
+  if not hasActiveLights() and currentTone > 0 then
     stopAll()
+    lastTapTime = -math.huge
   end
 end
 
 local function onReset()
   stopAll()
+  elapsedRealtime = 0
+  lastTapTime = -math.huge
 end
 
 local function onExtensionLoaded()
   print("[rlsSirenController] Extension loaded on vehicle " .. tostring(obj:getID()))
   electrics.values.rlsSirenActive = 0
   electrics.values.rlsSirenTone = ""
+  elapsedRealtime = 0
+  lastTapTime = -math.huge
 end
 
 local function onExtensionUnloaded()
@@ -145,6 +163,8 @@ local function onExtensionUnloaded()
   sources = {}
   toneOrder = {}
   configured = false
+  elapsedRealtime = 0
+  lastTapTime = -math.huge
 end
 
 M.cycleSiren = cycleSiren
