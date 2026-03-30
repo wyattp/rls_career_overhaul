@@ -139,7 +139,8 @@
     <div class="stop-action-menu">
       <div
         class="stop-action-option option-up"
-        :class="{ selected: stopActionMenu.selection === 'up' }">
+        :class="{ selected: stopActionMenu.selection === 'up' }"
+        @click.stop="selectStopAction('up')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="7" cy="12" r="4.1" />
           <circle cx="17" cy="12" r="4.1" />
@@ -150,40 +151,38 @@
 
       <div
         class="stop-action-option option-right"
-        :class="{ selected: stopActionMenu.selection === 'right' }">
+        :class="{ selected: stopActionMenu.selection === 'right' }"
+        @click.stop="selectStopAction('right')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 3l9 16H3z" />
           <path d="M12 9v5" />
           <circle cx="12" cy="17" r="0.8" />
         </svg>
-        <span class="stop-action-label">Warning/Detain</span>
+        <span class="stop-action-label">Detain</span>
       </div>
 
       <div
         class="stop-action-option option-down"
-        :class="{ selected: stopActionMenu.selection === 'down' }">
+        :class="{ selected: stopActionMenu.selection === 'down' }"
+        @click.stop="selectStopAction('down')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="10" width="16" height="10" rx="2" />
           <path d="M8 10V7a4 4 0 0 1 6.9-2.7" />
           <path d="M16.5 5.7l-2 0.1V3.8" />
         </svg>
-        <span class="stop-action-label">Go Free</span>
+        <span class="stop-action-label">Go Free/Warning</span>
       </div>
 
       <div
         class="stop-action-option option-left"
-        :class="{ selected: stopActionMenu.selection === 'left' }">
+        :class="{ selected: stopActionMenu.selection === 'left' }"
+        @click.stop="selectStopAction('left')">
         <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="6" width="16" height="12" rx="1.8" />
           <path d="M7 10h10" />
           <path d="M7 13h7" />
         </svg>
         <span class="stop-action-label">Ticket</span>
-      </div>
-
-      <div class="stop-action-center">
-        <span class="center-title">Stop Action</span>
-        <span class="center-plate" v-if="stopActionMenu.plate">{{ stopActionMenu.plate }}</span>
       </div>
     </div>
   </div>
@@ -210,15 +209,15 @@ const stopActionMenu = reactive({
   open: false,
   targetVehId: null,
   plate: null,
-  selection: 'up'
+  selection: null
 })
 let actionBannerTimeout = null
 const STOP_ACTION_MENU_DEFAULT = 'up'
 const STOP_ACTION_MENU_LABELS = {
   up: 'Arrest',
-  down: 'Go Free',
+  down: 'Go Free/Warning',
   left: 'Ticket',
-  right: 'Warning/Detain'
+  right: 'Detain'
 }
 
 function normalizeStopActionSelection(selection) {
@@ -226,6 +225,13 @@ function normalizeStopActionSelection(selection) {
     return selection
   }
   return STOP_ACTION_MENU_DEFAULT
+}
+
+function selectStopAction(direction) {
+  if (!stopActionMenu.open) return
+  const action = normalizeStopActionSelection(direction)
+  stopActionMenu.selection = action
+  $game.api.engineLua(`if gameplay_policeComputer then gameplay_policeComputer.selectStopActionMenu("${action}") end`)
 }
 
 function toggleCollapse() {
@@ -334,14 +340,24 @@ function onStopActionMenu(data) {
     stopActionMenu.open = false
     stopActionMenu.targetVehId = null
     stopActionMenu.plate = null
-    stopActionMenu.selection = STOP_ACTION_MENU_DEFAULT
+    stopActionMenu.selection = null
     return
   }
 
   stopActionMenu.open = !!data.open
   stopActionMenu.targetVehId = Number.isFinite(Number(data.targetVehId)) ? Number(data.targetVehId) : null
   stopActionMenu.plate = data.plate || null
-  stopActionMenu.selection = normalizeStopActionSelection(data.selection)
+  if (!stopActionMenu.open) {
+    stopActionMenu.selection = null
+    return
+  }
+
+  // Only show a highlighted option after an actual selection event.
+  if (data.reason === 'navigate') {
+    stopActionMenu.selection = normalizeStopActionSelection(data.selection)
+  } else {
+    stopActionMenu.selection = null
+  }
 }
 
 function onStopActionMenuConfirmed(data) {
@@ -349,7 +365,20 @@ function onStopActionMenuConfirmed(data) {
   const selectedAction = normalizeStopActionSelection(data.action)
   const label = STOP_ACTION_MENU_LABELS[selectedAction] || 'Unknown'
   const plateSuffix = data.plate ? ` - ${data.plate}` : ''
-  showActionBanner('info', `STOP ACTION SELECTED: ${label.toUpperCase()}${plateSuffix}`, 2200)
+  if (data.appropriate && data.rewardGranted) {
+    const amountSuffix = Number.isFinite(Number(data.rewardAmount)) && Number(data.rewardAmount) > 0
+      ? ` ($${Number(data.rewardAmount)})`
+      : ''
+    showActionBanner('info', `APPROPRIATE ACTION - REWARD GRANTED${amountSuffix}: ${label.toUpperCase()}${plateSuffix}`, 3000)
+    return
+  }
+
+  if (data.appropriate) {
+    showActionBanner('info', `APPROPRIATE ACTION - NO REWARD: ${label.toUpperCase()}${plateSuffix}`, 3000)
+    return
+  }
+
+  showActionBanner('danger', `INAPPROPRIATE ACTION - NO REWARD: ${label.toUpperCase()}${plateSuffix}`, 3200)
 }
 
 function onSelectEntry(data) {
@@ -484,6 +513,7 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   position: relative;
   width: 380px;
   height: 380px;
+  pointer-events: auto;
   border-radius: 50%;
   border: 1px solid rgba(190, 210, 236, 0.24);
   background: radial-gradient(circle at center, rgba(24, 31, 44, 0.74) 0%, rgba(12, 16, 24, 0.62) 72%, rgba(8, 11, 17, 0.4) 100%);
@@ -504,6 +534,7 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   gap: 5px;
   transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
   color: #f4f7fb;
+  cursor: pointer;
 
   &.selected {
     border-color: rgba(210, 231, 255, 0.94);
@@ -551,39 +582,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   text-transform: uppercase;
   letter-spacing: 0.8px;
   line-height: 1;
-}
-
-.stop-action-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 146px;
-  height: 146px;
-  border-radius: 50%;
-  border: 1px solid rgba(188, 213, 243, 0.32);
-  background: rgba(13, 18, 26, 0.74);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
-  box-shadow: inset 0 0 15px rgba(74, 158, 255, 0.16);
-}
-
-.center-title {
-  font-size: 11px;
-  color: rgba(206, 226, 248, 0.88);
-  text-transform: uppercase;
-  letter-spacing: 1.3px;
-}
-
-.center-plate {
-  font-size: 14px;
-  font-weight: bold;
-  color: #f1f7ff;
-  letter-spacing: 1.4px;
 }
 
 .police-computer {
@@ -1053,15 +1051,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   .stop-action-option {
     width: 116px;
     height: 74px;
-  }
-
-  .stop-action-center {
-    width: 126px;
-    height: 126px;
-  }
-
-  .center-plate {
-    font-size: 12px;
   }
 }
 </style>
