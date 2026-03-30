@@ -116,27 +116,14 @@ local STOP_ACTION_ALLOWED_PAPERWORK = {
 local STOP_ACTION_ALLOWED_NONE = {
   [STOP_ACTION_GO_FREE_WARNING] = true
 }
-local STOP_ACTION_MENU_BLOCK_GROUP = 'policeStopActionMenuBlockedActions'
-local STOP_ACTION_MENU_ALLOWED_ACTIONS = {
-  'toggleTrafficStopActionMenu',
-  'cancelTrafficStopActionMenu',
-  'stopActionMenuUp',
-  'stopActionMenuDown',
-  'stopActionMenuLeft',
-  'stopActionMenuRight'
+local STOP_ACTION_MENU_CONFLICT_BLOCK_GROUP = 'policeStopActionMenuConflictBlockedActions'
+local STOP_ACTION_MENU_SELECTION_ACTIONS = {
+  stopActionMenuUp = true,
+  stopActionMenuDown = true,
+  stopActionMenuLeft = true,
+  stopActionMenuRight = true
 }
-local STOP_ACTION_MENU_BLOCKED_ACTION_CATEGORIES = {
-  'vehicleTeleporting',
-  'vehicleMenues',
-  'physicsControls',
-  'aiControls',
-  'vehicleSwitching',
-  'funStuff',
-  'dropPlayerAtCameraNoReset',
-  'walkingMode',
-  'bigMap'
-}
-local stopActionMenuBlockedInputTemplate = nil
+local stopActionMenuBlockedActions = {}
 local stopActionMenuInputBlocked = false
 
 local STOP_DWELL_TIME = 3.0
@@ -220,15 +207,49 @@ local function setStopActionMenuInputBlocking(block)
     return
   end
 
-  if not stopActionMenuBlockedInputTemplate then
-    stopActionMenuBlockedInputTemplate = core_input_actionFilter.createActionTemplate(
-      STOP_ACTION_MENU_BLOCKED_ACTION_CATEGORIES,
-      STOP_ACTION_MENU_ALLOWED_ACTIONS
-    )
+  if block then
+    local actionByControl = {}
+    if core_input_bindings and core_input_bindings.bindings then
+      -- First pass: collect controls currently mapped to radial selection actions.
+      for _, device in ipairs(core_input_bindings.bindings) do
+        local devName = tostring(device and device.devname or '')
+        local bindings = device and device.contents and device.contents.bindings
+        if devName ~= '' and type(bindings) == 'table' then
+          for _, binding in ipairs(bindings) do
+            if binding and STOP_ACTION_MENU_SELECTION_ACTIONS[binding.action] and binding.control and binding.control ~= '' then
+              actionByControl[devName .. '|' .. tostring(binding.control)] = true
+            end
+          end
+        end
+      end
+    end
+
+    -- Second pass: block only actions sharing those same controls.
+    local blockedSet = {}
+    if next(actionByControl) and core_input_bindings and core_input_bindings.bindings then
+      for _, device in ipairs(core_input_bindings.bindings) do
+        local devName = tostring(device and device.devname or '')
+        local bindings = device and device.contents and device.contents.bindings
+        if devName ~= '' and type(bindings) == 'table' then
+          for _, binding in ipairs(bindings) do
+            local key = devName .. '|' .. tostring(binding and binding.control or '')
+            local action = binding and binding.action or nil
+            if action and actionByControl[key] and not STOP_ACTION_MENU_SELECTION_ACTIONS[action] then
+              blockedSet[action] = true
+            end
+          end
+        end
+      end
+    end
+
+    stopActionMenuBlockedActions = {}
+    for action, _ in pairs(blockedSet) do
+      table.insert(stopActionMenuBlockedActions, action)
+    end
   end
 
-  core_input_actionFilter.setGroup(STOP_ACTION_MENU_BLOCK_GROUP, stopActionMenuBlockedInputTemplate)
-  core_input_actionFilter.addAction(0, STOP_ACTION_MENU_BLOCK_GROUP, block)
+  core_input_actionFilter.setGroup(STOP_ACTION_MENU_CONFLICT_BLOCK_GROUP, stopActionMenuBlockedActions)
+  core_input_actionFilter.addAction(0, STOP_ACTION_MENU_CONFLICT_BLOCK_GROUP, block)
   stopActionMenuInputBlocked = block
 end
 
@@ -1306,7 +1327,7 @@ awardTicketReward = function(vehId, action)
       vehicleDamage = tonumber(map.objects[vehId].damage) or 0
     end
     if vehicleDamage > 0 then
-      reward = math.floor(reward * 0.5 + 0.5)
+      reward = math.floor(reward * 0.25 + 0.5)
       damagePenaltyApplied = true
     end
   end
@@ -1327,7 +1348,7 @@ awardTicketReward = function(vehId, action)
     message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
   end
   if damagePenaltyApplied then
-    message = message .. " (Unnecessary vehicle damage: -50%)"
+    message = message .. " (Unnecessary vehicle damage: -75%)"
   end
   ui_message(message, 5, "Police")
   return reward
@@ -1435,6 +1456,7 @@ updateTrafficStop = function(dtReal)
 
   if trafficStopInitiated then
     if stopActionMenuOpen and playerVeh:getVelocity():length() > STOP_MENU_CLOSE_ON_MOVE_SPEED then
+      stopActionMenuAutoOpenedForCurrentStop = false
       setStopActionMenuOpen(false, 'playerMoved')
     end
     if stopActionMenuOpen and not isTrafficStopFullyCommenced() then
@@ -1690,7 +1712,7 @@ function M.onExtensionLoaded()
   stopActionMenuResolutionInProgress = false
   stopActionMenuAutoOpenedForCurrentStop = false
   pendingStopAction = nil
-  stopActionMenuBlockedInputTemplate = nil
+  stopActionMenuBlockedActions = {}
   setStopActionMenuInputBlocking(false)
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
@@ -1736,7 +1758,7 @@ function M.onExtensionUnloaded()
   stopActionMenuAutoOpenedForCurrentStop = false
   pendingStopAction = nil
   setStopActionMenuInputBlocking(false)
-  stopActionMenuBlockedInputTemplate = nil
+  stopActionMenuBlockedActions = {}
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
