@@ -23,6 +23,22 @@
         "title": "Police: ANPR Previous Entry",
         "desc": "Cycle to the previous entry in the ANPR scanned plates list"
     },
+    "toggleTrafficStopActionMenu": {
+        "cat": "gameplay",
+        "order": 264,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.toggleTrafficStopActionMenu() end",
+        "title": "Police: Toggle Stop Action Menu",
+        "desc": "Open or close the traffic stop action menu when a full stop is active."
+    },
+    "cancelTrafficStopActionMenu": {
+        "cat": "gameplay",
+        "order": 265,
+        "ctx": "tlua",
+        "onDown": "if not gameplay_policeControls then extensions.load('gameplay_policeControls') end if gameplay_policeControls then gameplay_policeControls.cancelTrafficStopActionMenu() end",
+        "title": "Police: Cancel Stop Action Menu",
+        "desc": "Close the traffic stop action menu without selecting an action."
+    },
     "cyclePoliceSiren": {
         "cat": "vehicle",
         "order": 261,

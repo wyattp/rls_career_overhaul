@@ -82,6 +82,8 @@ local rabbitTarget = nil
 local rabbitTimer = 0
 local rabbitDelay = 0
 local rabbitRolled = false
+local stopActionMenuOpen = false
+local stopActionMenuTarget = nil
 
 local STOP_DWELL_TIME = 3.0
 local STOP_RANGE = 15
@@ -90,6 +92,37 @@ local STOP_MAX_SPEED = 5
 local STOP_ENFORCE_INTERVAL = 0.35
 local STOP_SETTLED_SPEED = 1.0
 local TICKET_BASE_REWARD = 4000
+
+local function isTrafficStopFullyCommenced()
+  if not trafficStopTarget then return false end
+  if not trafficStopInitiated or not trafficStopComplying or not trafficStopReachedStop then
+    return false
+  end
+  return getObjectByID(trafficStopTarget) ~= nil
+end
+
+local function setStopActionMenuOpen(open, reason)
+  if open then
+    if not isTrafficStopFullyCommenced() then
+      open = false
+    end
+  end
+
+  stopActionMenuOpen = open and true or false
+  stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
+
+  local plate = nil
+  if stopActionMenuTarget and vehicleRecords[stopActionMenuTarget] then
+    plate = vehicleRecords[stopActionMenuTarget].plate
+  end
+
+  guihooks.trigger('policeComputerStopActionMenu', {
+    open = stopActionMenuOpen,
+    targetVehId = stopActionMenuTarget,
+    plate = plate,
+    reason = reason
+  })
+end
 
 -- Forward declarations used by onUpdate.
 local updateTrafficStop
@@ -1008,6 +1041,8 @@ local function releaseStoppedTarget(vehId)
 end
 
 local function resetTrafficStop()
+  setStopActionMenuOpen(false, 'trafficStopReset')
+
   local releaseTargetId = nil
   if trafficStopInitiated and trafficStopComplying and trafficStopTarget then
     releaseTargetId = trafficStopTarget
@@ -1039,7 +1074,7 @@ updateTrafficStop = function(dtReal)
 
   local lightbar = getLightbarSignal(playerVeh, playerVehId)
   if not isLightbarActive(lightbar) then
-    if trafficStopInitiated and trafficStopComplying and trafficStopReachedStop and trafficStopTarget then
+    if isTrafficStopFullyCommenced() then
       local rec = vehicleRecords[trafficStopTarget]
       if rec and rec.flagged then
         awardTicketReward(trafficStopTarget)
@@ -1052,6 +1087,9 @@ updateTrafficStop = function(dtReal)
   end
 
   if trafficStopInitiated then
+    if stopActionMenuOpen and not isTrafficStopFullyCommenced() then
+      setStopActionMenuOpen(false, 'stopNoLongerValid')
+    end
     if trafficStopComplying then
       trafficStopEnforceTimer = trafficStopEnforceTimer + dtReal
       if trafficStopEnforceTimer >= STOP_ENFORCE_INTERVAL then
@@ -1177,6 +1215,7 @@ function M.immediateTrafficStop()
   generateRecord(target)
 
   -- Initiate immediately — no dwell timer
+  setStopActionMenuOpen(false, 'immediateStop')
   trafficStopTarget = target
   trafficStopInitiated = true
   trafficStopReachedStop = false
@@ -1187,9 +1226,41 @@ function M.immediateTrafficStop()
   return true
 end
 
+function M.isTrafficStopFullyCommenced()
+  return isTrafficStopFullyCommenced()
+end
+
+function M.isStopActionMenuOpen()
+  return stopActionMenuOpen
+end
+
+function M.toggleStopActionMenu()
+  if stopActionMenuOpen then
+    setStopActionMenuOpen(false, 'toggleClose')
+    return true
+  end
+
+  if not isTrafficStopFullyCommenced() then
+    return false
+  end
+
+  setStopActionMenuOpen(true, 'toggleOpen')
+  return true
+end
+
+function M.cancelStopActionMenu()
+  if not stopActionMenuOpen then
+    return false
+  end
+  setStopActionMenuOpen(false, 'cancel')
+  return true
+end
+
 function M.onExtensionLoaded()
   log('I', logTag, 'Police Computer module loaded')
   elapsedRealtime = 0
+  stopActionMenuOpen = false
+  stopActionMenuTarget = nil
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1226,6 +1297,8 @@ function M.onExtensionUnloaded()
   rabbitTarget = nil
   rabbitTimer = 0
   rabbitRolled = false
+  stopActionMenuOpen = false
+  stopActionMenuTarget = nil
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.5 })
   end
