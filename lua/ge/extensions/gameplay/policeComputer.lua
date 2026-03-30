@@ -961,7 +961,12 @@ updateTrafficStop = function(dtReal)
   local lightbar = getLightbarSignal(playerVeh, playerVehId)
   if not isLightbarActive(lightbar) then
     if trafficStopInitiated and trafficStopComplying and trafficStopReachedStop and trafficStopTarget then
-      awardTicketReward(trafficStopTarget)
+      local rec = vehicleRecords[trafficStopTarget]
+      if rec and rec.flagged then
+        awardTicketReward(trafficStopTarget)
+      else
+        ui_message("No violations found — driver released", 5, "Police")
+      end
     end
     resetTrafficStop()
     return
