@@ -148,6 +148,22 @@ function M.onTrafficVehicleRemoved(vehId)
   -- No cleanup needed; vehicle extension handles its own teardown
 end
 
+function M.onPursuitAction(vehId, action, data)
+  -- Re-apply siren config after pursuit resolution to prevent siren input from
+  -- getting desynced until vehicle switch/re-enter.
+  if action ~= "arrest" and action ~= "release" and action ~= "reset" and action ~= "evade" then
+    return
+  end
+
+  local _, playerVehId = getPlayerPoliceVehicle()
+  if not playerVehId then return end
+
+  -- Ignore player-as-suspect cases; this fix targets police-capture flow.
+  if tonumber(vehId) == tonumber(playerVehId) then return end
+
+  pushSirenConfig(playerVehId)
+end
+
 function M.onExtensionLoaded()
   log("I", logTag, "Police controls loaded")
   -- Push config to current vehicle if already spawned
