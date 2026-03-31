@@ -137,60 +137,15 @@
 
   <div class="stop-action-overlay" v-if="stopActionMenu.open">
     <div class="stop-action-menu">
-      <div
-        class="stop-action-option option-up"
-        :class="{ selected: stopActionMenu.selection === 'up' }"
-        @click.stop="selectStopAction('up')">
-        <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="7" cy="12" r="4.1" />
-          <circle cx="17" cy="12" r="4.1" />
-          <path d="M11 12h2" />
-        </svg>
-        <span class="stop-action-label">Arrest</span>
-      </div>
-
-      <div
-        class="stop-action-option option-right"
-        :class="{ selected: stopActionMenu.selection === 'right' }"
-        @click.stop="selectStopAction('right')">
-        <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3l9 16H3z" />
-          <path d="M12 9v5" />
-          <circle cx="12" cy="17" r="0.8" />
-        </svg>
-        <span class="stop-action-label">Detain</span>
-      </div>
-
-      <div
-        class="stop-action-option option-down"
-        :class="{ selected: stopActionMenu.selection === 'down' }"
-        @click.stop="selectStopAction('down')">
-        <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="4" y="10" width="16" height="10" rx="2" />
-          <path d="M8 10V7a4 4 0 0 1 6.9-2.7" />
-          <path d="M16.5 5.7l-2 0.1V3.8" />
-        </svg>
-        <span class="stop-action-label">Go Free/Warning</span>
-      </div>
-
-      <div
-        class="stop-action-option option-left"
-        :class="{ selected: stopActionMenu.selection === 'left' }"
-        @click.stop="selectStopAction('left')">
-        <svg class="stop-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="4" y="6" width="16" height="12" rx="1.8" />
-          <path d="M7 10h10" />
-          <path d="M7 13h7" />
-        </svg>
-        <span class="stop-action-label">Ticket</span>
-      </div>
+      <div ref="stopActionRadialCont" class="stop-action-radial"></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useLibStore } from '@/services'
+import RadialSVG from '@/modules/radial/radialsvg'
 
 const { $game } = useLibStore()
 
@@ -211,6 +166,16 @@ const stopActionMenu = reactive({
   plate: null,
   selection: null
 })
+const stopActionRadialCont = ref(null)
+const stopActionRadialRenderer = new RadialSVG({
+  down: (item) => {
+    if (item && item.id) selectStopAction(item.id)
+  },
+  click: (item) => {
+    if (item && item.id) selectStopAction(item.id)
+  }
+})
+stopActionRadialRenderer.setMenuIcon('police')
 let actionBannerTimeout = null
 const STOP_ACTION_MENU_DEFAULT = 'up'
 const STOP_ACTION_MENU_LABELS = {
@@ -231,7 +196,55 @@ function selectStopAction(direction) {
   if (!stopActionMenu.open) return
   const action = normalizeStopActionSelection(direction)
   stopActionMenu.selection = action
+  updateStopActionRadial()
   $game.api.engineLua(`if gameplay_policeComputer then gameplay_policeComputer.selectStopActionMenu("${action}") end`)
+}
+
+function buildStopActionRadialItems() {
+  return [
+    {
+      id: 'up',
+      title: 'Arrest',
+      icon: 'lockClosed',
+      position: 0.25,
+      size: 0.22,
+      enabled: true,
+      focused: stopActionMenu.selection === 'up'
+    },
+    {
+      id: 'right',
+      title: 'Detain',
+      icon: 'warning',
+      position: 0.5,
+      size: 0.22,
+      enabled: true,
+      focused: stopActionMenu.selection === 'right'
+    },
+    {
+      id: 'down',
+      title: 'Go Free/Warning',
+      icon: 'checkmark',
+      position: 0.75,
+      size: 0.22,
+      enabled: true,
+      focused: stopActionMenu.selection === 'down'
+    },
+    {
+      id: 'left',
+      title: 'Ticket',
+      icon: 'tow',
+      position: 0,
+      size: 0.22,
+      enabled: true,
+      focused: stopActionMenu.selection === 'left'
+    }
+  ]
+}
+
+function updateStopActionRadial() {
+  if (!stopActionMenu.open || !stopActionRadialCont.value) return
+  stopActionRadialRenderer.create(stopActionRadialCont.value)
+  stopActionRadialRenderer.update(buildStopActionRadialItems())
 }
 
 function toggleCollapse() {
@@ -358,6 +371,7 @@ function onStopActionMenu(data) {
   } else {
     stopActionMenu.selection = null
   }
+  nextTick(() => updateStopActionRadial())
 }
 
 function onStopActionMenuConfirmed(data) {
@@ -478,6 +492,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerSelectEntry', onSelectEntry)
   $game.events.off('policeComputerRecordExpired', onRecordExpired)
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
+  stopActionRadialRenderer.dispose()
 })
 </script>
 
@@ -501,82 +516,23 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   justify-content: center;
   background: $overlay-dark;
   z-index: 120;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .stop-action-menu {
-  position: relative;
-  width: 380px;
-  height: 380px;
-  pointer-events: auto;
-  border-radius: 50%;
-  border: 1px solid rgba(190, 210, 236, 0.24);
-  background: radial-gradient(circle at center, rgba(24, 31, 44, 0.74) 0%, rgba(12, 16, 24, 0.62) 72%, rgba(8, 11, 17, 0.4) 100%);
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.45), inset 0 0 20px rgba(74, 158, 255, 0.14);
-}
-
-.stop-action-option {
-  position: absolute;
-  width: 132px;
-  height: 84px;
-  border-radius: 10px;
-  border: 1px solid rgba(191, 204, 225, 0.26);
-  background: rgba(20, 26, 36, 0.5);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
-  color: #f4f7fb;
-  cursor: pointer;
-
-  &.selected {
-    border-color: rgba(210, 231, 255, 0.94);
-    background: rgba(55, 87, 126, 0.48);
-    box-shadow: 0 0 14px rgba(160, 207, 255, 0.34);
-  }
+  width: 450px;
+  height: 450px;
 }
 
-.option-up {
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.option-right {
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.option-down {
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.option-left {
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.stop-action-icon {
-  width: 24px;
-  height: 24px;
-  stroke: #ffffff;
-  stroke-width: 1.8;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.stop-action-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  line-height: 1;
+.stop-action-radial {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
 }
 
 .police-computer {
@@ -1041,11 +997,6 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
   .stop-action-menu {
     width: 320px;
     height: 320px;
-  }
-
-  .stop-action-option {
-    width: 116px;
-    height: 74px;
   }
 }
 </style>
