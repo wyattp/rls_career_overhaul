@@ -7,12 +7,18 @@
 
         <div class="field-row">
           <label>Primary Siren</label>
-          <BngDropdown v-model="primaryAudio" :items="setupData.options" />
+          <div class="dropdown-with-preview">
+            <BngDropdown v-model="primaryAudio" :items="setupData.options" />
+            <BngButton class="preview-btn" @click="preview(primaryAudio)" :accent="ACCENTS.secondary">&#9654;</BngButton>
+          </div>
         </div>
 
         <div class="field-row">
           <label>Secondary Siren</label>
-          <BngDropdown v-model="secondaryAudio" :items="setupData.options" />
+          <div class="dropdown-with-preview">
+            <BngDropdown v-model="secondaryAudio" :items="setupData.options" />
+            <BngButton class="preview-btn" @click="preview(secondaryAudio)" :accent="ACCENTS.secondary">&#9654;</BngButton>
+          </div>
         </div>
 
         <div class="button-row">
@@ -48,8 +54,14 @@ onMounted(async () => {
   secondaryAudio.value = result.secondaryAudio || (result.options[1] && result.options[1].value) || ""
 })
 
+function preview(partName) {
+  if (!partName) return
+  lua.career_modules_policeSirenSetup.previewSiren(partName)
+}
+
 async function save() {
   if (!setupData.value) return
+  lua.career_modules_policeSirenSetup.stopPreview()
   await lua.career_modules_policeSirenSetup.setSetupData(setupData.value.inventoryId, {
     primaryAudio: primaryAudio.value,
     secondaryAudio: secondaryAudio.value,
@@ -58,6 +70,7 @@ async function save() {
 }
 
 function goBack() {
+  lua.career_modules_policeSirenSetup.stopPreview()
   lua.career_modules_policeSirenSetup.closeMenu()
 }
 </script>
@@ -89,7 +102,22 @@ function goBack() {
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
   }
+}
 
+.dropdown-with-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  :deep(.bng-dropdown) {
+    flex: 1;
+  }
+}
+
+.preview-btn {
+  min-width: 2.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
 }
 
 .button-row {

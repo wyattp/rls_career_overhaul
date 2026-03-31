@@ -78,6 +78,7 @@ local function getAvailableSirenOptions(invId)
     local label = (type(desc) == "table" and desc.description or desc) or partName
     table.insert(options, {value = partName, label = label})
   end
+  table.sort(options, function(a, b) return a.label:lower() < b.label:lower() end)
   return #options > 0 and options or nil
 end
 
@@ -285,6 +286,43 @@ local function getVehicleAudioSetupByVehicleId(vehId)
   return getStoredConfig(vehicleData)
 end
 
+local function previewSiren(partName)
+  if not partName or partName == "" then return end
+  local invId = activeInventoryId
+  if not invId then return end
+  local vehId = getSpawnedIdForInventory(invId)
+  if not vehId then return end
+  local obj = be:getObjectByID(vehId)
+  if not obj then return end
+
+  local vd = extensions.core_vehicle_manager and extensions.core_vehicle_manager.getVehicleData(vehId)
+  if not vd or not vd.ioCtx then return end
+
+  local partData = jbeamIO.getPart(vd.ioCtx, partName)
+  local event = extractFmodEvent(partData)
+  if not event then return end
+
+  -- Stop any current preview, set lightbar so cycleSiren doesn't abort, then play
+  obj:queueLuaCommand('extensions.auto_rlsSirenController.stopAll()')
+  local cmd = string.format('extensions.auto_rlsSirenController.setConfig({tones={{name="preview",event="%s",volume=1.5}}})', event)
+  obj:queueLuaCommand(cmd)
+  obj:queueLuaCommand('electrics.values.lightbar_signal = 1')
+  obj:queueLuaCommand('extensions.auto_rlsSirenController.cycleSiren()')
+end
+
+local function stopPreview()
+  local invId = activeInventoryId
+  if not invId then return end
+  local vehId = getSpawnedIdForInventory(invId)
+  if not vehId then return end
+  local obj = be:getObjectByID(vehId)
+  if not obj then return end
+  obj:queueLuaCommand('extensions.auto_rlsSirenController.stopAll()')
+  obj:queueLuaCommand('electrics.values.lightbar_signal = 0')
+end
+
+M.previewSiren = previewSiren
+M.stopPreview = stopPreview
 M.openMenuFromComputer = openMenuFromComputer
 M.closeMenu = closeMenu
 M.getSetupData = getSetupData

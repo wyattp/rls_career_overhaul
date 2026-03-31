@@ -175,7 +175,7 @@ local function generatePartFromTree(treeNode, slotName, slotInfo, currentVehicle
     local emptyPart = {}
     emptyPart.name = "empty"
     emptyPart.description = {}
-    emptyPart.description.description = "Remove " .. partsNiceName[initialVehicle.partList[treeNode.path]]
+    emptyPart.description.description = "Remove " .. (partsNiceName[initialVehicle.partList[treeNode.path]] or initialVehicle.partList[treeNode.path] or "part")
     emptyPart.emptyPlaceholder = true
     emptyPart.containingSlot = treeNode.path
     emptyPart.partPath = treeNode.path .. "empty"
