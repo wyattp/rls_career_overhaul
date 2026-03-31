@@ -108,13 +108,16 @@ function goBack() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  overflow: hidden;
 
   :deep(.bng-dropdown) {
     flex: 1;
+    min-width: 0;
   }
 }
 
 .preview-btn {
+  flex-shrink: 0;
   min-width: 2.5rem;
   padding: 0.4rem 0.6rem;
   font-size: 1rem;
