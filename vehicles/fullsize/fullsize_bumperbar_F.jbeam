@@ -1,0 +1,162 @@
+{
+"fullsize_bumperbar_F": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Front Bumper Support",
+        "value":150,
+    },
+    "slotType" : "fullsize_bumperbar_F",
+    "flexbodies": [
+         ["mesh", "[group]:", "nonFlexMaterials"],
+         ["fullsize_bumperbar_F", ["fullsize_frame","fullsize_frame_F","fullsize_bumperbar_F"]],
+    ],
+    "nodes": [
+         ["id",     "posX", "posY", "posZ"],
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_METAL"},
+         {"collision":true},
+         {"selfCollision":true},
+         {"group":"fullsize_bumperbar_F"},
+         {"nodeWeight":1.7},
+         //front bumper bar
+         ["fbb1rr",-0.65,  -2.28,   0.38],
+         ["fbb1r", -0.40,  -2.31,   0.38],
+         ["fbb1",   0.0,   -2.33,   0.38],
+         ["fbb1l",  0.40,  -2.31,   0.38],
+         ["fbb1ll", 0.65,  -2.29,   0.38],
+
+         ["fbb2rr",-0.65,  -2.29,   0.52],
+         ["fbb2r", -0.40,  -2.31,   0.52],
+         ["fbb2",   0.0,   -2.33,   0.52],
+         ["fbb2l",  0.40,  -2.31,   0.52],
+         ["fbb2ll", 0.65,  -2.28,   0.52],
+         {"collision":true},
+         {"selfCollision":true},
+    ],
+
+    "beams": [
+          ["id1:",   "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+
+          //--FRONT CRUSH--
+          {"beamSpring":1880600,"beamDamp":198},
+          //front bumper bar
+          {"beamDeform":22280,"beamStrength":"FLT_MAX"},
+          //main shape widthwise
+          {"deformLimitExpansion":1.1},
+          ["fbb1rr", "fbb1r"],
+          ["fbb1r",  "fbb1"],
+          ["fbb1l",  "fbb1"],
+          ["fbb1ll", "fbb1l"],
+          ["fbb2rr", "fbb2r"],
+          ["fbb2r",  "fbb2"],
+          ["fbb2l",  "fbb2"],
+          ["fbb2ll", "fbb2l"],
+
+          //vertical
+          ["fbb1rr", "fbb2rr"],
+          ["fbb1r",  "fbb2r"],
+          ["fbb1",   "fbb2"],
+          ["fbb1l",  "fbb2l"],
+          ["fbb1ll", "fbb2ll"],
+
+          //surf cross
+          {"beamDeform":20280,"beamStrength":"FLT_MAX"},
+          {"deformLimitExpansion":""},
+          ["fbb1rr", "fbb2r"],
+          ["fbb1ll", "fbb2l"],
+          ["fbb1r",  "fbb2"],
+          ["fbb1l",  "fbb2"],
+          ["fbb2r",  "fbb1"],
+          ["fbb2l",  "fbb1"],
+          ["fbb2rr", "fbb1r"],
+          ["fbb2ll", "fbb1l"],
+
+          //rigids
+          {"beamDeform":12560,"beamStrength":"FLT_MAX"},
+          ["fbb1rr", "fbb1"],
+          ["fbb1ll", "fbb1"],
+          ["fbb1r",  "fbb1l"],
+          ["fbb2r",  "fbb2l"],
+          ["fbb2rr", "fbb2"],
+          ["fbb2ll", "fbb2"],
+
+          //attach
+          {"beamSpring":100000,"beamDamp":1000},
+          {"beamDeform":3000,"beamStrength":"FLT_MAX"},
+          //rigid
+          ["fbb2rr", "f24rr"],
+          ["fbb1rr", "f21rr"],
+          ["fbb1r",  "f21rr"],
+          ["fbb2r",  "f24rr"],
+
+          ["fbb2ll", "f24ll"],
+          ["fbb1ll", "f21ll"],
+          ["fbb1l",  "f21ll"],
+          ["fbb2l",  "f24ll"],
+          //normal
+          {"beamSpring":680600,"beamDamp":198},
+          {"beamDeform":7560,"beamStrength":"FLT_MAX"},
+          ["fbb1rr", "f22rr"],
+          ["fbb2rr", "f25rr"],
+          ["fbb1r",  "f22rr"],
+          ["fbb2r",  "f25rr"],
+          ["fbb1rr", "f25rr"],
+          ["fbb2rr", "f22rr"],
+          ["fbb1r",  "f25rr"],
+          ["fbb2r",  "f22rr"],
+          ["fbb1",   "f22rr"],
+          ["fbb2",   "f25rr"],
+
+          ["fbb1ll", "f22ll"],
+          ["fbb2ll", "f25ll"],
+          ["fbb1l",  "f22ll"],
+          ["fbb2l",  "f25ll"],
+          ["fbb1ll", "f25ll"],
+          ["fbb2ll", "f22ll"],
+          ["fbb1l",  "f25ll"],
+          ["fbb2l",  "f22ll"],
+          ["fbb1",   "f22ll"],
+          ["fbb2",   "f25ll"],
+
+          //["fbb1", "f22"],
+          //["fbb2", "f25"],
+          {"deformLimitExpansion":1.1},
+
+    ],
+    "triangles": [
+            ["id1:",   "id2:",   "id3:"],
+            {"groundModel":"metal"},
+            {"dragCoef":0},
+            //bumper bar
+            {"group":"fullsize_bumperbar"},
+            ["fbb2r",  "fbb2rr", "fbb1rr"],
+            ["fbb2r",  "fbb1rr", "fbb1r"],
+            ["fbb2",   "fbb2r",  "fbb1r"],
+            ["fbb2",   "fbb1r",  "fbb1"],
+            ["fbb2l",  "fbb2",   "fbb1"],
+            ["fbb2l",  "fbb1",   "fbb1l"],
+            ["fbb2ll", "fbb2l",  "fbb1l"],
+            ["fbb2ll", "fbb1l",  "fbb1ll"],
+
+            //to frame
+            ["f25rr",  "f22rr",  "fbb1rr"],
+            ["fbb1rr", "fbb2rr", "f25rr"],
+            ["f25rr",  "fbb2rr", "fbb2r"],
+            ["f25",    "f25rr",  "fbb2r"],
+            ["f25",    "fbb2r",  "fbb2"],
+            ["fbb1rr", "f22rr",  "fbb1r"],
+            ["fbb1r",  "f22rr",  "f22"],
+            ["f22",    "fbb1",   "fbb1r"],
+
+            ["f22ll",  "f25ll",  "fbb1ll"],
+            ["fbb2ll", "fbb1ll", "f25ll"],
+            ["fbb2ll", "f25ll",  "fbb2l"],
+            ["f25ll",  "f25",    "fbb2l"],
+            ["fbb2l",  "f25",    "fbb2"],
+            ["f22ll",  "fbb1ll", "fbb1l"],
+            ["f22ll",  "fbb1l",  "f22"],
+            ["fbb1",   "f22",    "fbb1l"],
+          ],
+},
+}

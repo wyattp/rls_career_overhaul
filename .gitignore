@@ -4,4 +4,5 @@ node_modules/
 baseUI/node_modules/
 ui-build-temp/
 ui/vue-dist/
+ui/ui-vue/dist/
 BeamNG.drive.lnk

@@ -1,0 +1,1721 @@
+{
+"fullsize_partition": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Partition",
+        "value":6200,
+    },
+    "slotType" : "fullsize_rollcage",
+    "flexbodies": [
+         ["mesh", "[group]:", "nonFlexMaterials"],
+         ["fullsize_interior_partition", ["fullsize_partition","fullsize_body","fullsize_body_F"]],
+
+    ],
+    "nodes": [
+         ["id",  "posX", "posY", "posZ"],
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_METAL"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":40},
+         {"group":"fullsize_partition"},
+         ["pr1", 0.0,    0.55,   0.95],
+         {"group":""},
+    ],
+    "beams": [
+          ["id1:", "id2:"],
+          {"beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":1601000,"beamDamp":50},
+          {"beamDeform":5000,"beamStrength":"FLT_MAX"},
+          {"deformLimitExpansion":1.1},
+          ["pr1",  "rf2r"],
+          ["pr1",  "rf2l"],
+
+          ["pr1",  "rf2"],
+
+          ["pr1",  "p3r"],
+          ["pr1",  "p3l"],
+          ["pr1",  "p4r"],
+          ["pr1",  "p4l"],
+
+
+          ["pr1",  "b3rr"],
+          ["pr1",  "b3ll"],
+          ["pr1",  "b4r"],
+          ["pr1",  "b4l"],
+
+
+          {"optional":true},
+
+          ["pr1",  "b4rr"],
+          ["pr1",  "b4ll"],
+          {"optional":false},
+    ],
+    "triangles": [
+            ["id1:", "id2:", "id3:"],
+            {"groundModel":"metal"},
+            {"dragCoef":0},
+            ["rf2l", "pr1",  "rf2"],
+            ["rf2",  "pr1",  "rf2r"],
+            ["p8l",  "pr1",  "rf2l"],
+            ["p6l",  "pr1",  "p8l"],
+            ["p4l",  "pr1",  "p6l"],
+            ["p4l",  "b3ll", "b3l"],
+            ["b3l",  "pr1",  "p4l"],
+            ["b3l",  "b3r",  "pr1"],
+            ["pr1",  "b3r",  "p4r"],
+            ["p4r",  "b3r",  "b3rr"],
+            ["p4r",  "p6r",  "pr1"],
+            ["pr1",  "p6r",  "p8r"],
+            ["p8r",  "rf2r", "pr1"],
+            {"breakGroup":""},
+            {"group":""},
+    ],
+},
+"fullsize_dash_police": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Dashboard With Police Console",
+        "value":500,
+    },
+    "slotType" : "fullsize_dash",
+    "slots2": [
+        ["name",                    "allowTypes",                "denyTypes", "default",                   "description"],
+        ["fullsize_shifter_police", ["fullsize_shifter_police"], [],          "fullsize_shifter_A_police", "Shifter"],
+        ["fullsize_steer",          ["fullsize_steer"],          [],          "fullsize_steer",            "Steering Wheel"],
+        ["fullsize_dash_accessory", ["fullsize_dash_accessory"], [],          "fullsize_dash_radar",       "Interior Accessory"],
+        ["fullsize_police_laptop",  ["fullsize_police_laptop"],  [],          "",                          "Police Laptop"],
+    ],
+    "props": [
+        ["func",         "mesh",                   "idRef:", "idX:", "idY:", "baseRotation",            "rotation",                 "translation",         "min", "max", "offset", "multiplier"],
+        //needles
+        ["wheelspeed",   "fullsize_needle_speedo", "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-4.15},  {"x":0, "y":0, "z":0}, 0, 53,   -26.1, 1],
+        ["rpm",          "fullsize_needle_tacho",  "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-0.035}, {"x":0, "y":0, "z":0}, 0, 6000, -3000, 1],
+        ["fuel",         "fullsize_needle_fuel",   "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-90},    {"x":0, "y":0, "z":0}, 0, 1,    -0.5,  1],
+        ["oiltemp",      "fullsize_needle_oil",    "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-1.5},   {"x":0, "y":0, "z":0}, 60, 120, -90, 1],
+        ["watertemp",    "fullsize_needle_water",  "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-1.5},   {"x":0, "y":0, "z":0}, 60, 120, -90, 1],
+        ["volts",        "fullsize_needle_volts",  "dsh","dshl","dsh2",        {"x":-85, "y":180, "z":180}, {"x":0, "y":0, "z":-10},    {"x":0, "y":0, "z":0}, 11, 18,    0,    1],
+        //pedals
+        ["brake",        "fullsize_brakepedal",    "b1l","b1r","b5l",        {"x":8, "y":0, "z":180},   {"x":-25, "y":0, "z":0},    {"x":0, "y":0, "z":0}, 0, 1, 0, 1],
+        ["throttle",     "fullsize_gaspedal",      "b1l","b1r","b5l",        {"x":0, "y":0, "z":180},   {"x":-20, "y":0, "z":0},    {"x":0, "y":0, "z":0}, 0, 1, 0, 1],
+        ["parkingbrake", "fullsize_parkingbrake",  "b1l","b1r","b5l",        {"x":0, "y":0, "z":180},   {"x":-22, "y":0, "z":0},    {"x":0, "y":0, "z":0}, 0, 1, 0, 1],
+        //turn signal stalk
+        ["turnsignal",   "fullsize_signalstalk",   "b1l","b1r","b5l",        {"x":-72.5, "y":0, "z":180}, {"x":0, "y":0, "z":-15},  {"x":0, "y":0, "z":0}, -1, 1, 0, 1],
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        //interior
+        ["fullsize_dash", ["fullsize_dashboard"]],
+        ["fullsize_gauges",  ["fullsize_dashboard"]],
+        ["fullsize_center_console_police", ["fullsize_partition","fullsize_body","fullsize_body_F"]],
+        ["fullsize_decals_gauges",  ["fullsize_dashboard"]],
+    ],
+    "triggers2":[
+        ["id", "idRef:", "idX:", "idY:", "type", "size", "baseRotation", "rotation", "translation", "baseTranslation"],
+        ["lightbar_toggle", "b2r","b2l","b1r", "box", {"x":0.015, "y":0.015, "z":0.050}, {"x": 0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.258, "y": 0.120, "z": 0.280}],
+        ["lightbar_mode1",  "b2r","b2l","b1r", "box", {"x":0.040, "y":0.010, "z":0.015}, {"x": 0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.246, "y": 0.050, "z": 0.283}],
+        ["lightbar_mode2",  "b2r","b2l","b1r", "box", {"x":0.040, "y":0.010, "z":0.015}, {"x": 0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.246, "y": 0.026, "z": 0.283}],
+        ["lightbar_mode3",  "b2r","b2l","b1r", "box", {"x":0.040, "y":0.010, "z":0.015}, {"x": 0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.246, "y": 0.002, "z": 0.283}],
+        ["lightbar_mode4",  "b2r","b2l","b1r", "box", {"x":0.040, "y":0.010, "z":0.015}, {"x": 0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.246, "y":-0.022, "z": 0.283}],
+        ["siren",           "b2r","b2l","b1r", "box", {"x":0.020, "y":0.025, "z":0.025}, {"x":50, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x":0, "y":0, "z":0}, {"x": 0.395, "y": 0.195, "z": 0.305}],
+    ],
+    "actionsEnabled": [
+        ["id"],
+        ["toggle_lightbar"],
+        ["toggle_siren"],
+        ["lightbar_setmode_1"],
+        ["lightbar_setmode_2"],
+        ["lightbar_setmode_3"],
+        ["lightbar_setmode_4"],
+    ],
+    "triggerEventLinks2":[
+        ["triggerId:triggers2", "triggerInput", "inputAction"],
+        ["lightbar_toggle","action0", "toggle_lightbar"],
+        ["lightbar_mode1", "action0", "lightbar_setmode_1"],
+        ["lightbar_mode2", "action0", "lightbar_setmode_2"],
+        ["lightbar_mode3", "action0", "lightbar_setmode_3"],
+        ["lightbar_mode4", "action0", "lightbar_setmode_4"],
+        ["siren", "action0", "toggle_siren"],
+    ],
+    "controller": [
+        ["fileName"],
+        ["gauges/analogOdometer", {"name":"analogOdometer" }],
+    ],
+    "analogOdometer": {
+        "configuration": {
+            "materialName": "@fullsize_generic_odo",
+            "htmlPath": "local://local/vehicles/common/analogOdo.html",
+            "displayWidth":512,
+            "displayHeight":32,
+            "odometerDigits":7,
+            "odometerHasDecimalSeparator":true,
+            "tripHasDecimalSeparator":true,
+            "unit":"imperial",
+            "floatStyle":{"color":"black"},
+            "bodyStyle":{
+                "background": "url('/vehicles/common/odometer_analog_b.cef_color.png')",
+                "font-family": "OpenSans",
+                "font-size": "28px",
+                "color": "white",
+                "letter-spacing": "15.5px",
+                "margin": "-4.5px 10.5px",
+                "transform": "scaleX(1.26)",
+                "transform-origin": "left",
+            },
+            "tripDivStyle":{
+                "margin-left": "-3px",
+                "position": "fixed",
+                "letter-spacing": "32px"
+            }
+        },
+    },
+    "nodes": [
+         ["id",   "posX", "posY", "posZ"],
+         {"group":"fullsize_body"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_METAL"},
+
+         //add weight
+         {"nodeWeight":2.444},
+         {"group":["fullsize_dashboard"]},
+         ["dshr",-0.75,  -0.57,   0.95],
+         ["dsh",  0.0,   -0.57,   0.95],
+         ["dshl", 0.75,  -0.57,   0.95],
+         ["dsh2", 0.0,   -0.57,   0.65],
+         {"group":""},
+    ],
+}
+"fullsize_shifter_A_police": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Automatic Shifter",
+        "value":750,
+    },
+    "slotType" : "fullsize_shifter_police",
+    "controller": [
+        ["fileName"],
+        ["propAnimation/singleAxisLever", {"name":"singleAxisLever"}],
+
+    ]
+    "singleAxisLever": {
+        "gearCoordinates": [
+            ["gearIndex",   "value"]
+            [1,            0.0]
+            [2,             0.2]
+            [3,             0.4]
+            [4,             0.6]
+            [5,             0.8]
+            [6,             1]
+        ]
+        "shiftSoundNode:":["dsh"]
+        "shiftSoundEventSingleAxisLever": "event:>Vehicle>Interior>Gearshift>automatic_lever_03",
+        "shiftSoundVolumeSingleAxisLever": 0.5,
+    },
+    "props": [
+        ["func"      , "mesh"              , "idRef:", "idX:", "idY:"            , "baseRotation"        , "rotation"                 , "translation"        , "min", "max", "offset", "multiplier"],
+        ["gearModeIndex"      , "fullsize_needle_gear"  , "dsh","dshl","dsh2",  {"x":-85, "y":180, "z":180} , {"x":0, "y":0, "z":0}      , {"x":-0.065, "y":0, "z":0}, 0, 1, 0, 1],
+        //automatic transmission
+        ["gearModeIndex"      , "fullsize_shifter_A", "dsh2l","dshl","int_strw", {"x":0, "y":-10, "z":15}, {"x":0, "y":0, "z":-25}    , {"x":0, "y":0, "z":0}, 0, 1, 0, 1],
+    ],
+},
+"fullsize_shifter_M_police": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Manual Shifter",
+        "value":750,
+    },
+    "slotType" : "fullsize_shifter_police",
+    "props": [
+        ["func"        , "mesh"                , "idRef:", "idX:", "idY:", "baseRotation"      , "rotation"                 , "translation"        , "min", "max", "offset", "multiplier"],
+        ["clutch"     ,"fullsize_clutchpedal","b1l","b1r","b5l",        {"x":0, "y":0, "z":180}, {"x":-25, "y":0, "z":0}    , {"x":0.0, "y":0, "z":0}, 0, 1, 0, 1],
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        ["fullsize_police_shifter_M", ["fullsize_shifterboot_M","fullsize_shifterknob_M"]],
+    ],
+    "controller": [
+        ["fileName"],
+        ["propAnimation/hPattern", {"name":"hPattern"}],
+    ],
+    "hPattern": {
+        "gearCoordinates": [
+            ["gearIndex",   "x",      "y"]
+            [-1,            -1.0,       1.0]
+            [0,             0.0,       0.0]
+            [1,            -0.50,       1.0]
+            [2,            -0.50,      -1.0]
+            [3,             0.0,       1.0]
+            [4,             0.0,      -1.0]
+            [5,             0.50,       1.0]
+            [6,             0.50,       -1.0]
+        ]
+        "shiftSoundNode:":["sh_b3"]
+        "shiftSoundEventHPatternGearIn": "event:>Vehicle>Interior>Gearshift>manual_modern_03_in",
+        "shiftSoundEventHPatternGearOut": "event:>Vehicle>Interior>Gearshift>manual_modern_03_out",
+        "shiftSoundVolumeHPatternGearIn": 0.5,
+        "shiftSoundVolumeHPatternGearOut": 0.5,
+    },
+    "nodes": [
+         ["id",     "posX", "posY", "posZ"],
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_METAL"},
+         {"collision":true},
+         {"selfCollision":false},
+         //--SHIFTER---  has to be jbeamed to allow for realistic movement
+         {"group":"fullsize_shifterboot_M"},
+         {"nodeWeight":0.45}
+         ["sh_b1l", 0.1267,-0.4133, 0.481],
+         ["sh_b1r",-0.0133,-0.4133, 0.481],
+         ["sh_b2l", 0.1267,-0.2533, 0.467],
+         ["sh_b2r",-0.0133,-0.2533, 0.467],
+
+         ["sh_b3",  0.0567,-0.3233, 0.37],
+         {"selfCollision":true},
+         {"group":["fullsize_shifterknob_M","fullsize_shifterboot_M"]},
+         {"nodeWeight":0.5}
+         ["sh_l3",  0.0567,-0.3233, 0.68],
+         {"selfCollision":false},
+         {"nodeWeight":0.30}
+         {"group":"fullsize_shifterboot_M"},
+         ["sh_l1l", 0.0947,-0.3733, 0.54],
+         ["sh_l1r", 0.0187,-0.3733, 0.54],
+         ["sh_l2l", 0.0947,-0.2833, 0.54],
+         ["sh_l2r", 0.0187,-0.2833, 0.54],
+         {"group":""},
+    ],
+    "beams":[
+        ["id1:",   "id2:"],
+        {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+        //main shape
+        {"beamSpring":401000,"beamDamp":55},
+        {"beamDeform":259000,"beamStrength":"FLT_MAX"},
+        {"deformLimitExpansion":1.1},
+        ["sh_b1l", "sh_b1r"],
+        ["sh_b1l", "sh_b2l"],
+        ["sh_b1l", "sh_b2r"],
+        ["sh_b1r", "sh_b2l"],
+        ["sh_b1r", "sh_b2r"],
+        ["sh_b2l", "sh_b2r"],
+
+        ["sh_b1l", "sh_b3"],
+        ["sh_b1r", "sh_b3"],
+        ["sh_b2l", "sh_b3"],
+        ["sh_b2r", "sh_b3"],
+        //lever
+        {"beamSpring":121000,"beamDamp":35},
+        ["sh_l3",  "sh_l1l"],
+        ["sh_l3",  "sh_l1r"],
+        ["sh_l3",  "sh_l2l"],
+        ["sh_l3",  "sh_l2r"],
+
+        ["sh_l1l", "sh_l1r"],
+        ["sh_l1l", "sh_l2l"],
+        ["sh_l1l", "sh_l2r"],
+
+        ["sh_l1r", "sh_l2l"],
+        ["sh_l1r", "sh_l2r"],
+        ["sh_l2l", "sh_l2r"],
+        //hinge
+        {"beamSpring":121000,"beamDamp":25},
+        ["sh_b3",  "sh_l3"],
+        ["sh_b3",  "sh_l1l"],
+        ["sh_b3",  "sh_l1r"],
+        ["sh_b3",  "sh_l2l"],
+        ["sh_b3",  "sh_l2r"],
+
+        //stabilize the shifter
+        {"beamSpring":0,"beamDamp":175},
+        ["sh_b1l", "sh_l3"],
+        ["sh_b1r", "sh_l3"],
+        ["sh_b2l", "sh_l3"],
+        ["sh_b2r", "sh_l3"],
+        {"breakGroup":""},
+        //attach to body
+        {"beamSpring":200000,"beamDamp":70},
+        {"beamDeform":2000,"beamStrength":"FLT_MAX"},
+        ["sh_b1l", "b2r"],
+        ["sh_b1r", "b2r"],
+        ["sh_b2l", "b2r"],
+        ["sh_b2r", "b2r"],
+        ["sh_b3",  "b2r"],
+
+        ["sh_b1l", "b2l"],
+        ["sh_b1r", "b2l"],
+        ["sh_b2l", "b2l"],
+        ["sh_b2r", "b2l"],
+        ["sh_b3",  "b2l"],
+
+        ["sh_b1l", "b1r"],
+        ["sh_b1r", "b1r"],
+        ["sh_b2l", "b1r"],
+        ["sh_b2r", "b1r"],
+        ["sh_b3",  "b1r"],
+
+        ["sh_b1l", "b1l"],
+        ["sh_b1r", "b1l"],
+        ["sh_b2l", "b1l"],
+        ["sh_b2r", "b1l"],
+        ["sh_b3",  "b1l"],
+        {"beamDeform":1000,"beamStrength":"FLT_MAX"},
+        ["sh_b1l", "dsh"],
+        ["sh_b1r", "dsh"],
+        ["sh_b2l", "dsh"],
+        ["sh_b2r", "dsh"],
+        ["sh_b3",  "dsh"],
+
+        ["sh_b1l", "dsh2"],
+        ["sh_b1r", "dsh2"],
+        ["sh_b2l", "dsh2"],
+        ["sh_b2r", "dsh2"],
+        ["sh_b3",  "dsh2"],
+
+        ["sh_b1l", "b5r"],
+        ["sh_b1r", "b5r"],
+        ["sh_b2l", "b5r"],
+        ["sh_b2r", "b5r"],
+        ["sh_b3",  "b5r"],
+
+        ["sh_b1l", "b5l"],
+        ["sh_b1r", "b5l"],
+        ["sh_b2l", "b5l"],
+        ["sh_b2r", "b5l"],
+        ["sh_b3",  "b5l"],
+        //support beams
+        {"beamType":"|SUPPORT","beamPrecompression":0.92,"beamLongBound":2},
+        {"beamSpring":201000,"beamDamp":50},
+        {"beamDeform":16000,"beamStrength":"FLT_MAX"},
+        ["sh_l1r", "sh_b2l"],
+        ["sh_l2r", "sh_b1l"],
+        ["sh_l2l", "sh_b1r"],
+        ["sh_l1l", "sh_b2r"],
+        {"beamPrecompression":0.93}
+        ["sh_l3",  "sh_b1l"],
+        ["sh_l3",  "sh_b1r"],
+        ["sh_l3",  "sh_b2l"],
+        ["sh_l3",  "sh_b2r"],
+        ["sh_l3",  "sh_b3"],
+        {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+    ],
+    "torsionHydros": [
+        ["id1:","id2:","id3:","id4:"],
+        {"spring":200, "damp":1, "deform":"FLT_MAX", "strength":1000},
+        ["sh_b2l","sh_b1l","sh_b1r","sh_l3",  {"inputSource":"hPatternAxisY","factor":-0.10}],
+        ["sh_b1r","sh_b1l","sh_b2l","sh_l3",  {"inputSource":"hPatternAxisX","factor":-0.10}],
+        ["sh_b1r","sh_b2r","sh_b2l","sh_l3",  {"inputSource":"hPatternAxisY","factor":0.10}],
+        ["sh_b2l","sh_b2r","sh_b1r","sh_l3",  {"inputSource":"hPatternAxisX","factor":0.10}],
+    ],
+    "torsionbars": [
+        ["id1:", "id2:", "id3:", "id4:"],
+        {"spring":50, "damp":0.2, "deform":30000, "strength":1000},
+        ["sh_b1r", "sh_b3", "sh_l3", "sh_l1r"],
+        ["sh_b2r", "sh_b3", "sh_l3", "sh_l2r"],
+        ["sh_b2l", "sh_b3", "sh_l3", "sh_l2l"],
+        ["sh_b1l", "sh_b3", "sh_l3", "sh_l1l"],
+
+    ],
+},
+"fullsize_dash_laptop": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Police Laptop",
+        "value":400,
+    },
+    "slotType" : "fullsize_police_laptop",
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        ["police_laptop", ["laptop"], [], {"pos":{"x": -0.20, "y":-0.40, "z":0.65}, "rot":{"x":0, "y":0, "z":45}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        ["police_laptop_screen", ["laptop_screen"], [], {"pos":{"x": -0.20, "y":-0.40, "z":0.65}, "rot":{"x":0, "y":0, "z":45}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        ["police_laptop_mount_a", ["fullsize_body","fullsize_body_F","laptop_mount"], [], {"pos":{"x": -0.20, "y":-0.40, "z":0.65}, "rot":{"x":0, "y":0, "z":45}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        ["police_laptop_mount_c", ["fullsize_body","fullsize_body_F","laptop_mount"], [], {"pos":{"x": -0.20, "y":-0.40, "z":0.295}, "rot":{"x":0, "y":0, "z":45}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        ["police_laptop_mount_b_alt", ["fullsize_body","fullsize_body_F","laptop_mount"], [], {"pos":{"x": -0.20, "y":-0.40, "z":0.36}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        ],
+    "nodes": [
+         ["id",       "posX", "posY", "posZ"],
+         {"group":"laptop"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":0.3},
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_PLASTIC"},
+         {"group":"laptop_screen"},
+         ["lapscr1l",-0.073, -0.475,  1.040],
+         ["lapscr1r",-0.269, -0.279,  1.040],
+         ["lapscr2l",-0.022, -0.418,  0.834,  {"tag":"laptop_hinge"}],
+         ["lapscr2r",-0.218, -0.222,  0.834,  {"tag":"laptop_hinge"}],
+         ["lapscr3", -0.097, -0.3,    0.963,  {"selfCollision":false,"collision":false}],
+         {"group":"laptop"},
+         {"nodeWeight":0.5},
+         ["lap2l",   -0.022, -0.418,  0.834,  {"couplerTag":"laptop_hinge", "couplerStrength":7500, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_break"}],
+         ["lap2r",   -0.218, -0.222,  0.834,  {"couplerTag":"laptop_hinge", "couplerStrength":7500, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_break"}],
+         {"nodeWeight":1.0},
+         ["lap3l",   -0.035, -0.431,  0.781,  {"tag":"laptop_mount"}],
+         ["lap3r",   -0.231, -0.235,  0.781,  {"tag":"laptop_mount"}],
+         ["lap4l",    0.128, -0.266,  0.781,  {"tag":"laptop_mount"}],
+         ["lap4r",   -0.067, -0.071,  0.781,  {"tag":"laptop_mount"}],
+         {"group":"laptop_mount"},
+         {"nodeWeight":1.0},
+         ["lapm1l",  -0.035, -0.431,  0.781,  {"couplerTag":"laptop_mount", "couplerStrength":5300, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_mount"}],
+         ["lapm1r",  -0.231, -0.235,  0.781,  {"couplerTag":"laptop_mount", "couplerStrength":5300, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_mount"}],
+         ["lapm2l",   0.128, -0.266,  0.781,  {"couplerTag":"laptop_mount", "couplerStrength":5300, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_mount"}],
+         ["lapm2r",  -0.067, -0.071,  0.781,  {"couplerTag":"laptop_mount", "couplerStrength":5300, "couplerRadius":0.1, "couplerStartRadius":0.1, "couplerLock":true, "breakGroup":"laptop_mount"}],         {"group":""}
+    ],
+
+    "beams": [
+          ["id1:",     "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":576840,"beamDamp":78},
+          {"beamDeform":3750,"beamStrength":"FLT_MAX"},
+          {"deformLimitExpansion":1.2},
+          //laptop main shape
+          //laptop bottom
+            ["lap4r",    "lap4l"],
+          ["lap4l",    "lap3l"],
+          ["lap3l",    "lap3r"],
+          ["lap3r",    "lap4r"],
+          ["lap3l",    "lap4r"],
+          ["lap3r",    "lap4l"],
+          ["lap3l",    "lap2l"],
+          ["lap2r",    "lap3r"],
+          ["lap2r",    "lap2l"],
+          ["lap2l",    "lap3r"],
+          ["lap2r",    "lap3l"],
+          ["lap2l",    "lap4l"],
+          ["lap2r",    "lap4r"],
+          ["lap2r",    "lap4l"],
+          ["lap4r",    "lap2l"],
+          //screen
+          ["lapscr1l", "lapscr2l"],
+          ["lapscr2r", "lapscr1r"],
+          ["lapscr1r", "lapscr1l"],
+          ["lapscr1l", "lapscr2r"],
+          ["lapscr1r", "lapscr2l"],
+          ["lapscr1r", "lapscr3"],
+          ["lapscr2r", "lapscr3"],
+          ["lapscr1l", "lapscr3"],
+          ["lapscr2l", "lapscr3"],
+          {"beamSpring":576840,"beamDamp":78},
+          {"beamDeform":12750,"beamStrength":"FLT_MAX"},
+          //stand
+          ["lapm1l",   "lapm2l"],
+          ["lapm2r",   "lapm1r"],
+          ["lapm1r",   "lapm1l"],
+          ["lapm1l",   "lapm2r"],
+          ["lapm1r",   "lapm2l"],
+          {"beamSpring":576840,"beamDamp":78},
+          {"beamDeform":3750,"beamStrength":"FLT_MAX"},
+          //attach
+          ["lapm1l",   "b1r"],
+          ["lapm1r",   "b1r"],
+          ["lapm2l",   "b1r"],
+          ["lapm2r",   "b1r"],
+
+          ["lapm1l",   "b1rr"],
+          ["lapm1r",   "b1rr"],
+          ["lapm2l",   "b1rr"],
+          ["lapm2r",   "b1rr"],
+
+          ["lapm1l",   "b2r"],
+          ["lapm1r",   "b2r"],
+          ["lapm2l",   "b2r"],
+          ["lapm2r",   "b2r"],
+
+          ["lapm1l",   "b2rr"],
+          ["lapm1r",   "b2rr"],
+          ["lapm2l",   "b2rr"],
+          ["lapm2r",   "b2rr"],
+          //Laptop hinge
+          //torsionbar break beam
+          {"breakGroup":"laptop_break"},
+          ["lap2l",    "lapscr1l"],
+          {"beamType":"|SUPPORT","beamLongBound":2.0,"beamPrecompression":0.89},
+          ["lapscr1r", "lap3r"],
+          ["lapscr1l", "lap3l"],
+
+          {"beamLongBound":12.0,"beamPrecompression":0.13},
+          ["lapscr1r", "lap4r"],
+          ["lapscr1l", "lap4l"],
+
+        {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0,"boundZone":"","transitionZone":""}
+          {"breakGroup":""},
+          {"deformGroup":""}
+    ],
+    "torsionbars":[
+       ["id1:", "id2:", "id3:", "id4:"],
+       //Screen hinge
+       {"spring":20, "damp":1, "deform":1.5, "strength":100000},
+       ["lapscr1l", "lap2l", "lap2r", "lap4r"],
+       ],
+     "triangles": [
+          ["id1:",     "id2:",     "id3:"],
+          {"dragCoef":0},
+          {"groundModel":"plastic"},
+          {"group":"fullsize_laptop"},
+          ["lap3l",    "lap4l",    "lap4r"],
+          ["lap4r",    "lap3r",    "lap3l"],
+          ["lapscr1l", "lapscr2l", "lapscr2r"],
+          ["lapscr2r", "lapscr1r", "lapscr1l"],
+          ["lap2l",    "lap3l",    "lap3r"],
+          ["lap3r",    "lap2r",    "lap2l"],
+    ]
+},
+"fullsize_dash_radar": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Police Radar",
+        "value":400,
+    },
+    "slotType" : "fullsize_dash_accessory",
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        ["fullsize_dash_radar", ["fullsize_dashboard"]],
+        ],
+},
+"fullsize_antenna_trunk": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Trunk Antenna",
+        "value":180
+    },
+    "slotType" : "fullsize_trunk_accessory",
+    "flexbodies": [
+         ["mesh", "[group]:", "nonFlexMaterials"],
+         ["fullsize_antenna_trunk", ["fullsize_trunk","fullsize_antenna_trunk"]]
+    ],
+    "trunkCoupler":{
+        "$+openForceMagnitude":  5,
+        "$+openForceDuration":   0,
+        "$+closeForceMagnitude": 0,
+        "$+closeForceDuration":  0,
+    }
+     "nodes": [
+         ["id",     "posX", "posY", "posZ"],
+         {"group":"fullsize_antenna_trunk"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":0.14},
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_RUBBER"},
+         //base
+         ["antb1r",-0.07,   2.47,   1.007],
+         ["antb1l", 0.07,   2.47,   1.007],
+         ["antb2",  0.0,    2.37,   1.018],
+         //antenna
+         ["ant1",   0.0,    2.432,  1.06],
+         ["ant2",   0.0,    2.442,  1.29],
+         ["ant3",   0.0,    2.452,  1.54]
+    ],
+
+    "beams": [
+          ["id1:",   "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":35000,"beamDamp":50},
+          {"beamDeform":"FLT_MAX","beamStrength":"FLT_MAX"},
+          //base
+          ["antb1r", "antb1l"],
+          ["antb1r", "antb2"],
+          ["antb1l", "antb2"],
+
+          ["antb1r", "ant1"],
+          ["antb2",  "ant1"],
+          ["antb1l", "ant1"],
+          //antenna
+          ["ant1",   "ant2"],
+          ["ant2",   "ant3"],
+
+          {"beamSpring":5000,"beamDamp":10},
+          ["antb1r", "ant2"],
+          ["antb2",  "ant2"],
+          ["antb1l", "ant2"],
+          ["antb1r", "ant3"],
+          ["antb2",  "ant3"],
+          ["antb1l", "ant3"],
+          //attach to trunk
+          {"beamSpring":65000,"beamDamp":50},
+          {"beamDeform":3200,"beamStrength":3200},
+            {"breakGroup":"antenna_trunk"},
+          ["antb1r", "t2r"],
+          ["antb1l", "t2r"],
+          ["antb1r", "t2l"],
+          ["antb1l", "t2l"],
+          ["antb2",  "t2r"],
+          ["antb2",  "t2l"],
+          ["antb1r", "t5"],
+          ["antb1l", "t5"],
+          ["antb2",  "t5"],
+          ["ant1",   "t2l"],
+          ["ant1",   "t2r"],
+          ["ant1",   "t5"],
+            {"breakGroup":""}
+    ]
+},
+"fullsize_spotlight_L": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Left Spotlight",
+        "value":260
+    },
+    "slotType" : "fullsize_spotlight_L",
+    "flexbodies": [
+         ["mesh", "[group]:", "nonFlexMaterials"],
+         ["police_search_light_arm", ["fullsize_body","fullsize_body_F"], [], {"pos":{"x": 0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":32}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         ["police_search_light_pod", ["fullsize_spotlight_L"], [], {"pos":{"x": 0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         {"deformGroup":"spotlight_L_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+         ["police_search_light_L", ["fullsize_spotlight_L"], [], {"pos":{"x": 0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         {"deformGroup":"spotlight_L_break", "deformMaterialBase":"policeparts_glass_white", "deformMaterialDamaged":"policeparts_glass_white_dmg"},
+         ["police_search_light_glass_L", ["fullsize_spotlight_L"],[],{"pos":{"x": 0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0},"deformSound":"event:>Destruction>Vehicle>Glass>glassbreaksound3", "deformVolume":0.5}],
+         {"deformGroup":""}
+    ],
+    "components": {
+        "electrics": {
+            "customValues": [
+                ["electricsName", "electricsFunction","electricsDefault"],
+                ["spotlight_L","electrics.highbeam * electrics.electricalLoadCoef",0],
+            ],
+            "smoothers": [
+                ["electricsName", "smootherType", "params"],
+                ["spotlight_L","temporalNonLinear", [15,15]],
+            ],
+        },
+    },
+    "glowMap":{
+        "police_search_light_L":{"simpleFunction":"spotlight_L", "off":"policeparts_lights_white", "on":"policeparts_lights_white_on", "materialEmissiveScaling":{"on_max":1}},
+        "police_search_light_glass_L":{"simpleFunction":"spotlight_L", "off":"policeparts_glass_white", "on":"policeparts_glass_white", "materialEmissiveScaling":{"on_max":1}}
+    },
+     "nodes": [
+         ["id",     "posX", "posY", "posZ"],
+         {"group":"fullsize_spotlight_L"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":1.0},
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_PLASTIC"},
+         ["spot1l", 0.96,  -0.71,   1.10],
+         ["spot2l", 0.81,  -0.71,   1.10],
+         ["spot3l", 0.96,  -0.71,   1.26],
+         ["spot4l", 0.81,  -0.71,   1.26],
+         ["spot5l", 0.89,  -0.62,   1.18],
+         {"group":""}
+
+    ],
+    "props": [
+        ["func"      , "mesh"              , "idRef:", "idX:", "idY:"            , "baseRotation"        , "rotation"                 , "translation"        , "min", "max", "offset", "multiplier"],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":90,
+            "lightBrightness":0.75,
+            "lightRange":120,
+            "lightColor":{"r":255, "g":255, "b":200, "a":255},
+            "lightAttenuation":{"x":0, "y":1, "z":1},
+            "lightCastShadows":true,
+            "flareName":"vehicleHeadLightFlare",
+            "flareScale":0.06,
+            "cookieName":"art/special/BNG_light_cookie_headlight.dds"
+            "texSize":64,
+            "shadowSoftness":0.5,
+        },
+        ["spotlight_L"    , "SPOTLIGHT"        , "spot1l", "spot2l", "spot4l", {"x":0, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":-0.05, "y":0.5, "z":0.03},"deformGroup":"spotlight_L_break", "lightScaling":{}}]
+     ],
+
+    "beams": [
+          ["id1:",   "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":1176840,"beamDamp":78},
+          {"beamDeform":36750,"beamStrength":"FLT_MAX"},
+          //left light
+          {"deformationTriggerRatio":0.05},
+          {"deformGroup":"spotlight_L_break"},
+          ["spot1l", "spot2l"],
+          ["spot1l", "spot3l"],
+          ["spot1l", "spot4l"],
+          ["spot1l", "spot5l"],
+          ["spot2l", "spot3l"],
+          ["spot2l", "spot4l"],
+          ["spot2l", "spot5l"],
+          ["spot3l", "spot4l"],
+          ["spot3l", "spot5l"],
+          ["spot4l", "spot5l"],
+          //attach
+          {"beamSpring":1176840,"beamDamp":78},
+          {"beamDeform":8250,"beamStrength":7120},
+          {"breakGroup":"spotlight_L"},
+          ["spot1l", "b6ll"],
+          ["spot2l", "b6ll"],
+          ["spot3l", "b6ll"],
+          ["spot4l", "b6ll"],
+          ["spot5l", "b6ll"],
+          ["spot1l", "p1l"],
+          ["spot2l", "p1l"],
+          ["spot3l", "p1l"],
+          ["spot4l", "p1l"],
+          ["spot5l", "p1l"],
+          ["spot1l", "p2l"],
+          ["spot2l", "p2l"],
+          ["spot3l", "p2l"],
+          ["spot4l", "p2l"],
+          ["spot5l", "p2l"],
+          ["spot1l", "p2ll"],
+          ["spot2l", "p2ll"],
+          ["spot3l", "p2ll"],
+          ["spot4l", "p2ll"],
+          ["spot5l", "p2ll"],
+          {"breakGroup":""},
+          {"deformGroup":"", "deformationTriggerRatio":""}
+    ],
+    "triangles": [
+            ["id1:",   "id2:",   "id3:"],
+            {"dragCoef":4},
+            {"groundModel":"plastic"},
+            {"group":"fullsize_spotlight_L"},
+            ["spot4l", "spot2l", "spot1l"],
+            ["spot4l", "spot1l", "spot3l"],
+            //
+            ["spot3l", "spot1l", "spot5l"],
+            ["spot5l", "spot1l", "spot2l"],
+            ["spot5l", "spot2l", "spot4l"],
+            ["spot3l", "spot5l", "spot4l"]
+    ]
+},
+"fullsize_spotlight_R": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Right Spotlight",
+        "value":260
+    },
+    "slotType" : "fullsize_spotlight_R",
+    "flexbodies": [
+         ["mesh", "[group]:", "nonFlexMaterials"],
+         ["police_search_light_arm", ["fullsize_body","fullsize_body_F"], [], {"pos":{"x": -0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":-32}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         ["police_search_light_pod", ["fullsize_spotlight_R"], [], {"pos":{"x": -0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         {"deformGroup":"spotlight_R_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+         ["police_search_light_R", ["fullsize_spotlight_R"], [], {"pos":{"x": -0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+         {"deformGroup":"spotlight_R_break", "deformMaterialBase":"policeparts_white_glass", "deformMaterialDamaged":"policeparts_glass_white_dmg"},
+         ["police_search_light_glass_R", ["fullsize_spotlight_R"],[],{"pos":{"x": -0.885, "y":-0.67, "z":1.09}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0},"deformSound":"event:>Destruction>Vehicle>Glass>glassbreaksound3", "deformVolume":0.5}],
+         {"deformGroup":""}
+    ],
+    "components": {
+        "electrics": {
+            "customValues": [
+                ["electricsName", "electricsFunction","electricsDefault"],
+                ["spotlight_R","electrics.highbeam * electrics.electricalLoadCoef",0],
+            ],
+            "smoothers": [
+                ["electricsName", "smootherType", "params"],
+                ["spotlight_R","temporalNonLinear", [15,15]],
+            ],
+        },
+    },
+    "glowMap":{
+        "police_search_light_R":{"simpleFunction":"spotlight_R", "off":"policeparts_lights_white", "on":"policeparts_lights_white_on", "materialEmissiveScaling":{"on_max":1}},
+        "police_search_light_glass_R":{"simpleFunction":"spotlight_R", "off":"policeparts_glass_white", "on":"policeparts_glass_white", "materialEmissiveScaling":{"on_max":1}}
+    },
+     "nodes": [
+         ["id",     "posX", "posY", "posZ"],
+         {"group":"fullsize_spotlight_R"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":1.0},
+         {"frictionCoef":0.5},
+         {"nodeMaterial":"|NM_PLASTIC"},
+         ["spot1r",-0.96,  -0.71,   1.10],
+         ["spot2r",-0.81,  -0.71,   1.10],
+         ["spot3r",-0.96,  -0.71,   1.26],
+         ["spot4r",-0.81,  -0.71,   1.26],
+         ["spot5r",-0.89,  -0.62,   1.18],
+         {"group":""}
+
+    ],
+    "props": [
+        ["func"      , "mesh"              , "idRef:", "idX:", "idY:"            , "baseRotation"        , "rotation"                 , "translation"        , "min", "max", "offset", "multiplier"],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":120,
+            "lightBrightness":0.75,
+            "lightRange":120,
+            "lightColor":{"r":255, "g":255, "b":200, "a":255},
+            "lightAttenuation":{"x":0, "y":1, "z":1},
+            "lightCastShadows":true,
+            "flareName":"vehicleHeadLightFlare",
+            "flareScale":0.09,
+            "cookieName":"art/special/BNG_light_cookie_headlight.dds"
+            "texSize":64,
+            "shadowSoftness":0.5,
+        },
+        ["spotlight_R"    , "SPOTLIGHT"        , "spot1r", "spot2r", "spot4r", {"x":180, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":-0.05, "y":0.5, "z":-0.03},"deformGroup":"spotlight_R_break", "lightScaling":{}}]
+     ],
+
+    "beams": [
+          ["id1:",   "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":1176840,"beamDamp":78},
+          {"beamDeform":36750,"beamStrength":"FLT_MAX"},
+          //right light
+          {"deformationTriggerRatio":0.05},
+          {"deformGroup":"spotlight_R_break"},
+          ["spot1r", "spot2r"],
+          ["spot1r", "spot3r"],
+          ["spot1r", "spot4r"],
+          ["spot1r", "spot5r"],
+          ["spot2r", "spot3r"],
+          ["spot2r", "spot4r"],
+          ["spot2r", "spot5r"],
+          ["spot3r", "spot4r"],
+          ["spot3r", "spot5r"],
+          ["spot4r", "spot5r"],
+          //attach
+          {"beamSpring":1176840,"beamDamp":78},
+          {"beamDeform":8250,"beamStrength":7120},
+          {"breakGroup":"spotlight_R"},
+          ["spot1r", "b6rr"],
+          ["spot2r", "b6rr"],
+          ["spot3r", "b6rr"],
+          ["spot4r", "b6rr"],
+          ["spot5r", "b6rr"],
+          ["spot1r", "p1r"],
+          ["spot2r", "p1r"],
+          ["spot3r", "p1r"],
+          ["spot4r", "p1r"],
+          ["spot5r", "p1r"],
+          ["spot1r", "p2r"],
+          ["spot2r", "p2r"],
+          ["spot3r", "p2r"],
+          ["spot4r", "p2r"],
+          ["spot5r", "p2r"],
+          ["spot1r", "p2rr"],
+          ["spot2r", "p2rr"],
+          ["spot3r", "p2rr"],
+          ["spot4r", "p2rr"],
+          ["spot5r", "p2rr"],
+          {"breakGroup":""},
+          {"deformGroup":"", "deformationTriggerRatio":""}
+    ],
+    "triangles": [
+            ["id1:",   "id2:",   "id3:"],
+            {"dragCoef":4},
+            {"groundModel":"plastic"},
+            {"group":"fullsize_spotlight_R"},
+            ["spot2r", "spot4r", "spot1r"],
+            ["spot1r", "spot4r", "spot3r"],
+            //
+            ["spot1r", "spot3r", "spot5r"],
+            ["spot1r", "spot5r", "spot2r"],
+            ["spot2r", "spot5r", "spot4r"],
+            ["spot5r", "spot3r", "spot4r"]
+    ]
+},
+
+"fullsize_lightbar_a": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Halogen Light Bar",
+        "value":860
+    },
+    "slotType" : ["fullsize_roof_accessory","fullsize_roof_accessory_limo_F"],
+    "slots2": [
+        ["name",                   "allowTypes",               "denyTypes", "default",                        "description"],
+        ["lightbar_color_halogen", ["lightbar_color_halogen"], [],          "lightbar_color_halogen_bluered", "Light Bar Color",    {"coreSlot":true}],
+        ["fullsize_wigwag",        ["fullsize_wigwag"],        [],          "fullsize_wigwag",                "Wig-Wag Lights"],
+        ["fullsize_flashers",      ["fullsize_flashers"],      [],          "",                               "Concealed Flashers"],
+        ["soundscape_siren",       ["soundscape_siren"],       [],          "soundscape_siren_4",             "Siren Audio"]
+    ],
+    "soundscape": [
+        ["name", "src"],
+        //affects siren location because siren soundscape part is loaded after
+        {"node:":"s1"}
+    ],
+    "components":{
+      "lightbar2modes":true,
+    },
+    "controller": [
+        ["fileName"],
+        ["beaconSpin"],
+        ["lightbar", {
+            "defaultModeIndex": 1,
+            "modes": [
+                ["name", "config"],
+                ["General", [
+                    ["electric", "value", "duration"],
+                        ["lightbar_R1", 0, 0.25],
+                        ["lightbar_R1", 0, 0.25],
+
+                        ["lightbar_R2", 1, 0.25],
+                        ["lightbar_R2", 0, 0.25],
+
+                        ["lightbar_R3", 0, 0.25],
+                        ["lightbar_R3", 1, 0.25],
+
+                        ["lightbar_R4", 1, 0.25],
+                        ["lightbar_R4", 0, 0.25],
+
+                        ["lightbar_R5", 0, 0.25],
+                        ["lightbar_R5", 0, 0.25],
+
+                        ["lightbar_L1", 0, 0.25],
+                        ["lightbar_L1", 0, 0.25],
+
+                        ["lightbar_L2", 0, 0.25],
+                        ["lightbar_L2", 1, 0.25],
+
+                        ["lightbar_L3", 1, 0.25],
+                        ["lightbar_L3", 0, 0.25],
+
+                        ["lightbar_L4", 0, 0.25],
+                        ["lightbar_L4", 1, 0.25],
+
+                        ["lightbar_L5", 0, 0.25],
+                        ["lightbar_L5", 0, 0.25],
+
+                        ["beacon_l", 1, 0],
+                        ["beacon_r", 1, 0]
+                    ]
+                ]
+                ["Scene", [
+                    ["electric", "value", "duration"],
+                        ["lightbar_R1", 1, 0.25],
+                        ["lightbar_R1", 1, 0.25],
+
+                        ["lightbar_R2", 1, 0.25],
+                        ["lightbar_R2", 0, 0.25],
+
+                        ["lightbar_R3", 1, 0.25],
+                        ["lightbar_R3", 0, 0.25],
+
+                        ["lightbar_R4", 1, 0.25],
+                        ["lightbar_R4", 0, 0.25],
+
+                        ["lightbar_R5", 1, 0.25],
+                        ["lightbar_R5", 1, 0.25],
+
+                        ["lightbar_L1", 1, 0.25],
+                        ["lightbar_L1", 1, 0.25],
+
+                        ["lightbar_L2", 0, 0.25],
+                        ["lightbar_L2", 1, 0.25],
+
+                        ["lightbar_L3", 0, 0.25],
+                        ["lightbar_L3", 1, 0.25],
+
+                        ["lightbar_L4", 0, 0.25],
+                        ["lightbar_L4", 1, 0.25],
+
+                        ["lightbar_L5", 1, 0.25],
+                        ["lightbar_L5", 1, 0.25],
+
+                        ["beacon_l", 1, 0],
+                        ["beacon_r", 1, 0]
+                    ]
+                ]
+            ]
+        }]
+    ],
+    "props": [
+        ["func"      , "mesh"              , "idRef:", "idX:", "idY:"            , "baseRotation"        , "rotation"                 , "translation"        , "min", "max", "offset", "multiplier"],
+        ["beaconSpin","halogen_light_bar_reflector_L", "lb3","lb3l", "lb4"  {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.28, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        ["beaconSpin","halogen_light_bar_reflector_LL", "lb3","lb3l", "lb4",  {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.495, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        ["beaconSpin","halogen_light_bar_reflector_R", "lb3","lb3r", "lb4",  {"x":90, "y":180, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.28, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        ["beaconSpin","halogen_light_bar_reflector_RR", "lb3","lb3r", "lb4",  {"x":90, "y":0, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.495, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":50,
+            "lightBrightness":0.6,
+            "lightRange":15,
+            "lightColor":"$=$components.lightbarMaterials.lightColor_L",
+            "lightAttenuation":{"x":0, "y":1, "z":1},
+            "lightCastShadows":false,
+            "texSize":64,
+            "shadowSoftness":1,
+            "flareName":"vehicleHeadLightFlare",
+            "flareScale":0.1,
+        },
+        ["beaconSpin","SPOTLIGHT", "lb3","lb3l", "lb4"  {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.43, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        ["beaconSpin","SPOTLIGHT", "lb3","lb3l", "lb4",  {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.750, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_R",
+        },
+        ["beaconSpin","SPOTLIGHT", "lb3","lb3r", "lb4",  {"x":90, "y":0, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.43, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        ["beaconSpin","SPOTLIGHT", "lb3","lb3r", "lb4",  {"x":90, "y":180, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.750, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":50,
+            "lightBrightness":0.6,
+            "lightRange":0.75,
+            "lightColor":"$=$components.lightbarMaterials.lightColor_L",
+            "lightAttenuation":{"x":0, "y":1, "z":1},
+            "lightCastShadows":false,
+            "texSize":64,
+            "shadowSoftness":1,
+            "flareName":"vehicleHeadLightFlare",
+            "flareScale":0.07,
+        },
+        ["beaconSpin","POINTLIGHT", "lb3","lb3l", "lb4"  {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.43, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        ["beaconSpin","POINTLIGHT", "lb3","lb3l", "lb4",  {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.750, "y":0.115, "z":-0.03},"deformGroup":"lightbar_L", "lightScaling":{}}],
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_R",
+        },
+        ["beaconSpin","POINTLIGHT", "lb3","lb3r", "lb4",  {"x":90, "y":180, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.43, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        ["beaconSpin","POINTLIGHT", "lb3","lb3r", "lb4",  {"x":90, "y":0, "z":-180} , {"x":0, "y":0, "z":1}    , {"x":0.0, "y":0, "z":0}, -360, 360, 0, 1,{"baseTranslation":{"x":0.750, "y":0.115, "z":0.03},"deformGroup":"lightbar_R", "lightScaling":{}}],
+        //strobes
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":120,
+            "lightBrightness":0.6,
+            "lightRange":10,
+            "lightColor":{"r":235, "g":235, "b":255, "a":255}
+            "flareName":"vehicleBrakeLightFlare",
+            "lightCastShadows":false,
+            "texSize":64,
+            "shadowSoftness":1,
+            "flareScale":0.04,
+            "cookieName":"/art/special/BNG_light_cookie_lightbar.dds"
+        },
+
+        ["lightbar_R5_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":-90, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.98, "y":0.50, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L5_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":-90, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.98, "y":0.50, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}]
+        ["lightbar_L1_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.1, "y":0.80, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L1_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.1, "y":0.20, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R1_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":0, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.1, "y":0.80, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R1_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.1, "y":0.20, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        //DEBUG CONE FLEXBODY: "spotlight_cone"
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_L",
+        },
+        ["lightbar_R4_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":-40, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.90, "y":0.60, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R4_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":-140, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.90, "y":0.40, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L3_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.75, "y":0.80, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L3_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.75, "y":0.20, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R2_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":0, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.45, "y":0.80, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R2_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.45, "y":0.20, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_R",
+        },
+        ["lightbar_L4_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":-40, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.90, "y":0.60, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L4_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":-140, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.90, "y":0.40, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R3_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":0, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.75, "y":0.80, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_R3_filament"    , "SPOTLIGHT"        , "lb3","lb3r", "lb4", {"x":90, "y":180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.75, "y":0.20, "z":0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L2_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.45, "y":0.80, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+        ["lightbar_L2_filament"    , "SPOTLIGHT"        , "lb3","lb3l", "lb4", {"x":90, "y":180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":0.45, "y":0.20, "z":-0.02},"deformGroup":"lightbar_M", "lightScaling":{}}],
+
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        ["halogen_light_bar_base", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.45}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.34}}],
+        ["light_bar_mount_hi", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.34, "z":1.41}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.44}}],
+        {"deformGroup":"lightbar_M", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["halogen_light_bar_lights", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.45}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.34}}],
+        //lights
+        {"deformGroup":"lightbar_M", "deformMaterialBase":"policeparts_glass_white", "deformMaterialDamaged":"policeparts_glass_white_dmg"},
+        ["halogen_light_bar_glass", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.45}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.34},"deformSound":"event:>Destruction>Vehicle>Glass>glassbreaksound3", "deformVolume":0.5}],
+        {"deformGroup":"lightbar_R", "deformMaterialBase":"policeparts_glass_blue", "deformMaterialDamaged":"$=$components.lightbarMaterials.glass_R_dmg"},
+        ["halogen_light_bar_glass_R", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.45}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.34},"deformSound":"event:>Destruction>Vehicle>Glass>glassbreaksound3", "deformVolume":0.5}],
+        {"deformGroup":"lightbar_L", "deformMaterialBase":"policeparts_glass_red", "deformMaterialDamaged":"$=$components.lightbarMaterials.glass_L_dmg"},
+        ["halogen_light_bar_glass_L", ["fullsize_lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.45}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.32, "y":1.34, "z":1.34},"deformSound":"event:>Destruction>Vehicle>Glass>glassbreaksound3", "deformVolume":0.5}],
+        {"deformGroup":""}
+    ],
+    "nodes": [
+         ["id",   "posX", "posY", "posZ"],
+         {"group":"fullsize_lightbar"},
+         {"collision":true},
+         {"selfCollision":true},
+         {"nodeMaterial":"|NM_GLASS"},
+         {"frictionCoef":0.7},
+         {"nodeWeight":0.95},
+         ["lb1",  0.0,    0.285,  1.59],
+         ["lb2",  0.0,    0.422,  1.59],
+         ["lb3",  0.0,    0.245,  1.48],
+         ["lb4",  0.0,    0.482,  1.48],
+         ["lb1l", 0.548,  0.285,  1.59],
+         ["lb2l", 0.548,  0.422,  1.59],
+         ["lb3l", 0.628,  0.245,  1.48],
+         ["lb4l", 0.628,  0.482,  1.48],
+         ["lb1r",-0.548,  0.285,  1.59],
+         ["lb2r",-0.548,  0.422,  1.59],
+         ["lb3r",-0.628,  0.245,  1.48],
+         ["lb4r",-0.628,  0.482,  1.48],
+         {"group":""}
+    ],
+    "beams": [
+          ["id1:", "id2:"],
+          {"beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":701000,"beamDamp":60},
+          {"beamDeform":2000,"beamStrength":"FLT_MAX"},
+          //left side
+          {"deformationTriggerRatio":0.1},
+          {"deformGroup":"lightbar_L"},
+          ["lb1",  "lb2"],
+          ["lb1",  "lb3"],
+          ["lb1",  "lb4"],
+          ["lb1",  "lb1l"],
+          ["lb1",  "lb2l"],
+          ["lb1",  "lb3l"],
+          ["lb1",  "lb4l"],
+          ["lb2",  "lb3"],
+          ["lb2",  "lb4"],
+          ["lb2",  "lb1l"],
+          ["lb2",  "lb2l"],
+          ["lb2",  "lb3l"],
+          ["lb2",  "lb4l"],
+          ["lb3",  "lb4"],
+          ["lb3",  "lb1l"],
+          ["lb3",  "lb2l"],
+          ["lb3",  "lb3l"],
+          ["lb3",  "lb4l"],
+          ["lb4",  "lb1l"],
+          ["lb4",  "lb2l"],
+          ["lb4",  "lb3l"],
+          ["lb4",  "lb4l"],
+          ["lb1l", "lb2l"],
+          ["lb1l", "lb3l"],
+          ["lb1l", "lb4l"],
+          ["lb2l", "lb3l"],
+          ["lb2l", "lb4l"],
+          ["lb3l", "lb4l"],
+          //right side
+          {"deformGroup":"lightbar_R"},
+          ["lb1",  "lb2"],
+          ["lb1",  "lb3"],
+          ["lb1",  "lb4"],
+          ["lb1",  "lb1r"],
+          ["lb1",  "lb2r"],
+          ["lb1",  "lb3r"],
+          ["lb1",  "lb4r"],
+          ["lb2",  "lb3"],
+          ["lb2",  "lb4"],
+          ["lb2",  "lb1r"],
+          ["lb2",  "lb2r"],
+          ["lb2",  "lb3r"],
+          ["lb2",  "lb4r"],
+          ["lb3",  "lb4"],
+          ["lb3",  "lb1r"],
+          ["lb3",  "lb2r"],
+          ["lb3",  "lb3r"],
+          ["lb3",  "lb4r"],
+          ["lb4",  "lb1r"],
+          ["lb4",  "lb2r"],
+          ["lb4",  "lb3r"],
+          ["lb4",  "lb4r"],
+          ["lb1r", "lb2r"],
+          ["lb1r", "lb3r"],
+          ["lb1r", "lb4r"],
+          ["lb2r", "lb3r"],
+          ["lb2r", "lb4r"],
+          ["lb3r", "lb4r"],
+          //attachment
+          {"beamDeform":5760,"beamStrength":15600},
+          //left
+          {"deformationTriggerRatio":0.3},
+          {"deformGroup":["lightbar_R","lightbar_L","lightbar_M"]},
+          {"breakGroup":"lightbar_left"},
+          ["lb3l", "rf1l"],
+          ["lb3l", "rf1"],
+          ["lb4l", "rf2l"],
+          ["lb4l", "rf2l"],
+          ["lb1l", "rf1l"],
+          ["lb1l", "rf1l"],
+          ["lb2l", "rf2l"],
+          ["lb2l", "rf2l"],
+          {"breakGroup":""},
+          //right
+          {"deformGroup":["lightbar_R","lightbar_L","lightbar_M"]},
+          {"breakGroup":"lightbar_right"},
+          ["lb3r", "rf1r"],
+          ["lb3r", "rf1"],
+          ["lb4r", "rf2r"],
+          ["lb4r", "rf2r"],
+          ["lb1r", "rf1r"],
+          ["lb1r", "rf1r"],
+          ["lb2r", "rf2r"],
+          ["lb2r", "rf2r"],
+          {"deformGroup":"", "deformationTriggerRatio":""},
+          {"breakGroup":""}
+    ],
+    "triangles": [
+            ["id1:", "id2:", "id3:"],
+            {"dragCoef":14},
+            //rear end
+            {"group":"fullsize_lightbar"},
+            ["lb1r", "lb3r", "lb3"],
+            ["lb1r", "lb3",  "lb1"],
+            ["lb3",  "lb3l", "lb1l"],
+            ["lb3",  "lb1l", "lb1"],
+            ["lb2l", "lb4l", "lb4"],
+            ["lb2l", "lb4",  "lb2"],
+            ["lb4",  "lb4r", "lb2r"],
+            ["lb2",  "lb4",  "lb2r"],
+            ["lb1l", "lb2l", "lb1"],
+            ["lb2l", "lb2",  "lb1"],
+            ["lb2",  "lb2r", "lb1r"],
+            ["lb1",  "lb2",  "lb1r"],
+            ["lb1l", "lb3l", "lb4l"],
+            ["lb1l", "lb4l", "lb2l"],
+            ["lb2r", "lb4r", "lb3r"],
+            ["lb2r", "lb3r", "lb1r"]
+    ]
+},
+
+"fullsize_modern_lightbar": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Modern Light Bar",
+        "value":1400
+    },
+    "slotType" : ["fullsize_roof_accessory","fullsize_roof_accessory_limo_F"],
+    "slots2": [
+        ["name",                 "allowTypes",             "denyTypes", "default",                          "description"],
+        ["lightbar_pattern",     ["lightbar_pattern"],     [],          "lightbar_pattern_police_standard", "Light Bar Flash Pattern",     {"coreSlot":true}],
+        ["lightbar_color_L",     ["lightbar_color_L"],     [],          "lightbar_color_L_white",           "Left Light Bar Glass Color",  {"coreSlot":true}],
+        ["lightbar_color_R",     ["lightbar_color_R"],     [],          "lightbar_color_R_white",           "Right Light Bar Glass Color", {"coreSlot":true}],
+        ["lightbar_floodlights", ["lightbar_floodlights"], [],          "lightbar_floodlights",             "Flood Lights",                {"nodeMove":{"x":0,"y":0.36,"z":1.43}}],
+        ["lightbar_sign",        ["lightbar_sign"],        [],          "",                                 "LED Sign",                    {"nodeMove":{"x":0,"y":0.37,"z":1.445}}],
+        ["lightbar_antenna",     ["lightbar_antenna"],     [],          "",                                 "Antenna",                     {"nodeMove":{"x":0,"y":0.36,"z":1.43}}],
+        ["fullsize_flashers",    ["fullsize_flashers"],    [],          "fullsize_flashers",                "Concealed Flashers"],
+        ["fullsize_wigwag",      ["fullsize_wigwag"],      [],          "fullsize_wigwag",                  "Wig-Wag Lights"],
+        ["soundscape_siren",     ["soundscape_siren"],     [],          "soundscape_siren_4",               "Siren Audio"]
+    ],
+    "soundscape": [
+        ["name", "src"],
+        //affects siren location because siren soundscape part is loaded after
+        {"node:":"s1"}
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        ["light_bar_LED_US_body", ["lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.43}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.3, "y":1.3, "z":1.3}}],
+        ["light_bar_mount_hi", ["fullsize_body"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.42}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.3, "y":1.3, "z":1.6}}],
+        {"deformGroup":"lightbar_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["light_bar_LED_US_lights_new", ["lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.43}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.3, "y":1.3, "z":1.3}}],
+        {"deformGroup":"lightbar_break", "deformMaterialBase":"policeparts_glass", "deformMaterialDamaged":"$= $components.lightbarMaterials.glass_L_dmg == nil and 'policeparts_glass_white_dmg' or $components.lightbarMaterials.glass_L_dmg"},
+        ["light_bar_LED_US_glass_L", ["lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.43}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.3, "y":1.3, "z":1.3}}],
+        {"deformGroup":"lightbar_break", "deformMaterialBase":"policeparts_glass", "deformMaterialDamaged":"$= $components.lightbarMaterials.glass_R_dmg == nil and 'policeparts_glass_white_dmg' or $components.lightbarMaterials.glass_R_dmg"},
+        ["light_bar_LED_US_glass_R", ["lightbar"], [], {"pos":{"x": 0.0, "y":0.36, "z":1.43}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.3, "y":1.3, "z":1.3}}],
+        {"deformGroup":""},
+    ],
+    "nodes": [
+         ["id",          "posX", "posY", "posZ"],
+         {"group":"lightbar"},
+         {"selfCollision":true},
+         {"collision":true},
+         {"nodeWeight":1.00},
+         {"frictionCoef":0.7},
+         {"nodeMaterial":"|NM_METAL"},
+         ["lightbar_1",  0.0,    0.27,   1.56],
+         ["lightbar_2",  0.0,    0.27,   1.49],
+         ["lightbar_3",  0.0,    0.49,   1.56],
+         ["lightbar_4",  0.0,    0.49,   1.49],
+
+         ["lightbar_1l", 0.62,   0.27,   1.56],
+         ["lightbar_2l", 0.62,   0.27,   1.49],
+         ["lightbar_3l", 0.62,   0.49,   1.56],
+         ["lightbar_4l", 0.62,   0.49,   1.49],
+
+         ["lightbar_1r",-0.62,   0.27,   1.56],
+         ["lightbar_2r",-0.62,   0.27,   1.49],
+         ["lightbar_3r",-0.62,   0.49,   1.56],
+         ["lightbar_4r",-0.62,   0.49,   1.49],
+         {"group":""}
+    ],
+    "beams": [
+          ["id1:",        "id2:"],
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0},
+          {"beamSpring":701000,"beamDamp":60},
+          {"beamDeform":6000,"beamStrength":"FLT_MAX"},
+          //Main shape
+          {"deformationTriggerRatio":0.02},
+          {"deformGroup":"lightbar_break"},
+          ["lightbar_1",  "lightbar_2"],
+          ["lightbar_2",  "lightbar_3"],
+          ["lightbar_3",  "lightbar_4"],
+          ["lightbar_4",  "lightbar_1"],
+          ["lightbar_1",  "lightbar_3"],
+          ["lightbar_2",  "lightbar_4"],
+
+          ["lightbar_1l", "lightbar_2l"],
+          ["lightbar_2l", "lightbar_3l"],
+          ["lightbar_3l", "lightbar_4l"],
+          ["lightbar_4l", "lightbar_1l"],
+          ["lightbar_1l", "lightbar_3l"],
+          ["lightbar_2l", "lightbar_4l"],
+
+          ["lightbar_1r", "lightbar_2r"],
+          ["lightbar_2r", "lightbar_3r"],
+          ["lightbar_3r", "lightbar_4r"],
+          ["lightbar_4r", "lightbar_1r"],
+          ["lightbar_1r", "lightbar_3r"],
+          ["lightbar_2r", "lightbar_4r"],
+
+          ["lightbar_1r", "lightbar_1"],
+          ["lightbar_2r", "lightbar_2"],
+          ["lightbar_3r", "lightbar_3"],
+          ["lightbar_4r", "lightbar_4"],
+
+          ["lightbar_1l", "lightbar_1"],
+          ["lightbar_2l", "lightbar_2"],
+          ["lightbar_3l", "lightbar_3"],
+          ["lightbar_4l", "lightbar_4"],
+
+          //Center to left cross-beams
+          ["lightbar_4l", "lightbar_3"],
+          ["lightbar_3l", "lightbar_4"],
+          ["lightbar_3",  "lightbar_1l"],
+          ["lightbar_3l", "lightbar_1"],
+          ["lightbar_1",  "lightbar_2l"],
+          ["lightbar_2",  "lightbar_1l"],
+          ["lightbar_2l", "lightbar_4"],
+          ["lightbar_4l", "lightbar_2"],
+
+          ["lightbar_4l", "lightbar_1"],
+          ["lightbar_2l", "lightbar_3"],
+          ["lightbar_4",  "lightbar_1l"],
+          ["lightbar_2",  "lightbar_3l"],
+
+          //Center to right cross-beams
+          ["lightbar_4r", "lightbar_3"],
+          ["lightbar_3r", "lightbar_4"],
+          ["lightbar_3",  "lightbar_1r"],
+          ["lightbar_3r", "lightbar_1"],
+          ["lightbar_1",  "lightbar_2r"],
+          ["lightbar_2",  "lightbar_1r"],
+          ["lightbar_2r", "lightbar_4"],
+          ["lightbar_4r", "lightbar_2"],
+
+          ["lightbar_4r", "lightbar_1"],
+          ["lightbar_2r", "lightbar_3"],
+          ["lightbar_4",  "lightbar_1r"],
+          ["lightbar_2",  "lightbar_3r"],
+
+          //rigids
+          {"beamSpring":301000,"beamDamp":60},
+          ["lightbar_1r", "lightbar_1l"],
+          ["lightbar_2r", "lightbar_2l"],
+          ["lightbar_3r", "lightbar_3l"],
+          ["lightbar_4r", "lightbar_4l"],
+
+          {"beamSpring":401000,"beamDamp":60},
+          {"beamDeform":5000,"beamStrength":12000},
+          {"deformationTriggerRatio":0.05},
+          {"breakGroup":"lightbar_break"},
+          //To body
+          ["lightbar_2l", "rf1l"],
+          ["lightbar_2l", "rf2l"],
+          ["lightbar_4l", "rf1l"],
+          ["lightbar_4l", "rf2l"],
+          ["lightbar_4l", "rf2"],
+
+          ["lightbar_1l", "rf1l"],
+          ["lightbar_1l", "rf2l"],
+          ["lightbar_1l", "rf1"],
+          ["lightbar_3l", "rf1l"],
+          ["lightbar_3l", "rf2l"],
+          ["lightbar_3l", "rf1"],
+
+          ["lightbar_2r", "rf1r"],
+          ["lightbar_2r", "rf2r"],
+          ["lightbar_4r", "rf1r"],
+          ["lightbar_4r", "rf2r"],
+          ["lightbar_4r", "rf2"],
+
+          ["lightbar_1r", "rf1r"],
+          ["lightbar_1r", "rf2r"],
+          ["lightbar_1r", "rf1"],
+          ["lightbar_3r", "rf1r"],
+          ["lightbar_3r", "rf2r"],
+          ["lightbar_3r", "rf1"],
+
+          //stabilization
+          {"optional":true},
+          ["lightbar_1l", "pr1"],
+          ["lightbar_2l", "pr1"],
+          ["lightbar_3l", "pr1"],
+          ["lightbar_4l", "pr1"],
+          ["lightbar_1",  "pr1"],
+          ["lightbar_2",  "pr1"],
+          ["lightbar_3",  "pr1"],
+          ["lightbar_4",  "pr1"],
+          ["lightbar_1r", "pr1"],
+          ["lightbar_2r", "pr1"],
+          ["lightbar_3r", "pr1"],
+          ["lightbar_4r", "pr1"],
+
+          {"optional":false},
+          {"breakGroup":""},
+          {"deformGroup":"", "deformationTriggerRatio":""},
+
+          {"beamPrecompression":1, "beamType":"|NORMAL", "beamLongBound":1.0, "beamShortBound":1.0}
+    ],
+    "quads": [
+          ["id1:","id2:","id3:","id4:"],
+          {"group":"lightbar"},
+          {"dragCoef":10},
+          ["lightbar_3l","lightbar_4l","lightbar_4","lightbar_3"],
+          ["lightbar_1l","lightbar_3l","lightbar_3","lightbar_1"],
+          ["lightbar_1l","lightbar_2l","lightbar_4l","lightbar_3l"],
+          ["lightbar_1","lightbar_2","lightbar_2l","lightbar_1l"],
+          ["lightbar_4l","lightbar_2l","lightbar_2","lightbar_4"],
+
+          ["lightbar_3","lightbar_4","lightbar_4r","lightbar_3r"],
+          ["lightbar_1","lightbar_3","lightbar_3r","lightbar_1r"],
+          ["lightbar_3r","lightbar_4r","lightbar_2r","lightbar_1r"],
+          ["lightbar_1r","lightbar_2r","lightbar_2","lightbar_1"],
+          ["lightbar_4","lightbar_2","lightbar_2r","lightbar_4r"],
+          {"group":""}
+    ]
+},
+
+"fullsize_flashers": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Concealed Flashers",
+        "value":200
+    },
+    "slotType" : "fullsize_flashers",
+    "slots2": [
+        ["name",          "allowTypes",      "denyTypes", "default",               "description"],
+        ["flasher_color", ["flasher_color"], [],          "flasher_color_bluered", "Flashers Color", {"coreSlot":true}],
+    ],
+    "controller": [
+        ["fileName"],
+        ["lightbar", {
+          "defaultModeIndex": 1,
+          "name":"flashers",
+          "modes": [
+              ["name", "config"],
+              ["Chase", [
+                  ["electric", "value", "duration"],
+                    ["blue_4", 1, 0.2],
+                    ["blue_4", 0, 0.1],
+                    ["blue_4", 1, 0.05],
+                    ["blue_4", 0, 0.1],
+                    ["blue_4", 1, 0.05],
+                    ["blue_4", 0, 0.2],
+
+                    ["red_4", 0, 0.1],
+                    ["red_4", 1, 0.1],
+                    ["red_4", 0, 0.1],
+                    ["red_4", 1, 0.3],
+                  ],
+              ],
+              ["Scene", [
+                  ["electric", "value", "duration"],
+                    ["blue_4", 1, 0.3],
+                    ["blue_4", 0, 0.3],
+                    ["blue_4", 1, 0.3],
+                    ["blue_4", 0, 0.3],
+
+                    ["red_4", 0, 0.3],
+                    ["red_4", 1, 0.3],
+                    ["red_4", 0, 0.3],
+                    ["red_4", 1, 0.3],
+                  ],
+              ],
+              ["Left Signal", [
+                  ["electric", "value", "duration"],
+                    ["red_4", 1, 0.2],
+                    ["blue_4", 0, 0.2],
+                    ["red_4", 0, 0.2],
+                    ["blue_4", 1, 0.2],
+                  ],
+              ],
+              ["Right Signal", [
+                  ["electric", "value", "duration"],
+                    ["red_4", 1, 0.2],
+                    ["blue_4", 0, 0.2],
+                    ["red_4", 0, 0.2],
+                    ["blue_4", 1, 0.2],
+                  ],
+              ]
+          ]
+        }]
+    ],
+    "glowMap":{
+          "generic_flasher_led_L": {"simpleFunction":"red_4", "off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher1"},
+          "generic_flasher_led_R": {"simpleFunction":"blue_4","off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher2"},
+    },
+    "props": [
+        ["func"      , "mesh"            , "idRef:", "idX:", "idY:"          , "baseRotation"        , "rotation"               , "translation"        , "min", "max", "offset", "multiplier"],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":100,
+            "lightBrightness":0.8,
+            "lightRange":15,
+            "lightColor":"$=$components.lightbarMaterials.lightColor_flasher2",
+            "flareName":"vehicleBrakeLightFlare",
+            "lightCastShadows":false,
+            "texSize":64,
+            "shadowSoftness":1,
+            "flareScale":0.04,
+            "cookieName":"/art/special/BNG_light_cookie_lightbar.dds"
+        },
+        ["blue_4"    , "SPOTLIGHT"        , "fb3rr", "fb3r", "fb2rr", {"x":180, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":1.1, "y":0.5, "z":0.02},"deformGroup":"bumpersignal_R_break"}],
+        ["blue_4"    , "SPOTLIGHT"        , "tb1r","tb1", "p9r", {"x":90, "y":-180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":-0.3025, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_flasher1",
+        },
+        ["red_4"    , "SPOTLIGHT"        , "fb3ll", "fb3l", "fb2ll", {"x":0, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":1.1, "y":0.5, "z":-0.02},"deformGroup":"bumpersignal_L_break"}]
+        ["red_4"    , "SPOTLIGHT"        , "tb1l","tb1", "p9l", {"x":90, "y":-180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":0.3025, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        //flashers
+        {"deformGroup":"bumpersignal_L_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_L",  ["fullsize_bumper_F"], [], {"pos":{"x": 0.43, "y":-2.35, "z":0.39}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        {"deformGroup":"bumpersignal_R_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_R", ["fullsize_bumper_F"], [], {"pos":{"x": -0.43, "y":-2.35, "z":0.39}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        {"deformGroup":"backlight_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_R", ["fullsize_body","fullsize_body_R"], [], {"pos":{"x":-0.260, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_L", ["fullsize_body","fullsize_body_R"], [], {"pos":{"x": 0.260, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_R", ["fullsize_body","fullsize_body_R"], [], {"pos":{"x":-0.345, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_L", ["fullsize_body","fullsize_body_R"], [], {"pos":{"x": 0.345, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        {"deformGroup":""},
+    ],
+},
+"fullsize_wigwag": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Wig-Wag Lights",
+        "value":100,
+    },
+    "slotType" : "fullsize_wigwag",
+    "controller": [
+        ["fileName"],
+        ["lightbar", {
+          "defaultModeIndex": 1,
+          "name":"wigwag",
+          "modes": [
+              ["name", "config"],
+              ["Chase", [
+                  ["electric", "value", "duration"],
+                    ["wigwag_L", 1, 0.4],
+                    ["wigwag_L", 0, 0.4],
+                    ["wigwag_R", 0, 0.4],
+                    ["wigwag_R", 1, 0.4],
+                  ],
+              ],
+              ["Scene", [
+                  ["electric", "value", "duration"],
+                    ["wigwag_L", 1, 0.5],
+                    ["wigwag_L", 0, 0.5],
+                    ["wigwag_R", 0, 0.5],
+                    ["wigwag_R", 1, 0.5],
+                  ],
+              ],
+              ["Left Signal", [
+                  ["electric", "value", "duration"],
+                    ["wigwag_L", 1, 0.5],
+                    ["wigwag_L", 0, 0.5],
+                    ["wigwag_R", 0, 0.5],
+                    ["wigwag_R", 1, 0.5],
+                  ],
+              ],
+              ["Right Signal", [
+                  ["electric", "value", "duration"],
+                    ["wigwag_L", 1, 0.5],
+                    ["wigwag_L", 0, 0.5],
+                    ["wigwag_R", 0, 0.5],
+                    ["wigwag_R", 1, 0.5],
+                  ],
+              ]
+          ]
+        }]
+    ],
+},
+"fullsize_concealed_flashers": {
+    "information":{
+        "authors":"BeamNG",
+        "name":"Concealed Flashers",
+        "value":150
+    },
+    "slotType" : ["fullsize_roof_accessory","fullsize_roof_accessory_limo_F"],
+    "slots2": [
+        ["name",             "allowTypes",         "denyTypes", "default",               "description"],
+        ["flasher_color",    ["flasher_color"],    [],          "flasher_color_bluered", "Flashers Color", {"coreSlot":true}],
+        ["fullsize_wigwag",  ["fullsize_wigwag"],  [],          "fullsize_wigwag",       "Wig-Wag Lights"],
+        ["soundscape_siren", ["soundscape_siren"], [],          "soundscape_siren_4",    "Siren Audio"]
+    ],
+    "soundscape": [
+        ["name", "src"],
+        //affects siren location because siren soundscape part is loaded after
+        {"node:":"s1"}
+    ],
+    "components":{
+      "lightbar2modes":true,
+    },
+    "controller": [
+        ["fileName"],
+        ["lightbar", {
+            "name":"flashers2",
+            "defaultModeIndex": 1,
+            "modes": [
+                ["name", "config"],
+                ["Chase", [
+                    ["electric", "value", "duration"],
+                        ["blue_1", 1, 0.15],
+                        ["blue_1", 0, 0.2],
+                        ["blue_1", 1, 0.1],
+                        ["blue_1", 0, 0.25],
+
+                        ["blue_2", 0, 0.15],
+                        ["blue_2", 1, 0.2],
+                        ["blue_2", 0, 0.1],
+                        ["blue_2", 1, 0.05],
+
+                        ["red_1", 0, 0.1],
+                        ["red_1", 1, 0.3],
+                        ["red_1", 0, 0.1],
+                        ["red_1", 1, 0.15],
+
+                        ["red_2", 1, 0.25],
+                        ["red_2", 0, 0.2],
+                        ["red_2", 1, 0.1],
+                        ["red_2", 0, 0.25],
+
+                    ]
+                ]
+            ]
+        }]
+    ],
+   "glowMap":{
+          "generic_flasher_led_L":   {"simpleFunction":"red_1", "off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher1"},
+          "generic_flasher_led_R":   {"simpleFunction":"blue_1","off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher2"},
+          "generic_flasher_led_L_b": {"simpleFunction":"red_2", "off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher1"},
+          "generic_flasher_led_R_b": {"simpleFunction":"blue_2","off":"policeparts_lights_white", "on":"$=$components.lightbarMaterials.flasher2"},
+    },
+    "props": [
+        ["func"      , "mesh"            , "idRef:", "idX:", "idY:"          , "baseRotation"        , "rotation"               , "translation"        , "min", "max", "offset", "multiplier"],
+        {
+            "lightInnerAngle":0,
+            "lightOuterAngle":100,
+            "lightBrightness":0.8,
+            "lightRange":15,
+            "lightColor":"$=$components.lightbarMaterials.lightColor_flasher2",
+            "flareName":"vehicleBrakeLightFlare",
+            "lightCastShadows":false,
+            "texSize":64,
+            "shadowSoftness":1,
+            "flareScale":0.04,
+            "cookieName":"/art/special/BNG_light_cookie_lightbar.dds"
+        },
+        ["blue_1"    , "SPOTLIGHT"        , "fb3rr", "fb3r", "fb2rr", {"x":180, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":1.1, "y":0.5, "z":0.02},"deformGroup":"bumpersignal_R_break"}],
+        ["blue_1"    , "SPOTLIGHT"        , "tb1r","tb1", "p9r", {"x":90, "y":-180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":-0.2525, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["blue_2"    , "SPOTLIGHT"        , "tb1r","tb1", "p9r", {"x":90, "y":-180, "z":180} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":-0.3525, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        {
+            "lightColor":"$=$components.lightbarMaterials.lightColor_flasher1",
+        },
+        ["red_1"    , "SPOTLIGHT"        , "fb3ll", "fb3l", "fb2ll", {"x":0, "y":0, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslation":{"x":1.1, "y":0.5, "z":-0.02},"deformGroup":"bumpersignal_L_break"}]
+        ["red_1"    , "SPOTLIGHT"        , "tb1l","tb1", "p9l", {"x":90, "y":-180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":0.2525, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["red_2"    , "SPOTLIGHT"        , "tb1l","tb1", "p9l", {"x":90, "y":-180, "z":0} , {"x":0, "y":0, "z":0}    , {"x":0, "y":0, "z":0}, 0, 0, 0, 1, {"baseTranslationGlobal":{"x":0.3525, "y":1.82, "z":1.06},"deformGroup":"backlight_break","nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+    ],
+    "flexbodies": [
+        ["mesh", "[group]:", "nonFlexMaterials"],
+        //flashers
+        {"deformGroup":"bumpersignal_L_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_L",  ["fullsize_bumper_F"], [], {"pos":{"x": 0.43, "y":-2.35, "z":0.39}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        {"deformGroup":"bumpersignal_R_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_R", ["fullsize_bumper_F"], [], {"pos":{"x": -0.43, "y":-2.35, "z":0.39}, "rot":{"x":0, "y":0, "z":0}, "scale":{"x":1.0, "y":1.0, "z":1.0}}],
+        {"deformGroup":"backlight_break", "deformMaterialBase":"policeparts_lights_white", "deformMaterialDamaged":"policeparts_lights_white"},
+        ["generic_flasher_led_R", ["fullsize_body"], [], {"pos":{"x": -0.26, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_L",  ["fullsize_body"], [], {"pos":{"x": 0.26, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_R_b", ["fullsize_body"], [], {"pos":{"x": -0.345, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        ["generic_flasher_led_L_b",  ["fullsize_body"], [], {"pos":{"x": 0.345, "y":1.82, "z":1.06}, "rot":{"x":0, "y":0, "z":180}, "scale":{"x":1.3, "y":1.3, "z":1.10},"nodeOffset":{"x":0,"y":"$= $rearFlasherOffset == nil and 0 or $rearFlasherOffset","z":0}}],
+        {"deformGroup":""},
+    ],
+},
+}
