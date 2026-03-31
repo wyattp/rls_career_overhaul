@@ -137,7 +137,7 @@ local function startup()
     end
 
     core_jobsystem.create(function(job)
-        job.sleep(5)
+        -- job.sleep(5) -- Removing this to test if it's causing the 5-second lag
         if not checkVersion() then
             print("Deactivating RLS Career Overhaul")
             core_modmanager.deactivateModId("RLSCO24")

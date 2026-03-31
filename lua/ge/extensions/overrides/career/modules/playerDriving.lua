@@ -330,25 +330,25 @@ local function onPlayerCameraReady()
 end
 
 local function onUpdate(dtReal, dtSim, dtRaw)
-  if M.preStart and freeroam_specialTriggers and playerData.traffic then -- this cycles all lights triggers, to eliminate lag spikes (move this code later)
-    if not playerData.preStartTicks then
-      playerData.preStartTicks = 6
-    end
-    playerData.preStartTicks = playerData.preStartTicks - 1
-    for k, v in pairs(freeroam_specialTriggers.getTriggers()) do
-      if not v.vehIds[be:getPlayerVehicleID(0)] then
-        if playerData.preStartTicks == 3 then
-          freeroam_specialTriggers.setTriggerActive(k, true, true)
-        elseif playerData.preStartTicks == 0 then
-          freeroam_specialTriggers.setTriggerActive(k, false, true)
-          M.preStart = false
-        end
-      end
-    end
-    if playerData.preStartTicks == 0 then
-      playerData.preStartTicks = nil
-    end
-  end
+--  if M.preStart and freeroam_specialTriggers and playerData.traffic then -- this cycles all lights triggers, to eliminate lag spikes (move this code later)
+--    if not playerData.preStartTicks then
+--      playerData.preStartTicks = 6
+--    end
+--    playerData.preStartTicks = playerData.preStartTicks - 1
+--    for k, v in pairs(freeroam_specialTriggers.getTriggers()) do
+--      if not v.vehIds[be:getPlayerVehicleID(0)] then
+--        if playerData.preStartTicks == 3 then
+--          freeroam_specialTriggers.setTriggerActive(k, true, true)
+--        elseif playerData.preStartTicks == 0 then
+--          freeroam_specialTriggers.setTriggerActive(k, false, true)
+--          M.preStart = false
+--        end
+--      end
+--    end
+--    if playerData.preStartTicks == 0 then
+--      playerData.preStartTicks = nil
+--    end
+--  end
 
   if not playerPursuitActive() then
     return
