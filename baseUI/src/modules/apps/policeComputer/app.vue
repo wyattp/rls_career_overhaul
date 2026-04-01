@@ -487,6 +487,21 @@ function showActionBanner(type, text, duration = 4000) {
   }, duration)
 }
 
+function onStopPrompt(data) {
+  if (!data || !data.show) {
+    // Clear the prompt banner
+    if (actionBanner.value && actionBanner.value.isPrompt) {
+      actionBanner.value = null
+      if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
+    }
+    return
+  }
+  const plate = data.plate || '???'
+  if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
+  actionBanner.value = { type: 'danger', text: `INITIATE STOP ON ${plate}? [CONFIRM]`, isPrompt: true }
+  // Keep showing until dismissed by Lua
+}
+
 function onAlert(data) {
   if (!data) return
   if (data.type === 'fleeing') {
@@ -639,6 +654,7 @@ onMounted(() => {
   $game.events.on('policeComputerStopProgress', onStopProgress)
   $game.events.on('policeComputerRabbit', onRabbit)
   $game.events.on('policeComputerAhead', onAhead)
+  $game.events.on('policeComputerStopPrompt', onStopPrompt)
   $game.events.on('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.on('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.on('policeComputerCycleEntry', onCycleEntry)
@@ -657,6 +673,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerStopProgress', onStopProgress)
   $game.events.off('policeComputerRabbit', onRabbit)
   $game.events.off('policeComputerAhead', onAhead)
+  $game.events.off('policeComputerStopPrompt', onStopPrompt)
   $game.events.off('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.off('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.off('policeComputerCycleEntry', onCycleEntry)
