@@ -96,6 +96,12 @@ local trafficStopPromptShowing = false
 local trafficStopPromptTarget = nil
 local stopMenuStickX = 0
 local stopMenuStickY = 0
+local vehiclePlateApplied = {} -- tracks vehIds that have already had setPlateText called
+local plateSetQueue = {} -- queued {vehId, plate} pairs for async setPlateText
+local plateSetTimer = 0
+local PLATE_SET_INTERVAL = 0.5 -- seconds between setPlateText calls
+local expiryTimer = 0
+local EXPIRY_POLL_INTERVAL = 2.0 -- seconds between expiry sweeps
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -506,9 +512,9 @@ local function generateRecord(vehId)
   vehicleRecords[vehId] = record
   plateOwners[plate] = vehId
 
-  -- Apply the generated plate to the actual vehicle so it's visible in-game
-  if core_vehicles and core_vehicles.setPlateText then
-    core_vehicles.setPlateText(plate, vehId)
+  -- Queue plate text update (applied async to avoid lag spikes)
+  if not vehiclePlateApplied[vehId] then
+    table.insert(plateSetQueue, { vehId = vehId, plate = plate })
   end
 
   return record
@@ -578,6 +584,10 @@ local function setEmptyComputerState()
   plateOwners = {}
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
+  vehiclePlateApplied = {}
+  plateSetQueue = {}
+  plateSetTimer = 0
+  expiryTimer = 0
   seenTickCounter = 0
 end
 
@@ -742,11 +752,6 @@ local function scanForVehicles()
               status, vehId, dist, verticalDiff, dot, dotLeft, record.plate, record.vehicleName, colorStr,
               record.driverName or '?',
               record.createdAt and (os.clock() - record.createdAt) or -1))
-          end
-
-          -- Expire stale records for vehicles outside the cone
-          if not inCone then
-            expireRecordIfStale(vehId)
           end
 
           -- Only act on vehicles that are: in cone, not police, not retired
@@ -918,6 +923,10 @@ function M.clearScans()
   scannedVehIds = {}
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
+  vehiclePlateApplied = {}
+  plateSetQueue = {}
+  plateSetTimer = 0
+  expiryTimer = 0
   seenTickCounter = 0
   saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
@@ -1003,6 +1012,28 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
   updateTrafficStop(dtReal)
   updateRabbit(dtReal)
 
+  -- Drain plate set queue: one plate per 0.5s
+  plateSetTimer = plateSetTimer + dtReal
+  if plateSetTimer >= PLATE_SET_INTERVAL and #plateSetQueue > 0 then
+    plateSetTimer = 0
+    local entry = table.remove(plateSetQueue, 1)
+    if entry and not vehiclePlateApplied[entry.vehId] and getObjectByID(entry.vehId) then
+      if core_vehicles and core_vehicles.setPlateText then
+        core_vehicles.setPlateText(entry.plate, entry.vehId)
+        vehiclePlateApplied[entry.vehId] = true
+      end
+    end
+  end
+
+  -- Periodic expiry sweep every 2s
+  expiryTimer = expiryTimer + dtReal
+  if expiryTimer >= EXPIRY_POLL_INTERVAL then
+    expiryTimer = 0
+    for vehId, _ in pairs(vehicleRecords) do
+      expireRecordIfStale(vehId)
+    end
+  end
+
   if not anprActive then return end
 
   scanTimer = scanTimer + dtReal
@@ -1062,6 +1093,7 @@ function M.onTrafficVehicleRemoved(vehId)
   end
   removeTrackedVehicleRecord(vehId)
   retiredVehicleIds[vehId] = nil
+  vehiclePlateApplied[vehId] = nil
   saveCurrentVehicleState()
 end
 
@@ -1841,6 +1873,10 @@ function M.onExtensionUnloaded()
   plateOwners = {}
   vehicleLastSeenTick = {}
   retiredVehicleIds = {}
+  vehiclePlateApplied = {}
+  plateSetQueue = {}
+  plateSetTimer = 0
+  expiryTimer = 0
   seenTickCounter = 0
   perVehicleComputerState = {}
   activeInventoryId = nil
