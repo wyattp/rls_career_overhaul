@@ -489,6 +489,12 @@ local function generateRecord(vehId)
 
   vehicleRecords[vehId] = record
   plateOwners[plate] = vehId
+
+  -- Apply the generated plate to the actual vehicle so it's visible in-game
+  if core_vehicles and core_vehicles.setPlateText then
+    core_vehicles.setPlateText(plate, vehId)
+  end
+
   return record
 end
 

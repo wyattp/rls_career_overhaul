@@ -525,7 +525,7 @@ local function onVehicleSwitched(oldId, newId)
   local obj = getObjectByID(newId)
   if obj and obj:isPlayerControlled() then
     local traffic = gameplay_traffic.getTrafficData()
-    if not traffic[newId] then
+    if not traffic[newId] and obj.jbeam ~= 'unicycle' then
       gameplay_traffic.insertTraffic(newId, true)
     end
 
