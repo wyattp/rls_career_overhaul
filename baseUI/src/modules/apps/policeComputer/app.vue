@@ -135,7 +135,20 @@
     </div>
   </div>
 
-  <div class="stop-action-overlay" v-if="stopActionMenu.open">
+  <div
+    class="stop-action-overlay"
+    v-if="stopActionMenu.open"
+    bng-ui-scope="policeStopActionMenu"
+    v-bng-on-ui-nav:focus_lr,focus_ud="processStopActionStickInput"
+    v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.down="processStopActionDpadInput"
+    v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.up="processStopActionDpadInput"
+    v-bng-on-ui-nav:ok,context="processStopActionConfirmInput"
+    v-bng-on-ui-nav:menu,back="processStopActionCancelInput"
+    v-bng-ui-nav-label:focus_lr,focus_ud,focus_l,focus_r,focus_u,focus_d="'Radial menu navigation'"
+    v-bng-ui-nav-label:ok="'Select'"
+    v-bng-ui-nav-label:menu,back="'Close'"
+    @contextmenu.prevent
+  >
     <div class="stop-action-menu">
       <div ref="stopActionRadialCont" class="stop-action-radial"></div>
     </div>
@@ -143,8 +156,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useLibStore } from '@/services'
+import { vBngOnUiNav, vBngUiNavLabel } from '@/common/directives'
+import { getUINavServiceInstance } from '@/services/uiNav'
 import RadialSVG from '@/modules/radial/radialsvg'
 
 const { $game } = useLibStore()
@@ -178,12 +193,19 @@ const stopActionRadialRenderer = new RadialSVG({
 stopActionRadialRenderer.setMenuIcon('police')
 let actionBannerTimeout = null
 const STOP_ACTION_MENU_DEFAULT = 'up'
+const STOP_ACTION_MENU_SCOPE = 'policeStopActionMenu'
+const STOP_ACTION_STICK_THRESHOLD = 0.5
 const STOP_ACTION_MENU_LABELS = {
   up: 'Arrest',
   down: 'Go Free/Warning',
   left: 'Ticket',
   right: 'Detain'
 }
+let stopActionPreviousScope = null
+let stopActionStickX = 0
+let stopActionStickY = 0
+let stopActionDpadX = 0
+let stopActionDpadY = 0
 
 function normalizeStopActionSelection(selection) {
   if (selection === 'up' || selection === 'down' || selection === 'left' || selection === 'right') {
@@ -205,7 +227,7 @@ function buildStopActionRadialItems() {
     {
       id: 'up',
       title: 'Arrest',
-      icon: 'lockClosed',
+      icon: 'police_stop_handcuffs.svg',
       position: 0.25,
       size: 0.22,
       enabled: true,
@@ -214,7 +236,7 @@ function buildStopActionRadialItems() {
     {
       id: 'right',
       title: 'Detain',
-      icon: 'warning',
+      icon: 'police_stop_warning.svg',
       position: 0.5,
       size: 0.22,
       enabled: true,
@@ -223,7 +245,7 @@ function buildStopActionRadialItems() {
     {
       id: 'down',
       title: 'Go Free/Warning',
-      icon: 'checkmark',
+      icon: 'police_stop_unlock.svg',
       position: 0.75,
       size: 0.22,
       enabled: true,
@@ -232,7 +254,7 @@ function buildStopActionRadialItems() {
     {
       id: 'left',
       title: 'Ticket',
-      icon: 'tow',
+      icon: 'police_stop_ticket.svg',
       position: 0,
       size: 0.22,
       enabled: true,
@@ -246,6 +268,123 @@ function updateStopActionRadial() {
   stopActionRadialRenderer.create(stopActionRadialCont.value)
   stopActionRadialRenderer.update(buildStopActionRadialItems())
 }
+
+function clearStopActionPointerAndSelection() {
+  stopActionStickX = 0
+  stopActionStickY = 0
+  stopActionDpadX = 0
+  stopActionDpadY = 0
+  stopActionMenu.selection = null
+  stopActionRadialRenderer.setPointer(0, 0)
+}
+
+function getStopActionFromVector(x, y) {
+  if (Math.abs(x) < 1e-4 && Math.abs(y) < 1e-4) return null
+  if (Math.abs(x) >= Math.abs(y)) {
+    return x >= 0 ? 'right' : 'left'
+  }
+  return y >= 0 ? 'up' : 'down'
+}
+
+function updateStopActionSelectionFromVector(x, y) {
+  if (!stopActionMenu.open) return
+  const next = getStopActionFromVector(x, y)
+  stopActionRadialRenderer.setPointer(x, y)
+  if (stopActionMenu.selection !== next) {
+    stopActionMenu.selection = next
+    updateStopActionRadial()
+  }
+}
+
+function processStopActionStickInput(evt) {
+  if (!stopActionMenu.open || !evt || !evt.detail) return
+  if (evt.detail.name === 'focus_ud') {
+    stopActionStickY = Number(evt.detail.value) || 0
+  } else if (evt.detail.name === 'focus_lr') {
+    stopActionStickX = Number(evt.detail.value) || 0
+  } else {
+    return
+  }
+
+  const mag = Math.sqrt(stopActionStickX * stopActionStickX + stopActionStickY * stopActionStickY)
+  if (mag > STOP_ACTION_STICK_THRESHOLD) {
+    updateStopActionSelectionFromVector(stopActionStickX / mag, stopActionStickY / mag)
+  } else {
+    updateStopActionSelectionFromVector(0, 0)
+  }
+}
+
+function processStopActionDpadInput(evt) {
+  if (!stopActionMenu.open || !evt || !evt.detail) return
+  const value = Number(evt.detail.value) || 0
+  switch (evt.detail.name) {
+    case 'focus_l':
+      stopActionDpadX = -value
+      break
+    case 'focus_r':
+      stopActionDpadX = value
+      break
+    case 'focus_u':
+      stopActionDpadY = value
+      break
+    case 'focus_d':
+      stopActionDpadY = -value
+      break
+    default:
+      return
+  }
+  stopActionDpadX = 0 + stopActionDpadX
+  stopActionDpadY = 0 + stopActionDpadY
+  updateStopActionSelectionFromVector(stopActionDpadX, stopActionDpadY)
+}
+
+function getFocusedStopActionDirection() {
+  if (stopActionMenu.selection) {
+    return normalizeStopActionSelection(stopActionMenu.selection)
+  }
+  const buttons = stopActionRadialRenderer.buttons || []
+  const focusedButton = buttons.find(btn => btn && (btn._focused || (btn.item && btn.item.focused)))
+  if (focusedButton && focusedButton.item && focusedButton.item.id) {
+    return normalizeStopActionSelection(focusedButton.item.id)
+  }
+  return null
+}
+
+function processStopActionConfirmInput() {
+  if (!stopActionMenu.open) return
+  const selected = getFocusedStopActionDirection()
+  if (!selected) return
+  selectStopAction(selected)
+}
+
+function processStopActionCancelInput() {
+  if (!stopActionMenu.open) return
+  $game.api.engineLua('if gameplay_policeComputer and gameplay_policeComputer.cancelStopActionMenu then gameplay_policeComputer.cancelStopActionMenu() end')
+}
+
+watch(
+  () => stopActionMenu.open,
+  open => {
+    const uiNav = getUINavServiceInstance()
+    if (!uiNav) return
+
+    if (open) {
+      if (stopActionPreviousScope === null || stopActionPreviousScope === undefined) {
+        stopActionPreviousScope = uiNav.activeScope
+      }
+      uiNav.setActiveScope(STOP_ACTION_MENU_SCOPE)
+      clearStopActionPointerAndSelection()
+      nextTick(() => updateStopActionRadial())
+      return
+    }
+
+    clearStopActionPointerAndSelection()
+    if (stopActionPreviousScope !== null && stopActionPreviousScope !== undefined) {
+      uiNav.setActiveScope(stopActionPreviousScope)
+      stopActionPreviousScope = null
+    }
+  }
+)
 
 function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
@@ -353,7 +492,7 @@ function onStopActionMenu(data) {
     stopActionMenu.open = false
     stopActionMenu.targetVehId = null
     stopActionMenu.plate = null
-    stopActionMenu.selection = null
+    clearStopActionPointerAndSelection()
     return
   }
 
@@ -361,7 +500,7 @@ function onStopActionMenu(data) {
   stopActionMenu.targetVehId = Number.isFinite(Number(data.targetVehId)) ? Number(data.targetVehId) : null
   stopActionMenu.plate = data.plate || null
   if (!stopActionMenu.open) {
-    stopActionMenu.selection = null
+    clearStopActionPointerAndSelection()
     return
   }
 
@@ -491,6 +630,11 @@ onUnmounted(() => {
   $game.events.off('policeComputerCycleEntry', onCycleEntry)
   $game.events.off('policeComputerSelectEntry', onSelectEntry)
   $game.events.off('policeComputerRecordExpired', onRecordExpired)
+  const uiNav = getUINavServiceInstance()
+  if (uiNav && stopActionPreviousScope !== null && stopActionPreviousScope !== undefined) {
+    uiNav.setActiveScope(stopActionPreviousScope)
+    stopActionPreviousScope = null
+  }
   if (actionBannerTimeout) clearTimeout(actionBannerTimeout)
   stopActionRadialRenderer.dispose()
 })
