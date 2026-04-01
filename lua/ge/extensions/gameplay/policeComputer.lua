@@ -1299,6 +1299,15 @@ local function finalizePendingStopAction()
 
   pendingStopAction = nil
   stopActionMenuResolutionInProgress = false
+
+  -- Re-push siren config to the player's police vehicle.
+  -- The stop resolution flow (pursuit end, vehicle actions) can cause BeamNG to
+  -- reload vehicle Lua extensions, which clears the siren controller state.
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if playerVehId and career_modules_policeSirenSetup and career_modules_policeSirenSetup.pushSirenConfigToVehicle then
+    career_modules_policeSirenSetup.pushSirenConfigToVehicle(playerVehId)
+  end
+
   return true
 end
 
@@ -1466,6 +1475,14 @@ resetTrafficStop = function()
 
   if releaseTargetId then
     releaseStoppedTarget(releaseTargetId)
+  end
+
+  -- Re-push siren config in case the stop resolution caused vehicle extension reloads
+  if hadStopState then
+    local playerVeh, playerVehId = getPlayerPoliceVehicle()
+    if playerVehId and career_modules_policeSirenSetup and career_modules_policeSirenSetup.pushSirenConfigToVehicle then
+      career_modules_policeSirenSetup.pushSirenConfigToVehicle(playerVehId)
+    end
   end
 end
 
