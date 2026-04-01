@@ -161,6 +161,14 @@ local function isStopActionMenuEligibleForCurrentTarget()
   if trafficStopOwnedFlee[trafficStopTarget] then
     return false
   end
+  -- Do not allow stop-action menu for already arrested/retired vehicles.
+  if retiredVehicleIds[trafficStopTarget] then
+    return false
+  end
+  local record = vehicleRecords[trafficStopTarget]
+  if record and record.arrested then
+    return false
+  end
   return true
 end
 
@@ -1160,6 +1168,10 @@ function M.onPursuitAction(vehId, action, pursuitData)
         obj:queueLuaCommand('ai.setSpeedMode("set")')
         obj:queueLuaCommand('ai.setSpeed(0)')
       end
+      -- Remove from traffic system so it won't be reassigned to drive again
+      if gameplay_traffic and gameplay_traffic.removeVehicle then
+        pcall(gameplay_traffic.removeVehicle, vehId)
+      end
       log('I', logTag, 'Vehicle arrested and retired vehId=' .. vehId)
     end
     if vehId == trafficStopTarget then
@@ -1331,6 +1343,36 @@ local function finalizePendingStopAction()
   rewardGranted = rewardAmount > 0
   if rewardGranted then
     clearRecordAfterStopResolution(record)
+  end
+
+  -- Apply arrest/detain effects on the target vehicle
+  if action == 'up' then -- Arrest
+    if record then record.arrested = true end
+    retiredVehicleIds[targetVehId] = true
+    local obj = targetVehId and getObjectByID(targetVehId)
+    if obj then
+      obj:queueLuaCommand('ai.setMode("stop")')
+      obj:queueLuaCommand('ai.setSpeedMode("set")')
+      obj:queueLuaCommand('ai.setSpeed(0)')
+    end
+    -- Remove from traffic system so it won't be reassigned
+    if gameplay_traffic and gameplay_traffic.removeVehicle then
+      pcall(gameplay_traffic.removeVehicle, targetVehId)
+    end
+    log('I', logTag, 'finalizePendingStopAction: arrested vehId=' .. tostring(targetVehId))
+  elseif action == 'right' then -- Detain
+    if record then record.arrested = true end
+    retiredVehicleIds[targetVehId] = true
+    local obj = targetVehId and getObjectByID(targetVehId)
+    if obj then
+      obj:queueLuaCommand('ai.setMode("stop")')
+      obj:queueLuaCommand('ai.setSpeedMode("set")')
+      obj:queueLuaCommand('ai.setSpeed(0)')
+    end
+    if gameplay_traffic and gameplay_traffic.removeVehicle then
+      pcall(gameplay_traffic.removeVehicle, targetVehId)
+    end
+    log('I', logTag, 'finalizePendingStopAction: detained vehId=' .. tostring(targetVehId))
   end
 
   guihooks.trigger('policeComputerStopActionMenuConfirmed', {
