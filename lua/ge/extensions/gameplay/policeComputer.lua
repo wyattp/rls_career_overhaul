@@ -94,6 +94,8 @@ local stopActionMenuPrevMenuActionMapEnabled = nil
 local stopActionMenuForcedMenuActionMap = false
 local trafficStopPromptShowing = false
 local trafficStopPromptTarget = nil
+local stopMenuStickX = 0
+local stopMenuStickY = 0
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -278,6 +280,8 @@ local function setStopActionMenuOpen(open, reason)
 
   stopActionMenuOpen = open and true or false
   stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
+  stopMenuStickX = 0
+  stopMenuStickY = 0
   if stopActionMenuOpen then
     stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
     stopActionMenuAutoOpenedForCurrentStop = true
@@ -1755,6 +1759,16 @@ end
 
 function M.selectStopActionMenu(direction)
   return M.navigateStopActionMenu(direction)
+end
+
+function M.onStopMenuStickInput(axis, value)
+  if not stopActionMenuOpen then return end
+  if axis == 'x' then
+    stopMenuStickX = tonumber(value) or 0
+  elseif axis == 'y' then
+    stopMenuStickY = tonumber(value) or 0
+  end
+  guihooks.trigger('policeComputerStopMenuStick', { x = stopMenuStickX, y = stopMenuStickY })
 end
 
 function M.confirmStopActionMenu()

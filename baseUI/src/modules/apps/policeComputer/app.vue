@@ -394,6 +394,25 @@ function processStopActionCancelInput() {
   $game.api.engineLua('if gameplay_policeComputer and gameplay_policeComputer.cancelStopActionMenu then gameplay_policeComputer.cancelStopActionMenu() end')
 }
 
+function onStopMenuStick(data) {
+  if (!stopActionMenu.open || !data) return
+  const x = Number(data.x) || 0
+  const y = Number(data.y) || 0
+
+  const stickActiveBefore = stopActionStickActive
+  stopActionStickX = x
+  stopActionStickY = y
+  stopActionStickActive = isStopActionStickActive(x, y)
+
+  if (stopActionStickActive) {
+    pointToStopActionItem(x, y)
+  }
+
+  if (!stopActionStickActive && stickActiveBefore) {
+    pointToStopActionItem(0, 0)
+  }
+}
+
 watch(
   () => stopActionMenu.open,
   open => {
@@ -655,6 +674,7 @@ onMounted(() => {
   $game.events.on('policeComputerRabbit', onRabbit)
   $game.events.on('policeComputerAhead', onAhead)
   $game.events.on('policeComputerStopPrompt', onStopPrompt)
+  $game.events.on('policeComputerStopMenuStick', onStopMenuStick)
   $game.events.on('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.on('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.on('policeComputerCycleEntry', onCycleEntry)
@@ -674,6 +694,7 @@ onUnmounted(() => {
   $game.events.off('policeComputerRabbit', onRabbit)
   $game.events.off('policeComputerAhead', onAhead)
   $game.events.off('policeComputerStopPrompt', onStopPrompt)
+  $game.events.off('policeComputerStopMenuStick', onStopMenuStick)
   $game.events.off('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.off('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.off('policeComputerCycleEntry', onCycleEntry)

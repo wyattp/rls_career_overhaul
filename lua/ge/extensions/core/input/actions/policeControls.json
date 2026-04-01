@@ -47,6 +47,24 @@
         "title": "Police: Cancel Stop Action Menu",
         "desc": "Close the traffic stop action menu without selecting an action."
     },
+    "stopActionMenuStickX": {
+        "cat": "gameplay",
+        "order": 270,
+        "ctx": "tlua",
+        "isCentered": true,
+        "onChange": "if gameplay_policeComputer and gameplay_policeComputer.onStopMenuStickInput then gameplay_policeComputer.onStopMenuStickInput('x', VALUE) end",
+        "title": "Police: Stop Menu Stick X",
+        "desc": "Analog left/right stick input for the traffic stop action menu."
+    },
+    "stopActionMenuStickY": {
+        "cat": "gameplay",
+        "order": 271,
+        "ctx": "tlua",
+        "isCentered": true,
+        "onChange": "if gameplay_policeComputer and gameplay_policeComputer.onStopMenuStickInput then gameplay_policeComputer.onStopMenuStickInput('y', VALUE) end",
+        "title": "Police: Stop Menu Stick Y",
+        "desc": "Analog up/down stick input for the traffic stop action menu."
+    },
     "cyclePoliceSiren": {
         "cat": "vehicle",
         "order": 261,
