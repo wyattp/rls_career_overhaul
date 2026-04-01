@@ -140,6 +140,20 @@ local function isTrafficStopFullyCommenced()
   return getObjectByID(trafficStopTarget) ~= nil
 end
 
+local function isStopActionMenuEligibleForCurrentTarget()
+  if not isTrafficStopFullyCommenced() then
+    return false
+  end
+  if not trafficStopTarget then
+    return false
+  end
+  -- Do not allow stop-action menu for suspects that already fled and were forced to stop.
+  if trafficStopOwnedFlee[trafficStopTarget] then
+    return false
+  end
+  return true
+end
+
 local function isValidStopActionMenuDirection(direction)
   return STOP_ACTION_MENU_DIRECTIONS[direction] == true
 end
@@ -255,7 +269,7 @@ end
 
 local function setStopActionMenuOpen(open, reason)
   if open then
-    if not isTrafficStopFullyCommenced() then
+    if not isStopActionMenuEligibleForCurrentTarget() then
       open = false
     end
   end
@@ -1242,7 +1256,7 @@ local function finalizePendingStopAction()
   local rewardGranted = false
   local rewardAmount = 0
   local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
-  rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier) or 0
+  rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier, evaluation.condition) or 0
   rewardGranted = rewardAmount > 0
   if rewardGranted then
     clearRecordAfterStopResolution(record)
@@ -1265,7 +1279,7 @@ local function finalizePendingStopAction()
   return true
 end
 
-awardTicketReward = function(vehId, action, actionProfitMultiplier)
+awardTicketReward = function(vehId, action, actionProfitMultiplier, stopCondition)
   local record = vehicleRecords[vehId]
   if record and record.ticketed then
     log('I', logTag, 'Already ticketed vehId=' .. vehId .. ', skipping')
@@ -1306,12 +1320,9 @@ awardTicketReward = function(vehId, action, actionProfitMultiplier)
   reward = math.floor(reward * reputationBonus + 0.5)
 
   local suspectTryingToRun = vehId and trafficStopOwnedFlee[vehId] == true
-  local suspectWanted = record and (record.wanted or record.stolen)
-  local lowLevelCrime = record and not record.apb and not suspectWanted and (
-    record.suspendedLicense or record.noInsurance or record.expiredRegistration
-  )
+  local compliantPullOverStop = not suspectTryingToRun and stopCondition ~= 'fleeing'
 
-  if lowLevelCrime and not suspectTryingToRun then
+  if compliantPullOverStop then
     local vehicleDamage = 0
     if map and map.objects and map.objects[vehId] and map.objects[vehId].damage then
       vehicleDamage = tonumber(map.objects[vehId].damage) or 0
@@ -1457,8 +1468,8 @@ updateTrafficStop = function(dtReal)
       stopActionMenuAutoOpenedForCurrentStop = false
       setStopActionMenuOpen(false, 'playerMoved')
     end
-    if stopActionMenuOpen and not isTrafficStopFullyCommenced() then
-      setStopActionMenuOpen(false, 'stopNoLongerValid')
+    if stopActionMenuOpen and not isStopActionMenuEligibleForCurrentTarget() then
+      setStopActionMenuOpen(false, 'stopNoLongerEligible')
     end
     if trafficStopComplying then
       trafficStopEnforceTimer = trafficStopEnforceTimer + dtReal
@@ -1484,7 +1495,7 @@ updateTrafficStop = function(dtReal)
       return
     end
 
-    if isTrafficStopFullyCommenced()
+    if isStopActionMenuEligibleForCurrentTarget()
       and not stopActionMenuOpen
       and not stopActionMenuResolutionInProgress
       and not stopActionMenuAutoOpenedForCurrentStop
@@ -1630,8 +1641,8 @@ function M.toggleStopActionMenu()
     return true
   end
 
-  if not isTrafficStopFullyCommenced() then
-    log('I', logTag, 'toggleStopActionMenu: stop not fully commenced, cannot open')
+  if not isStopActionMenuEligibleForCurrentTarget() then
+    log('I', logTag, 'toggleStopActionMenu: current stop is not eligible for stop action menu')
     return false
   end
 
@@ -1675,7 +1686,7 @@ function M.confirmStopActionMenu()
     return false
   end
 
-  if not isTrafficStopFullyCommenced() then
+  if not isStopActionMenuEligibleForCurrentTarget() then
     setStopActionMenuOpen(false, 'confirmInvalid')
     return false
   end
