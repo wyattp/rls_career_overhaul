@@ -138,11 +138,12 @@
   <div
     class="stop-action-overlay"
     v-if="stopActionMenu.open"
+    v-bng-blur
     bng-ui-scope="policeStopActionMenu"
     v-bng-on-ui-nav:focus_lr,focus_ud="processStopActionStickInput"
     v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.down="processStopActionDpadInput"
     v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.up="processStopActionDpadInput"
-    v-bng-on-ui-nav:ok,context="processStopActionConfirmInput"
+    v-bng-on-ui-nav:ok,context="processStopActionMouseClick"
     v-bng-on-ui-nav:menu,back="processStopActionCancelInput"
     v-bng-ui-nav-label:focus_lr,focus_ud,focus_l,focus_r,focus_u,focus_d="'Radial menu navigation'"
     v-bng-ui-nav-label:ok="'Select'"
@@ -150,6 +151,12 @@
     @contextmenu.prevent
   >
     <div class="stop-action-menu">
+      <div class="stop-action-infos">
+        <div class="stop-action-title">
+          <span class="stop-action-title-accent"></span>
+          <span>Police Stop Menu</span>
+        </div>
+      </div>
       <div ref="stopActionRadialCont" class="stop-action-radial"></div>
     </div>
   </div>
@@ -158,7 +165,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useLibStore } from '@/services'
-import { vBngOnUiNav, vBngUiNavLabel } from '@/common/directives'
+import { vBngBlur, vBngOnUiNav, vBngUiNavLabel } from '@/common/directives'
 import { getUINavServiceInstance } from '@/services/uiNav'
 import RadialSVG from '@/modules/radial/radialsvg'
 
@@ -204,6 +211,7 @@ const STOP_ACTION_MENU_LABELS = {
 let stopActionPreviousScope = null
 let stopActionStickX = 0
 let stopActionStickY = 0
+let stopActionStickActive = false
 let stopActionDpadX = 0
 let stopActionDpadY = 0
 
@@ -226,7 +234,7 @@ function buildStopActionRadialItems() {
   return [
     {
       id: 'up',
-      title: 'Arrest',
+      title: 'Arrest suspect',
       icon: 'police_stop_handcuffs.svg',
       position: 0.25,
       size: 0.22,
@@ -235,7 +243,7 @@ function buildStopActionRadialItems() {
     },
     {
       id: 'right',
-      title: 'Detain',
+      title: 'Detain / warning',
       icon: 'police_stop_warning.svg',
       position: 0.5,
       size: 0.22,
@@ -244,7 +252,7 @@ function buildStopActionRadialItems() {
     },
     {
       id: 'down',
-      title: 'Go Free/Warning',
+      title: 'Release / go free',
       icon: 'police_stop_unlock.svg',
       position: 0.75,
       size: 0.22,
@@ -253,7 +261,7 @@ function buildStopActionRadialItems() {
     },
     {
       id: 'left',
-      title: 'Ticket',
+      title: 'Issue ticket',
       icon: 'police_stop_ticket.svg',
       position: 0,
       size: 0.22,
@@ -272,28 +280,60 @@ function updateStopActionRadial() {
 function clearStopActionPointerAndSelection() {
   stopActionStickX = 0
   stopActionStickY = 0
+  stopActionStickActive = false
   stopActionDpadX = 0
   stopActionDpadY = 0
   stopActionMenu.selection = null
   stopActionRadialRenderer.setPointer(0, 0)
-}
-
-function getStopActionFromVector(x, y) {
-  if (Math.abs(x) < 1e-4 && Math.abs(y) < 1e-4) return null
-  if (Math.abs(x) >= Math.abs(y)) {
-    return x >= 0 ? 'right' : 'left'
+  const buttons = stopActionRadialRenderer.buttons || []
+  for (const btn of buttons) {
+    if (btn && typeof btn.blur === 'function') btn.blur()
   }
-  return y >= 0 ? 'up' : 'down'
 }
 
-function updateStopActionSelectionFromVector(x, y) {
-  if (!stopActionMenu.open) return
-  const next = getStopActionFromVector(x, y)
+function pointToStopActionItem(x, y) {
+  if (!stopActionRadialRenderer.buttons) return
+  const len = stopActionRadialRenderer.buttons.length
+  let idx = -1
+
   stopActionRadialRenderer.setPointer(x, y)
-  if (stopActionMenu.selection !== next) {
-    stopActionMenu.selection = next
-    updateStopActionRadial()
+
+  if (x !== 0 || y !== 0) {
+    const cursorPos = 0.5 - Math.atan2(y, x) / Math.PI / 2
+    for (let i = 0; i < len; i++) {
+      const btn = stopActionRadialRenderer.buttons[i].item
+      const halfsize = btn.size / 2
+      const startPos = ((btn.position - halfsize) % 1 + 1) % 1
+      const endPos = ((btn.position + halfsize) % 1 + 1) % 1
+
+      if (startPos < endPos) {
+        if (cursorPos >= startPos && cursorPos < endPos) {
+          idx = i
+          break
+        }
+      } else if (cursorPos >= startPos || cursorPos < endPos) {
+        idx = i
+        break
+      }
+    }
   }
+
+  for (let i = 0; i < len; i++) {
+    if (i !== idx && typeof stopActionRadialRenderer.buttons[i].blur === 'function') {
+      stopActionRadialRenderer.buttons[i].blur()
+    }
+  }
+
+  if (idx > -1 && idx < len && typeof stopActionRadialRenderer.buttons[idx].focus === 'function') {
+    stopActionRadialRenderer.buttons[idx].focus()
+    stopActionMenu.selection = normalizeStopActionSelection(stopActionRadialRenderer.buttons[idx].item.id)
+  } else {
+    stopActionMenu.selection = null
+  }
+}
+
+function isStopActionStickActive(x, y) {
+  return Math.sqrt(x * x + y * y) > STOP_ACTION_STICK_THRESHOLD
 }
 
 function processStopActionStickInput(evt) {
@@ -306,11 +346,15 @@ function processStopActionStickInput(evt) {
     return
   }
 
-  const mag = Math.sqrt(stopActionStickX * stopActionStickX + stopActionStickY * stopActionStickY)
-  if (mag > STOP_ACTION_STICK_THRESHOLD) {
-    updateStopActionSelectionFromVector(stopActionStickX / mag, stopActionStickY / mag)
-  } else {
-    updateStopActionSelectionFromVector(0, 0)
+  const stickActiveBefore = stopActionStickActive
+  stopActionStickActive = isStopActionStickActive(stopActionStickX, stopActionStickY)
+
+  if (stopActionStickActive) {
+    pointToStopActionItem(stopActionStickX, stopActionStickY)
+  }
+
+  if (!stopActionStickActive && stickActiveBefore) {
+    pointToStopActionItem(0, 0)
   }
 }
 
@@ -333,28 +377,16 @@ function processStopActionDpadInput(evt) {
     default:
       return
   }
-  stopActionDpadX = 0 + stopActionDpadX
-  stopActionDpadY = 0 + stopActionDpadY
-  updateStopActionSelectionFromVector(stopActionDpadX, stopActionDpadY)
+  stopActionDpadX = 0 + +stopActionDpadX
+  stopActionDpadY = 0 + +stopActionDpadY
+  pointToStopActionItem(stopActionDpadX, stopActionDpadY)
 }
 
-function getFocusedStopActionDirection() {
-  if (stopActionMenu.selection) {
-    return normalizeStopActionSelection(stopActionMenu.selection)
-  }
-  const buttons = stopActionRadialRenderer.buttons || []
-  const focusedButton = buttons.find(btn => btn && (btn._focused || (btn.item && btn.item.focused)))
-  if (focusedButton && focusedButton.item && focusedButton.item.id) {
-    return normalizeStopActionSelection(focusedButton.item.id)
-  }
-  return null
-}
-
-function processStopActionConfirmInput() {
-  if (!stopActionMenu.open) return
-  const selected = getFocusedStopActionDirection()
-  if (!selected) return
-  selectStopAction(selected)
+function processStopActionMouseClick(evt) {
+  if (!stopActionMenu.open || !stopActionRadialRenderer.buttons) return
+  const elm = stopActionRadialRenderer.buttons.find(btn => btn && btn._focused)
+    || stopActionRadialRenderer.buttons.find(btn => btn && btn.item && btn.item.focused)
+  if (elm && typeof elm.click === 'function') elm.click(evt)
 }
 
 function processStopActionCancelInput() {
@@ -650,32 +682,63 @@ $text-accent: #4a9eff;
 $alert-red: #ff3c3c;
 $alert-glow: rgba(255, 60, 60, 0.3);
 $clear-green: #3cff6e;
-$overlay-dark: rgba(18, 20, 26, 0.58);
 
 .stop-action-overlay {
   position: fixed;
   inset: 0;
   display: flex;
+  flex-flow: column;
   align-items: center;
-  justify-content: center;
-  background: $overlay-dark;
+  justify-content: flex-start;
+  color: var(--bng-off-white);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2em 0;
   z-index: 120;
   pointer-events: auto;
 }
 
 .stop-action-menu {
   display: flex;
+  flex-flow: column;
   align-items: center;
-  justify-content: center;
-  width: 450px;
-  height: 450px;
+  width: 100%;
+  height: 100%;
+}
+
+.stop-action-infos {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.stop-action-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: 'Overpass', 'Segoe UI', sans-serif;
+  font-size: 2.1em;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--bng-off-white);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.stop-action-title-accent {
+  width: 0.35em;
+  height: 1.1em;
+  border-radius: 0.08em;
+  background: var(--bng-orange);
+  display: inline-block;
 }
 
 .stop-action-radial {
   display: block;
-  position: relative;
-  width: 100%;
-  height: 100%;
+  min-width: 450px;
+  height: 450px;
+  position: absolute;
+  top: calc(55% - 225px);
+  margin: auto;
   pointer-events: auto;
 }
 
@@ -1138,9 +1201,19 @@ $overlay-dark: rgba(18, 20, 26, 0.58);
 }
 
 @media (max-width: 900px) {
+  .stop-action-title {
+    font-size: 1.5em;
+  }
+
   .stop-action-menu {
-    width: 320px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .stop-action-radial {
+    min-width: 320px;
     height: 320px;
+    top: calc(55% - 160px);
   }
 }
 </style>
