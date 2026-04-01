@@ -90,6 +90,8 @@ local stopActionMenuSelection = 'up'
 local stopActionMenuResolutionInProgress = false
 local stopActionMenuAutoOpenedForCurrentStop = false
 local pendingStopAction = nil
+local stopActionMenuPrevMenuActionMapEnabled = nil
+local stopActionMenuForcedMenuActionMap = false
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -195,6 +197,47 @@ local function evaluateStopActionSelection(targetVehId, record, selectedAction)
   }
 end
 
+local function setStopActionMenuUINavEnabled(enabled)
+  enabled = enabled and true or false
+  if not core_input_bindings and extensions and extensions.load then
+    pcall(extensions.load, 'core_input_bindings')
+  end
+  if not core_input_bindings then
+    return
+  end
+
+  if enabled then
+    if not stopActionMenuForcedMenuActionMap then
+      if core_input_bindings.getMenuActionMapEnabled then
+        local ok, current = pcall(core_input_bindings.getMenuActionMapEnabled)
+        if ok then
+          if type(current) == 'table' then
+            current = current[1]
+          end
+          stopActionMenuPrevMenuActionMapEnabled = current and true or false
+        else
+          stopActionMenuPrevMenuActionMapEnabled = nil
+        end
+      end
+      if core_input_bindings.setMenuActionMapEnabled then
+        pcall(core_input_bindings.setMenuActionMapEnabled, true)
+      end
+      stopActionMenuForcedMenuActionMap = true
+    end
+    return
+  end
+
+  if stopActionMenuForcedMenuActionMap
+    and core_input_bindings.setMenuActionMapEnabled
+    and stopActionMenuPrevMenuActionMapEnabled ~= nil
+  then
+    pcall(core_input_bindings.setMenuActionMapEnabled, stopActionMenuPrevMenuActionMapEnabled)
+  end
+
+  stopActionMenuForcedMenuActionMap = false
+  stopActionMenuPrevMenuActionMapEnabled = nil
+end
+
 local function triggerStopActionMenuEvent(reason)
   local plate = nil
   if stopActionMenuTarget and vehicleRecords[stopActionMenuTarget] then
@@ -224,6 +267,7 @@ local function setStopActionMenuOpen(open, reason)
     stopActionMenuAutoOpenedForCurrentStop = true
   end
 
+  setStopActionMenuUINavEnabled(stopActionMenuOpen)
   triggerStopActionMenuEvent(reason)
 end
 
@@ -1666,6 +1710,8 @@ function M.onExtensionLoaded()
   stopActionMenuResolutionInProgress = false
   stopActionMenuAutoOpenedForCurrentStop = false
   pendingStopAction = nil
+  stopActionMenuPrevMenuActionMapEnabled = nil
+  stopActionMenuForcedMenuActionMap = false
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1709,6 +1755,9 @@ function M.onExtensionUnloaded()
   stopActionMenuResolutionInProgress = false
   stopActionMenuAutoOpenedForCurrentStop = false
   pendingStopAction = nil
+  setStopActionMenuUINavEnabled(false)
+  stopActionMenuPrevMenuActionMapEnabled = nil
+  stopActionMenuForcedMenuActionMap = false
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
