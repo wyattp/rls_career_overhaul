@@ -92,8 +92,6 @@ local stopActionMenuAutoOpenedForCurrentStop = false
 local pendingStopAction = nil
 local stopActionMenuPrevMenuActionMapEnabled = nil
 local stopActionMenuForcedMenuActionMap = false
-local trafficStopPromptShowing = false
-local trafficStopPromptTarget = nil
 
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
@@ -285,21 +283,6 @@ local function setStopActionMenuOpen(open, reason)
 
   setStopActionMenuUINavEnabled(stopActionMenuOpen)
   triggerStopActionMenuEvent(reason)
-end
-
-local function showTrafficStopPrompt(vehId)
-  local record = vehicleRecords[vehId]
-  local plate = record and record.plate or '???'
-  trafficStopPromptShowing = true
-  trafficStopPromptTarget = vehId
-  guihooks.trigger('policeComputerStopPrompt', { show = true, plate = plate, vehId = vehId })
-end
-
-local function hideTrafficStopPrompt()
-  if not trafficStopPromptShowing then return end
-  trafficStopPromptShowing = false
-  trafficStopPromptTarget = nil
-  guihooks.trigger('policeComputerStopPrompt', { show = false })
 end
 
 -- Forward declarations used by onUpdate.
@@ -1446,7 +1429,6 @@ local function releaseStoppedTarget(vehId)
 end
 
 resetTrafficStop = function()
-  hideTrafficStopPrompt()
   setStopActionMenuOpen(false, 'trafficStopReset')
 
   local releaseTargetId = nil
@@ -1561,7 +1543,6 @@ updateTrafficStop = function(dtReal)
   end
 
   if trafficStopTarget ~= target then
-    hideTrafficStopPrompt()
     trafficStopTarget = target
     trafficStopTimer = 0
     trafficStopInitiated = false
@@ -1600,9 +1581,10 @@ updateTrafficStop = function(dtReal)
     plate = vehicleRecords[target] and vehicleRecords[target].plate or nil
   })
 
-  if trafficStopTimer >= STOP_DWELL_TIME and not trafficStopInitiated and not trafficStopPromptShowing then
+  if trafficStopTimer >= STOP_DWELL_TIME and not trafficStopInitiated then
+    trafficStopInitiated = true
+    initiateTrafficStop(target)
     guihooks.trigger('policeComputerStopProgress', nil)
-    showTrafficStopPrompt(target)
   end
 end
 
@@ -1647,22 +1629,8 @@ function M.immediateTrafficStop()
   -- Generate record if not already known
   generateRecord(target)
 
-  -- Set up target tracking but show prompt instead of initiating immediately
-  trafficStopTarget = target
-  trafficStopTimer = STOP_DWELL_TIME
-  earlyFleeTimer = nil
-  showTrafficStopPrompt(target)
-
-  return true
-end
-
-function M.confirmTrafficStopPrompt()
-  if not trafficStopPromptShowing or not trafficStopPromptTarget then return false end
-  local target = trafficStopPromptTarget
-  hideTrafficStopPrompt()
-
-  -- Now actually initiate the stop
-  setStopActionMenuOpen(false, 'promptConfirmed')
+  -- Initiate immediately — no dwell timer
+  setStopActionMenuOpen(false, 'immediateStop')
   trafficStopTarget = target
   trafficStopInitiated = true
   trafficStopReachedStop = false
@@ -1672,14 +1640,6 @@ function M.confirmTrafficStopPrompt()
   initiateTrafficStop(target)
 
   return true
-end
-
-function M.dismissTrafficStopPrompt()
-  hideTrafficStopPrompt()
-end
-
-function M.isTrafficStopPromptShowing()
-  return trafficStopPromptShowing
 end
 
 function M.isTrafficStopFullyCommenced()
@@ -1786,8 +1746,6 @@ function M.onExtensionLoaded()
   pendingStopAction = nil
   stopActionMenuPrevMenuActionMapEnabled = nil
   stopActionMenuForcedMenuActionMap = false
-  trafficStopPromptShowing = false
-  trafficStopPromptTarget = nil
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
@@ -1834,8 +1792,6 @@ function M.onExtensionUnloaded()
   setStopActionMenuUINavEnabled(false)
   stopActionMenuPrevMenuActionMapEnabled = nil
   stopActionMenuForcedMenuActionMap = false
-  trafficStopPromptShowing = false
-  trafficStopPromptTarget = nil
   if gameplay_police and gameplay_police.setPursuitVars then
     gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end

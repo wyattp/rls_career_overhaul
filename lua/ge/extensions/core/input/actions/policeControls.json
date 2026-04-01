@@ -23,14 +23,6 @@
         "title": "Police: ANPR Previous Entry",
         "desc": "Cycle to the previous entry in the ANPR scanned plates list"
     },
-    "confirmTrafficStopPrompt": {
-        "cat": "gameplay",
-        "order": 263,
-        "ctx": "tlua",
-        "onDown": "if gameplay_policeComputer and gameplay_policeComputer.confirmTrafficStopPrompt then gameplay_policeComputer.confirmTrafficStopPrompt() end",
-        "title": "Police: Confirm Traffic Stop",
-        "desc": "Confirm the traffic stop prompt to initiate a stop on the targeted vehicle."
-    },
     "toggleTrafficStopActionMenu": {
         "cat": "gameplay",
         "order": 264,

@@ -135,13 +135,6 @@
     </div>
   </div>
 
-  <div class="traffic-stop-prompt" v-if="trafficStopPrompt.show">
-    <span class="prompt-text">Initiate traffic stop with </span>
-    <span class="prompt-plate">{{ trafficStopPrompt.plate }}</span>
-    <span class="prompt-text">? </span>
-    <span class="prompt-binding">[{{ confirmBindingLabel }}]</span>
-  </div>
-
   <div
     class="stop-action-overlay"
     v-if="stopActionMenu.open"
@@ -170,23 +163,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useLibStore } from '@/services'
-import useControls from '@/services/controls'
 import { vBngBlur, vBngOnUiNav, vBngUiNavLabel } from '@/common/directives'
 import { getUINavServiceInstance } from '@/services/uiNav'
 import RadialSVG from '@/modules/radial/radialsvg'
 
 const { $game } = useLibStore()
-const controls = useControls()
-
-const confirmBindingLabel = computed(() => {
-  const viewerObj = controls.makeViewerObj({ action: 'confirmTrafficStopPrompt' })
-  if (viewerObj) {
-    return viewerObj.control.split(/[ -]/).map(s => s.substring(0, 1).toUpperCase() + s.substring(1)).join(' ')
-  }
-  return 'Confirm'
-})
 
 const isVisible = ref(false)
 const isCollapsed = ref(false)
@@ -204,10 +187,6 @@ const stopActionMenu = reactive({
   targetVehId: null,
   plate: null,
   selection: null
-})
-const trafficStopPrompt = reactive({
-  show: false,
-  plate: null
 })
 const stopActionRadialCont = ref(null)
 const stopActionRadialRenderer = new RadialSVG({
@@ -540,16 +519,6 @@ function onAhead(data) {
   coneLeftHit.value = !!(data && data.coneLeft)
 }
 
-function onStopPrompt(data) {
-  if (!data || !data.show) {
-    trafficStopPrompt.show = false
-    trafficStopPrompt.plate = null
-    return
-  }
-  trafficStopPrompt.show = true
-  trafficStopPrompt.plate = data.plate || '???'
-}
-
 function onStopActionMenu(data) {
   if (!data) {
     stopActionMenu.open = false
@@ -670,7 +639,6 @@ onMounted(() => {
   $game.events.on('policeComputerStopProgress', onStopProgress)
   $game.events.on('policeComputerRabbit', onRabbit)
   $game.events.on('policeComputerAhead', onAhead)
-  $game.events.on('policeComputerStopPrompt', onStopPrompt)
   $game.events.on('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.on('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.on('policeComputerCycleEntry', onCycleEntry)
@@ -689,7 +657,6 @@ onUnmounted(() => {
   $game.events.off('policeComputerStopProgress', onStopProgress)
   $game.events.off('policeComputerRabbit', onRabbit)
   $game.events.off('policeComputerAhead', onAhead)
-  $game.events.off('policeComputerStopPrompt', onStopPrompt)
   $game.events.off('policeComputerStopActionMenu', onStopActionMenu)
   $game.events.off('policeComputerStopActionMenuConfirmed', onStopActionMenuConfirmed)
   $game.events.off('policeComputerCycleEntry', onCycleEntry)
@@ -715,32 +682,6 @@ $text-accent: #4a9eff;
 $alert-red: #ff3c3c;
 $alert-glow: rgba(255, 60, 60, 0.3);
 $clear-green: #3cff6e;
-
-.traffic-stop-prompt {
-  position: fixed;
-  top: 24px;
-  left: 24px;
-  padding: 10px 16px;
-  background: rgba(10, 14, 20, 0.92);
-  border: 1px solid rgba(40, 80, 140, 0.5);
-  border-radius: 4px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 16px;
-  color: $text-primary;
-  z-index: 110;
-  pointer-events: none;
-
-  .prompt-plate {
-    color: $text-accent;
-    font-weight: bold;
-    letter-spacing: 1px;
-  }
-
-  .prompt-binding {
-    color: $clear-green;
-    font-weight: bold;
-  }
-}
 
 .stop-action-overlay {
   position: fixed;
