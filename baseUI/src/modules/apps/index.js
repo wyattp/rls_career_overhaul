@@ -45,4 +45,5 @@ export { default as lapTimes } from '@/modules/apps/lapTimes/app.vue'
 export { default as lapTimesDebug } from '@/modules/apps/lapTimes/appDebug.vue'
 export { default as messages } from '@/modules/apps/messages/app.vue'
 export { default as policeComputer } from '@/modules/apps/policeComputer/app.vue'
+export { default as policeStopMenu } from '@/modules/apps/policeStopMenu/app.vue'
 
