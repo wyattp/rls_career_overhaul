@@ -71,31 +71,7 @@ local apbReasons = {
   'Parole violation', 'Probation check'
 }
 
--- Targeted traffic stop state
-local trafficStopTarget = nil
-local trafficStopTimer = 0
-local trafficStopInitiated = false
-local trafficStopComplying = false
-local trafficStopEnforceTimer = 0
-local trafficStopReachedStop = false
-local trafficStopOwnedFlee = {}
-local earlyFleeTimer = nil
-local rabbitTarget = nil
-local rabbitTimer = 0
-local rabbitDelay = 0
-local rabbitRolled = false
-local stopActionMenuOpen = false
-local stopActionMenuTarget = nil
-local stopActionMenuSelection = 'up'
-local stopActionMenuResolutionInProgress = false
-local stopActionMenuAutoOpenedForCurrentStop = false
-local pendingStopAction = nil
-local stopActionMenuPrevMenuActionMapEnabled = nil
-local stopActionMenuForcedMenuActionMap = false
-local trafficStopPromptShowing = false
-local trafficStopPromptTarget = nil
-local stopMenuStickX = 0
-local stopMenuStickY = 0
+-- Traffic stop state now managed by police.lua
 local vehiclePlateApplied = {} -- tracks vehIds that have already had setPlateText called
 local plateSetQueue = {} -- queued {vehId, plate} pairs for async setPlateText
 local plateSetTimer = 0
@@ -103,6 +79,10 @@ local PLATE_SET_INTERVAL = 0.5 -- seconds between setPlateText calls
 local expiryTimer = 0
 local EXPIRY_POLL_INTERVAL = 2.0 -- seconds between expiry sweeps
 
+-- NOTE: Stop action menu constants and lifecycle functions below are DEAD CODE.
+-- All active call paths now go through police.lua. This dead code will be
+-- cleaned up in a future pass. Kept temporarily to avoid breaking any
+-- unforeseen references.
 local STOP_ACTION_MENU_DEFAULT = 'up'
 local STOP_ACTION_MENU_DIRECTIONS = {
   up = true,
@@ -1578,103 +1558,33 @@ function M.isTrafficStopFullyCommenced()
   return false
 end
 
+-- Delegate menu functions to police.lua
 function M.isStopActionMenuOpen()
-  return stopActionMenuOpen
+  return gameplay_police and gameplay_police.isStopActionMenuOpen and gameplay_police.isStopActionMenuOpen() or false
 end
 
 function M.toggleStopActionMenu()
-  log('I', logTag, string.format('toggleStopActionMenu: open=%s target=%s initiated=%s complying=%s reachedStop=%s',
-    tostring(stopActionMenuOpen), tostring(trafficStopTarget), tostring(trafficStopInitiated),
-    tostring(trafficStopComplying), tostring(trafficStopReachedStop)))
-  if stopActionMenuResolutionInProgress then
-    ui_message("Action already selected. Turn lights off to complete stop.", 5, "Police")
-    return false
-  end
-
-  if stopActionMenuOpen then
-    setStopActionMenuOpen(false, 'toggleClose')
-    return true
-  end
-
-  if not isStopActionMenuEligibleForCurrentTarget() then
-    log('I', logTag, 'toggleStopActionMenu: current stop is not eligible for stop action menu')
-    return false
-  end
-
-  setStopActionMenuOpen(true, 'toggleOpen')
-  log('I', logTag, 'toggleStopActionMenu: opened')
-  return true
+  return gameplay_police and gameplay_police.toggleStopActionMenu and gameplay_police.toggleStopActionMenu() or false
 end
 
 function M.cancelStopActionMenu()
-  if not stopActionMenuOpen then
-    return false
-  end
-  setStopActionMenuOpen(false, 'cancel')
-  return true
+  return gameplay_police and gameplay_police.cancelStopActionMenu and gameplay_police.cancelStopActionMenu() or false
 end
 
 function M.navigateStopActionMenu(direction)
-  if not stopActionMenuOpen then
-    return false
-  end
-
-  if not isValidStopActionMenuDirection(direction) then
-    return false
-  end
-
-  stopActionMenuSelection = direction
-  triggerStopActionMenuEvent('navigate')
-  return M.confirmStopActionMenu()
+  return gameplay_police and gameplay_police.navigateStopActionMenu and gameplay_police.navigateStopActionMenu(direction) or false
 end
 
 function M.selectStopActionMenu(direction)
-  return M.navigateStopActionMenu(direction)
+  return gameplay_police and gameplay_police.selectStopActionMenu and gameplay_police.selectStopActionMenu(direction) or false
 end
 
 function M.onStopMenuStickInput(axis, value)
-  if not stopActionMenuOpen then return end
-  if axis == 'x' then
-    stopMenuStickX = tonumber(value) or 0
-  elseif axis == 'y' then
-    stopMenuStickY = tonumber(value) or 0
-  end
-  guihooks.trigger('policeComputerStopMenuStick', { x = stopMenuStickX, y = stopMenuStickY })
+  if gameplay_police and gameplay_police.onStopMenuStickInput then gameplay_police.onStopMenuStickInput(axis, value) end
 end
 
 function M.confirmStopActionMenu()
-  if not stopActionMenuOpen then
-    return false
-  end
-
-  if stopActionMenuResolutionInProgress then
-    return false
-  end
-
-  if not isStopActionMenuEligibleForCurrentTarget() then
-    setStopActionMenuOpen(false, 'confirmInvalid')
-    return false
-  end
-
-  local targetVehId = stopActionMenuTarget
-  local plate = nil
-  local record = nil
-  if targetVehId and vehicleRecords[targetVehId] then
-    record = vehicleRecords[targetVehId]
-    plate = vehicleRecords[targetVehId].plate
-  end
-  local evaluation = evaluateStopActionSelection(targetVehId, record, stopActionMenuSelection)
-  pendingStopAction = {
-    action = stopActionMenuSelection,
-    targetVehId = targetVehId,
-    plate = plate,
-    evaluation = evaluation
-  }
-
-  stopActionMenuResolutionInProgress = true
-  setStopActionMenuOpen(false, 'confirmSelectionPending')
-  ui_message("Action selected. Turn lights off to complete stop.", 5, "Police")
-  return true
+  return gameplay_police and gameplay_police.confirmStopAction and gameplay_police.confirmStopAction() or false
 end
 
 function M.onExtensionLoaded()
