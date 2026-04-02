@@ -293,10 +293,12 @@ local function removeTrackedVehicleRecord(vehId)
 end
 
 -- Delegate to police.lua's shared implementation
+local debugVisibilityTimer = 0
 local function getPlayerPoliceVehicle()
   if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
     return gameplay_police.getPlayerPoliceVehicle()
   end
+  log('W', logTag, 'getPlayerPoliceVehicle: gameplay_police=' .. tostring(gameplay_police ~= nil) .. ' hasFunc=' .. tostring(gameplay_police and gameplay_police.getPlayerPoliceVehicle ~= nil))
   return nil
 end
 
@@ -708,6 +710,13 @@ end
 local function checkPoliceVehicle()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   local isInPolice = playerVeh ~= nil
+
+  -- Periodic debug log so we can confirm this is running and what it sees
+  debugVisibilityTimer = debugVisibilityTimer + 0 -- incremented in onUpdate
+  if debugVisibilityTimer <= 0 then
+    log('I', logTag, 'checkPoliceVehicle: isInPolice=' .. tostring(isInPolice) .. ' playerVehId=' .. tostring(playerVehId) .. ' computerVisible=' .. tostring(computerVisible))
+  end
+
   if isInPolice then
     local invId = getInventoryIdFromVehicleId(playerVehId)
     if invId and invId ~= activeInventoryId then
@@ -721,6 +730,7 @@ local function checkPoliceVehicle()
 
   if isInPolice ~= computerVisible then
     computerVisible = isInPolice
+    log('I', logTag, 'policeComputerVisibility firing: visible=' .. tostring(computerVisible))
     guihooks.trigger('policeComputerVisibility', { visible = computerVisible })
     log('I', logTag, 'Police computer ' .. (computerVisible and 'shown' or 'hidden'))
   end
@@ -730,6 +740,8 @@ end
 
 function M.onUpdate(dtReal, dtSim, dtRaw)
   elapsedRealtime = elapsedRealtime + (dtReal or 0)
+  debugVisibilityTimer = debugVisibilityTimer - dtReal
+  if debugVisibilityTimer <= 0 then debugVisibilityTimer = 5.0 end
   checkPoliceVehicle()
 
   -- Traffic stop lifecycle now runs in police.lua's onUpdate
@@ -891,8 +903,9 @@ function M.confirmStopActionMenu()
 end
 
 function M.onExtensionLoaded()
-  log('I', logTag, 'Police Computer module loaded')
+  log('I', logTag, 'Police Computer module loaded. gameplay_police available=' .. tostring(gameplay_police ~= nil))
   elapsedRealtime = 0
+  debugVisibilityTimer = 0
   local _, playerVehId = getPlayerPoliceVehicle()
   local invId = getInventoryIdFromVehicleId(playerVehId)
   if invId then
