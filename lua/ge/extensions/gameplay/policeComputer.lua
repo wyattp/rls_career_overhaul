@@ -1298,9 +1298,11 @@ local function initiateTrafficStop(vehId)
     trafficStopComplying = true
     trafficStopEnforceTimer = 0
     trafficStopReachedStop = false
-    obj:queueLuaCommand('ai.setMode("stop")')
-    obj:queueLuaCommand('ai.setSpeedMode("set")')
-    obj:queueLuaCommand('ai.setSpeed(0)')
+    -- DEBUG: disabled to test if BeamNG native AI is causing pullover
+    --obj:queueLuaCommand('ai.setMode("stop")')
+    --obj:queueLuaCommand('ai.setSpeedMode("set")')
+    --obj:queueLuaCommand('ai.setSpeed(0)')
+    log('I', logTag, 'DEBUG: initiateTrafficStop ai.stop DISABLED for vehId=' .. vehId)
     guihooks.trigger('policeComputerStopInitiated', { plate = record and record.plate })
     log('I', logTag, 'Traffic stop: vehicle ' .. vehId .. ' complying')
 
@@ -1714,9 +1716,10 @@ updateTrafficStop = function(dtReal)
         trafficStopEnforceTimer = 0
         local targetObj = getObjectByID(trafficStopTarget)
         if targetObj then
-          targetObj:queueLuaCommand('ai.setMode("stop")')
-          targetObj:queueLuaCommand('ai.setSpeedMode("set")')
-          targetObj:queueLuaCommand('ai.setSpeed(0)')
+          -- DEBUG: disabled to test if BeamNG native AI is causing pullover
+          --targetObj:queueLuaCommand('ai.setMode("stop")')
+          --targetObj:queueLuaCommand('ai.setSpeedMode("set")')
+          --targetObj:queueLuaCommand('ai.setSpeed(0)')
           if targetObj:getVelocity():length() <= STOP_SETTLED_SPEED then
             trafficStopReachedStop = true
           end
