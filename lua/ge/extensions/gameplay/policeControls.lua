@@ -55,33 +55,29 @@ function M.togglePoliceLights()
 end
 
 function M.toggleTrafficStopActionMenu()
-  if not ensurePoliceComputerLoaded() then return false end
-  if gameplay_policeComputer and gameplay_policeComputer.toggleStopActionMenu then
-    return gameplay_policeComputer.toggleStopActionMenu()
+  if gameplay_police and gameplay_police.toggleStopActionMenu then
+    return gameplay_police.toggleStopActionMenu()
   end
   return false
 end
 
 function M.cancelTrafficStopActionMenu()
-  if not ensurePoliceComputerLoaded() then return false end
-  if gameplay_policeComputer and gameplay_policeComputer.cancelStopActionMenu then
-    return gameplay_policeComputer.cancelStopActionMenu()
+  if gameplay_police and gameplay_police.cancelStopActionMenu then
+    return gameplay_police.cancelStopActionMenu()
   end
   return false
 end
 
 function M.navigateTrafficStopActionMenu(direction)
-  if not ensurePoliceComputerLoaded() then return false end
-  if gameplay_policeComputer and gameplay_policeComputer.navigateStopActionMenu then
-    return gameplay_policeComputer.navigateStopActionMenu(direction)
+  if gameplay_police and gameplay_police.navigateStopActionMenu then
+    return gameplay_police.navigateStopActionMenu(direction)
   end
   return false
 end
 
 function M.confirmTrafficStopActionMenu()
-  if not ensurePoliceComputerLoaded() then return false end
-  if gameplay_policeComputer and gameplay_policeComputer.confirmStopActionMenu then
-    return gameplay_policeComputer.confirmStopActionMenu()
+  if gameplay_police and gameplay_police.confirmStopAction then
+    return gameplay_police.confirmStopAction()
   end
   return false
 end

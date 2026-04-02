@@ -1099,6 +1099,9 @@ end
 
 resetTrafficStop = function()
   hideTrafficStopPrompt()
+  if stopActionMenuOpen then
+    setStopActionMenuOpen(false, 'trafficStopReset')
+  end
 
   local hadStopState = trafficStopTarget ~= nil or trafficStopTimer > 0 or earlyFleeTimer ~= nil
   trafficStopTarget = nil
@@ -1107,6 +1110,8 @@ resetTrafficStop = function()
   trafficStopComplying = false
   trafficStopReachedStop = false
   trafficStopEnforceTimer = 0
+  stopActionMenuResolutionInProgress = false
+  stopActionMenuAutoOpenedForCurrentStop = false
   pendingStopAction = nil
   earlyFleeTimer = nil
   rabbitTarget = nil
@@ -1318,6 +1323,399 @@ local function getTrafficStopTarget()
   return trafficStopTarget
 end
 
+-- ============================================================================
+-- Stop action menu and resolution
+-- ============================================================================
+
+local stopActionMenuOpen = false
+local stopActionMenuTarget = nil
+local stopActionMenuSelection = 'up'
+local stopActionMenuResolutionInProgress = false
+local stopActionMenuAutoOpenedForCurrentStop = false
+local stopMenuStickX = 0
+local stopMenuStickY = 0
+local stopActionMenuPrevMenuActionMapEnabled = nil
+local stopActionMenuForcedMenuActionMap = false
+
+local STOP_ACTION_MENU_DEFAULT = 'up'
+local STOP_ACTION_MENU_DIRECTIONS = { up = true, down = true, left = true, right = true }
+local STOP_ACTION_ARREST = 'up'
+local STOP_ACTION_GO_FREE_WARNING = 'down'
+local STOP_ACTION_TICKET = 'left'
+local STOP_ACTION_DETAIN = 'right'
+local STOP_ACTION_ALLOWED_WARRANT = { [STOP_ACTION_ARREST] = true }
+local STOP_ACTION_ALLOWED_APB = { [STOP_ACTION_DETAIN] = true }
+local STOP_ACTION_ALLOWED_LICENSE = { [STOP_ACTION_ARREST] = true, [STOP_ACTION_DETAIN] = true }
+local STOP_ACTION_ALLOWED_PAPERWORK = { [STOP_ACTION_TICKET] = true, [STOP_ACTION_DETAIN] = true, [STOP_ACTION_GO_FREE_WARNING] = true }
+local STOP_ACTION_ALLOWED_NONE = { [STOP_ACTION_GO_FREE_WARNING] = true }
+local STOP_MENU_CLOSE_ON_MOVE_SPEED = 0.15
+local TICKET_BASE_REWARD = 4000
+
+local function isStopActionMenuEligibleForCurrentTarget()
+  if not isTrafficStopFullyCommenced() then return false end
+  if not trafficStopTarget then return false end
+  if trafficStopOwnedFlee[trafficStopTarget] then return false end
+  local record = getRecordForVehicle(trafficStopTarget)
+  if record and record.arrested then return false end
+  return true
+end
+
+local function setStopActionMenuUINavEnabled(enabled)
+  enabled = enabled and true or false
+  if not core_input_bindings and extensions and extensions.load then
+    pcall(extensions.load, 'core_input_bindings')
+  end
+  if not core_input_bindings then return end
+
+  if enabled then
+    if not stopActionMenuForcedMenuActionMap then
+      if core_input_bindings.getMenuActionMapEnabled then
+        local ok, current = pcall(core_input_bindings.getMenuActionMapEnabled)
+        if ok then
+          if type(current) == 'table' then current = current[1] end
+          stopActionMenuPrevMenuActionMapEnabled = current and true or false
+        else
+          stopActionMenuPrevMenuActionMapEnabled = nil
+        end
+      end
+      if core_input_bindings.setMenuActionMapEnabled then
+        pcall(core_input_bindings.setMenuActionMapEnabled, true)
+      end
+      stopActionMenuForcedMenuActionMap = true
+    end
+    return
+  end
+
+  if stopActionMenuForcedMenuActionMap
+    and core_input_bindings.setMenuActionMapEnabled
+    and stopActionMenuPrevMenuActionMapEnabled ~= nil
+  then
+    pcall(core_input_bindings.setMenuActionMapEnabled, stopActionMenuPrevMenuActionMapEnabled)
+  end
+  stopActionMenuForcedMenuActionMap = false
+  stopActionMenuPrevMenuActionMapEnabled = nil
+end
+
+local function triggerStopActionMenuEvent(reason)
+  local record = stopActionMenuTarget and getRecordForVehicle(stopActionMenuTarget)
+  local plate = record and record.plate or nil
+  guihooks.trigger('policeStopActionMenu', {
+    open = stopActionMenuOpen,
+    targetVehId = stopActionMenuTarget,
+    plate = plate,
+    reason = reason,
+    selection = stopActionMenuSelection
+  })
+end
+
+local function setStopActionMenuOpen(open, reason)
+  if open then
+    if not isStopActionMenuEligibleForCurrentTarget() then
+      open = false
+    end
+  end
+
+  stopActionMenuOpen = open and true or false
+  stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
+  stopMenuStickX = 0
+  stopMenuStickY = 0
+  if stopActionMenuOpen then
+    stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
+    stopActionMenuAutoOpenedForCurrentStop = true
+  end
+
+  setStopActionMenuUINavEnabled(stopActionMenuOpen)
+  triggerStopActionMenuEvent(reason)
+end
+
+local function buildStopActionList(allowedSet)
+  local orderedActions = { STOP_ACTION_ARREST, STOP_ACTION_DETAIN, STOP_ACTION_GO_FREE_WARNING, STOP_ACTION_TICKET }
+  local list = {}
+  for _, action in ipairs(orderedActions) do
+    if allowedSet[action] then table.insert(list, action) end
+  end
+  return list
+end
+
+local function evaluateStopActionSelection(targetVehId, record, selectedAction)
+  local condition = 'none'
+  local reason = 'No priority violation'
+  local allowedSet = STOP_ACTION_ALLOWED_NONE
+
+  if targetVehId and trafficStopOwnedFlee[targetVehId] then
+    condition = 'fleeing'; reason = 'Target is fleeing from stop'; allowedSet = STOP_ACTION_ALLOWED_WARRANT
+  elseif record and record.wanted then
+    condition = 'warrant'; reason = 'Target has an active warrant'; allowedSet = STOP_ACTION_ALLOWED_WARRANT
+  elseif record and record.apb then
+    condition = 'apb'; reason = 'Target has an active APB'; allowedSet = STOP_ACTION_ALLOWED_APB
+  elseif record and record.suspendedLicense then
+    condition = 'license'; reason = 'Target has a suspended/expired driver license'; allowedSet = STOP_ACTION_ALLOWED_LICENSE
+  elseif record and (record.noInsurance or record.expiredRegistration) then
+    condition = 'paperwork'; reason = 'Target has insurance/registration violations'; allowedSet = STOP_ACTION_ALLOWED_PAPERWORK
+  end
+
+  return { condition = condition, reason = reason, appropriate = allowedSet[selectedAction] == true, allowedActions = buildStopActionList(allowedSet) }
+end
+
+local function getStopActionLabel(action)
+  if action == STOP_ACTION_ARREST then return 'Arrest' end
+  if action == STOP_ACTION_DETAIN then return 'Detain' end
+  if action == STOP_ACTION_GO_FREE_WARNING then return 'Go Free/Warning' end
+  if action == STOP_ACTION_TICKET then return 'Ticket' end
+  return 'Action'
+end
+
+local function clearRecordAfterStopResolution(record)
+  if not record then return end
+  record.ticketed = true
+  record.wanted = false
+  record.stolen = false
+  record.suspendedLicense = false
+  record.noInsurance = false
+  record.expiredRegistration = false
+  record.apb = false
+  record.apbReason = nil
+  record.flagged = false
+  record.alerts = {}
+end
+
+local function awardTicketReward(vehId, action, actionProfitMultiplier, stopCondition)
+  local record = getRecordForVehicle(vehId)
+  if record and record.ticketed then
+    ui_message("Already ticketed this driver", 5, "Police")
+    return 0
+  end
+
+  local rewardMultiplier = 0
+  if record then
+    if record.wanted or record.stolen then rewardMultiplier = 1.0
+    elseif record.apb then rewardMultiplier = 0.75
+    elseif record.suspendedLicense then rewardMultiplier = 0.35
+    elseif record.noInsurance or record.expiredRegistration then rewardMultiplier = 0.25
+    end
+  end
+
+  local reward = math.floor(TICKET_BASE_REWARD * rewardMultiplier + 0.5)
+  local reputationBonus = 1.0
+  local damagePenaltyApplied = false
+
+  if freeroam_organizations and freeroam_organizations.getOrganization then
+    local org = freeroam_organizations.getOrganization("policeLoaner")
+    if org and org.reputation and org.reputationLevels then
+      local levelIndex = (org.reputation.level or 0) + 2
+      local level = org.reputationLevels[levelIndex]
+      if level and level.deliveryBonus and level.deliveryBonus.value then
+        reputationBonus = tonumber(level.deliveryBonus.value) or 1.0
+      end
+    end
+  end
+
+  reward = math.floor(reward * reputationBonus + 0.5)
+
+  local suspectTryingToRun = vehId and trafficStopOwnedFlee[vehId] == true
+  local compliantPullOverStop = not suspectTryingToRun and stopCondition ~= 'fleeing'
+
+  if compliantPullOverStop then
+    local vehicleDamage = 0
+    if map and map.objects and map.objects[vehId] and map.objects[vehId].damage then
+      vehicleDamage = tonumber(map.objects[vehId].damage) or 0
+    end
+    if vehicleDamage > 0 then
+      reward = math.floor(reward * 0.25 + 0.5)
+      damagePenaltyApplied = true
+    end
+  end
+
+  actionProfitMultiplier = tonumber(actionProfitMultiplier) or 1
+  if actionProfitMultiplier < 0 then actionProfitMultiplier = 0 end
+  if actionProfitMultiplier ~= 1 then
+    reward = math.floor(reward * actionProfitMultiplier + 0.5)
+  end
+
+  if reward > 0 then
+    if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
+      career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
+    elseif career_modules_payment and career_modules_payment.reward then
+      career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
+    end
+  end
+
+  local message = "Stop action resolved - no reward - " .. getStopActionLabel(action)
+  if reward > 0 then
+    message = "Stop action resolved - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
+  end
+  if reward > 0 and reputationBonus ~= 1 then
+    message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
+  end
+  if damagePenaltyApplied then
+    message = message .. " (Unnecessary vehicle damage: -75%)"
+  end
+  ui_message(message, 5, "Police")
+  return reward
+end
+
+local function finalizePendingStopAction()
+  if not pendingStopAction then
+    stopActionMenuResolutionInProgress = false
+    return false
+  end
+
+  local pending = pendingStopAction
+  local targetVehId = pending.targetVehId
+  local action = pending.action
+  local evaluation = pending.evaluation or {condition = 'none', reason = 'No priority violation', appropriate = false, allowedActions = {}}
+  local record = getRecordForVehicle(targetVehId)
+
+  local rewardGranted = false
+  local rewardAmount = 0
+  local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
+  rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier, evaluation.condition) or 0
+  rewardGranted = rewardAmount > 0
+  if rewardGranted then
+    clearRecordAfterStopResolution(record)
+  end
+
+  if action == 'up' or action == 'right' then -- Arrest or Detain
+    if record then record.arrested = true end
+    arrestVehicle(targetVehId, true)
+    log('I', logTag, 'finalizePendingStopAction: ' .. (action == 'up' and 'arrested' or 'detained') .. ' vehId=' .. tostring(targetVehId))
+  end
+
+  guihooks.trigger('policeStopActionMenuConfirmed', {
+    action = action, targetVehId = targetVehId, plate = pending.plate,
+    condition = evaluation.condition, reason = evaluation.reason,
+    appropriate = evaluation.appropriate, allowedActions = evaluation.allowedActions,
+    rewardGranted = rewardGranted, rewardAmount = rewardAmount
+  })
+
+  pendingStopAction = nil
+  stopActionMenuResolutionInProgress = false
+
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if playerVehId and career_modules_policeSirenSetup and career_modules_policeSirenSetup.pushSirenConfigToVehicle then
+    career_modules_policeSirenSetup.pushSirenConfigToVehicle(playerVehId)
+  end
+
+  return true
+end
+
+-- Menu public functions
+local function isStopActionMenuOpen()
+  return stopActionMenuOpen
+end
+
+local function toggleStopActionMenu()
+  if stopActionMenuResolutionInProgress then
+    ui_message("Action already selected. Turn lights off to complete stop.", 5, "Police")
+    return false
+  end
+  if stopActionMenuOpen then
+    setStopActionMenuOpen(false, 'toggleClose')
+    return true
+  end
+  if not isStopActionMenuEligibleForCurrentTarget() then
+    return false
+  end
+  setStopActionMenuOpen(true, 'toggleOpen')
+  return true
+end
+
+local function cancelStopActionMenu()
+  if not stopActionMenuOpen then return false end
+  setStopActionMenuOpen(false, 'cancel')
+  return true
+end
+
+local function navigateStopActionMenu(direction)
+  if not stopActionMenuOpen then return false end
+  if not STOP_ACTION_MENU_DIRECTIONS[direction] then return false end
+  stopActionMenuSelection = direction
+  triggerStopActionMenuEvent('navigate')
+  return confirmStopAction()
+end
+
+local function selectStopActionMenu(direction)
+  return navigateStopActionMenu(direction)
+end
+
+local function onStopMenuStickInput(axis, value)
+  if not stopActionMenuOpen then return end
+  if axis == 'x' then
+    stopMenuStickX = tonumber(value) or 0
+  elseif axis == 'y' then
+    stopMenuStickY = tonumber(value) or 0
+  end
+  guihooks.trigger('policeStopMenuStick', { x = stopMenuStickX, y = stopMenuStickY })
+end
+
+local function confirmStopAction()
+  if not stopActionMenuOpen then return false end
+  if stopActionMenuResolutionInProgress then return false end
+  if not isStopActionMenuEligibleForCurrentTarget() then
+    setStopActionMenuOpen(false, 'confirmInvalid')
+    return false
+  end
+
+  local targetVehId = stopActionMenuTarget
+  local record = getRecordForVehicle(targetVehId)
+  local plate = record and record.plate or nil
+  local evaluation = evaluateStopActionSelection(targetVehId, record, stopActionMenuSelection)
+  pendingStopAction = {
+    action = stopActionMenuSelection,
+    targetVehId = targetVehId,
+    plate = plate,
+    evaluation = evaluation
+  }
+
+  stopActionMenuResolutionInProgress = true
+  setStopActionMenuOpen(false, 'confirmSelectionPending')
+  ui_message("Action selected. Turn lights off to complete stop.", 5, "Police")
+  return true
+end
+
+-- Integrate menu auto-open into updateTrafficStop (called from onUpdate)
+-- Override the original updateTrafficStop to add menu logic
+local _origUpdateTrafficStop = updateTrafficStop
+updateTrafficStop = function(dtReal)
+  _origUpdateTrafficStop(dtReal)
+
+  -- Auto-open menu when stop is fully commenced and player is settled
+  if trafficStopInitiated and isStopActionMenuEligibleForCurrentTarget()
+    and not stopActionMenuOpen
+    and not stopActionMenuResolutionInProgress
+    and not stopActionMenuAutoOpenedForCurrentStop
+  then
+    local playerVeh = getPlayerPoliceVehicle()
+    if playerVeh and playerVeh:getVelocity():length() <= STOP_SETTLED_SPEED then
+      setStopActionMenuOpen(true, 'autoOpenStopped')
+      stopActionMenuAutoOpenedForCurrentStop = stopActionMenuOpen
+    end
+  end
+
+  -- Close menu if player moves
+  if stopActionMenuOpen then
+    local playerVeh = getPlayerPoliceVehicle()
+    if playerVeh and playerVeh:getVelocity():length() > STOP_MENU_CLOSE_ON_MOVE_SPEED then
+      stopActionMenuAutoOpenedForCurrentStop = false
+      setStopActionMenuOpen(false, 'playerMoved')
+    end
+    if not isStopActionMenuEligibleForCurrentTarget() then
+      setStopActionMenuOpen(false, 'stopNoLongerEligible')
+    end
+  end
+
+  -- Finalize pending action when lights turn off (handled in resetTrafficStop path)
+  if stopActionMenuResolutionInProgress and pendingStopAction then
+    local playerVeh, playerVehId = getPlayerPoliceVehicle()
+    if playerVeh then
+      local lightbar = getLightbarSignal(playerVeh, playerVehId)
+      if not isLightbarActive(lightbar) then
+        finalizePendingStopAction()
+      end
+    end
+  end
+end
+
 -- public interface
 M.insertProp = insertProp
 M.removeProp = removeProp
@@ -1346,6 +1744,13 @@ M.confirmTrafficStopPrompt = confirmTrafficStopPrompt
 M.isTrafficStopFullyCommenced = isTrafficStopFullyCommenced
 M.getTrafficStopTarget = getTrafficStopTarget
 M.resetTrafficStop = resetTrafficStop
+M.isStopActionMenuOpen = isStopActionMenuOpen
+M.toggleStopActionMenu = toggleStopActionMenu
+M.cancelStopActionMenu = cancelStopActionMenu
+M.navigateStopActionMenu = navigateStopActionMenu
+M.selectStopActionMenu = selectStopActionMenu
+M.confirmStopAction = confirmStopAction
+M.onStopMenuStickInput = onStopMenuStickInput
 
 M.getPursuitData = getPursuitData
 M.getPursuitVars = getPursuitVars
