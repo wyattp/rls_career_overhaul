@@ -141,6 +141,23 @@ local STOP_ENFORCE_INTERVAL = 0.35
 local STOP_SETTLED_SPEED = 1.0
 local STOP_MENU_CLOSE_ON_MOVE_SPEED = 0.15
 local TICKET_BASE_REWARD = 4000
+local lightbarGraceTimer = 0 -- grace period after immediateTrafficStop to let lightbar command propagate
+local LIGHTBAR_GRACE_PERIOD = 0.5
+local SIREN_PULLOVER_RANGE = 40
+
+local function isSirenActive(playerVeh, playerVehId)
+  if playerVehId and map and map.objects and map.objects[playerVehId] and map.objects[playerVehId].states then
+    local state = map.objects[playerVehId].states.rlsSirenActive
+    if state ~= nil then return tonumber(state) > 0 end
+  end
+  if playerVeh and type(playerVeh.getElectrics) == 'function' then
+    local electrics = playerVeh:getElectrics()
+    if electrics and electrics.rlsSirenActive ~= nil then
+      return tonumber(electrics.rlsSirenActive) > 0
+    end
+  end
+  return false
+end
 
 local function isTrafficStopFullyCommenced()
   if not trafficStopTarget then return false end
@@ -599,6 +616,7 @@ local function setEmptyComputerState()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
+  sirenPulledOverVehs = {}
   seenTickCounter = 0
 end
 
@@ -938,6 +956,7 @@ function M.clearScans()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
+  sirenPulledOverVehs = {}
   seenTickCounter = 0
   saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
@@ -1523,6 +1542,72 @@ local function findVehicleAhead(playerVeh, range, coneDot)
   return bestId
 end
 
+local sirenPulledOverVehs = {} -- vehIds that were pulled over by siren
+
+local function sirenReleaseVeh(vehId)
+  local trafficData = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData() or nil
+  local tVeh = trafficData and trafficData[vehId]
+  if tVeh and tVeh.setAiMode then
+    tVeh:setAiMode('traffic')
+  else
+    local obj = getObjectByID(vehId)
+    if obj then
+      obj:queueLuaCommand('ai.setMode("traffic")')
+      obj:queueLuaCommand('ai.setSpeedMode("legal")')
+      obj:queueLuaCommand('ai.driveInLane("on")')
+    end
+  end
+end
+
+-- Radius-based siren pullover: vehicles inside range stop, vehicles that leave resume
+local function updateSirenPullover(playerVeh, playerVehId)
+  if not gameplay_traffic or not gameplay_traffic.getTrafficData then return end
+  local trafficData = gameplay_traffic.getTrafficData()
+  if not trafficData then return end
+
+  local playerPos = playerVeh:getPosition()
+  local inRange = {}
+
+  for vehId, tVeh in pairs(trafficData) do
+    if vehId ~= playerVehId and tVeh.roleName ~= 'police'
+      and vehId ~= trafficStopTarget
+      and not retiredVehicleIds[vehId]
+    then
+      local record = vehicleRecords[vehId]
+      if not (record and record.arrested) then
+        local obj = getObjectByID(vehId)
+        if obj and playerPos:distance(obj:getPosition()) < SIREN_PULLOVER_RANGE then
+          inRange[vehId] = true
+          if not sirenPulledOverVehs[vehId] then
+            obj:queueLuaCommand('ai.setMode("stop")')
+            obj:queueLuaCommand('ai.setSpeedMode("set")')
+            obj:queueLuaCommand('ai.setSpeed(0)')
+            sirenPulledOverVehs[vehId] = true
+          end
+        end
+      end
+    end
+  end
+
+  -- Release vehicles that left the radius
+  for vehId, _ in pairs(sirenPulledOverVehs) do
+    if not inRange[vehId] then
+      sirenReleaseVeh(vehId)
+      sirenPulledOverVehs[vehId] = nil
+    end
+  end
+end
+
+-- Release all vehicles that were pulled over by siren
+local function sirenReleaseAll()
+  for vehId, _ in pairs(sirenPulledOverVehs) do
+    if vehId ~= trafficStopTarget and not retiredVehicleIds[vehId] then
+      sirenReleaseVeh(vehId)
+    end
+  end
+  sirenPulledOverVehs = {}
+end
+
 local function releaseStoppedTarget(vehId)
   if not vehId then return end
 
@@ -1544,6 +1629,7 @@ end
 
 resetTrafficStop = function()
   hideTrafficStopPrompt()
+  sirenReleaseAll()
   setStopActionMenuOpen(false, 'trafficStopReset')
 
   local releaseTargetId = nil
@@ -1590,15 +1676,28 @@ updateTrafficStop = function(dtReal)
     return
   end
 
-  local lightbar = getLightbarSignal(playerVeh, playerVehId)
-  if not isLightbarActive(lightbar) then
-    if stopActionMenuResolutionInProgress and pendingStopAction then
-      finalizePendingStopAction()
-    elseif isTrafficStopFullyCommenced() then
-      ui_message("Traffic stop ended without confirmed action", 5, "Police")
+  -- Grace period: after immediateTrafficStop, the lightbar command is async
+  -- and may not have propagated yet. Skip the lightbar check briefly.
+  if lightbarGraceTimer > 0 then
+    lightbarGraceTimer = lightbarGraceTimer - dtReal
+  else
+    local lightbar = getLightbarSignal(playerVeh, playerVehId)
+    if not isLightbarActive(lightbar) then
+      if stopActionMenuResolutionInProgress and pendingStopAction then
+        finalizePendingStopAction()
+      elseif isTrafficStopFullyCommenced() then
+        ui_message("Traffic stop ended without confirmed action", 5, "Police")
+      end
+      resetTrafficStop()
+      return
     end
-    resetTrafficStop()
-    return
+  end
+
+  -- Siren active: enforce pullover by radius every frame
+  if isSirenActive(playerVeh, playerVehId) then
+    updateSirenPullover(playerVeh, playerVehId)
+  elseif next(sirenPulledOverVehs) then
+    sirenReleaseAll()
   end
 
   if trafficStopInitiated then
@@ -1753,15 +1852,20 @@ function M.immediateTrafficStop()
   trafficStopTarget = target
   trafficStopTimer = STOP_DWELL_TIME
   earlyFleeTimer = nil
+  lightbarGraceTimer = LIGHTBAR_GRACE_PERIOD
 
   if isVehicleFleeing(target) then
     showTrafficStopPrompt(target)
   else
     setStopActionMenuOpen(false, 'immediateStop')
     trafficStopInitiated = true
+    trafficStopComplying = false
     trafficStopReachedStop = false
     stopActionMenuAutoOpenedForCurrentStop = false
+    trafficStopEnforceTimer = 0
     initiateTrafficStop(target)
+    -- initiateTrafficStop sets trafficStopComplying=true if the vehicle complies,
+    -- or calls fleeFromStop if it flees. No further action needed here.
   end
 
   return true
@@ -1926,6 +2030,7 @@ function M.onExtensionUnloaded()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
+  sirenPulledOverVehs = {}
   seenTickCounter = 0
   perVehicleComputerState = {}
   activeInventoryId = nil
