@@ -600,6 +600,11 @@ local function onClientEndMission()
   resetPursuitVars()
 end
 
+-- Forward declarations needed by onUpdate (defined later in the file)
+local getPlayerPoliceVehicle
+local updateTrafficStop
+local updateRabbit
+
 local function onUpdate(dt, dtSim)
   if not M.enabled or not be:getEnabled() then return end
   if gameplay_traffic.getState() ~= 'on' or not next(policeVehs) then
@@ -855,7 +860,7 @@ end
 -- Traffic stop utilities (shared API for policeComputer, traffic module, etc.)
 -- ============================================================================
 
-local function getPlayerPoliceVehicle()
+getPlayerPoliceVehicle = function()
   local playerVeh = be:getPlayerVehicle(0)
   if not playerVeh then return nil end
 
@@ -982,9 +987,7 @@ local STOP_ENFORCE_INTERVAL = 0.35
 local STOP_SETTLED_SPEED = 1.0
 local LIGHTBAR_GRACE_PERIOD = 0.5
 
--- Forward declarations
-local updateTrafficStop
-local updateRabbit
+-- Forward declarations (updateTrafficStop/updateRabbit declared above onUpdate; remaining here)
 local resetTrafficStop
 local notifyTrafficStopEscaped
 
