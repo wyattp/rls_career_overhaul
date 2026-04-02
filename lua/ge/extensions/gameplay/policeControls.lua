@@ -4,16 +4,16 @@ local logTag = "policeControls"
 
 -- Delegate to police.lua's shared implementations
 local function getPlayerPoliceVehicle()
-  if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
-    return gameplay_police.getPlayerPoliceVehicle()
+  if overrides_gameplay_police and overrides_gameplay_police.getPlayerPoliceVehicle then
+    return overrides_gameplay_police.getPlayerPoliceVehicle()
   end
   return nil
 end
 
 local function getLightbarState(playerVeh)
   if not playerVeh then return 0 end
-  if gameplay_police and gameplay_police.getLightbarSignal then
-    return gameplay_police.getLightbarSignal(playerVeh, playerVeh:getID())
+  if overrides_gameplay_police and overrides_gameplay_police.getLightbarSignal then
+    return overrides_gameplay_police.getLightbarSignal(playerVeh, playerVeh:getID())
   end
   return 0
 end
@@ -48,36 +48,36 @@ function M.togglePoliceLights()
     playerVeh:queueLuaCommand("extensions.auto_rlsSirenController.stopAll()")
   else
     -- Lights just turned on — immediately try to initiate a traffic stop on the vehicle ahead
-    if gameplay_police and gameplay_police.immediateTrafficStop then
-      gameplay_police.immediateTrafficStop()
+    if overrides_gameplay_police and overrides_gameplay_police.immediateTrafficStop then
+      overrides_gameplay_police.immediateTrafficStop()
     end
   end
 end
 
 function M.toggleTrafficStopActionMenu()
-  if gameplay_police and gameplay_police.toggleStopActionMenu then
-    return gameplay_police.toggleStopActionMenu()
+  if overrides_gameplay_police and overrides_gameplay_police.toggleStopActionMenu then
+    return overrides_gameplay_police.toggleStopActionMenu()
   end
   return false
 end
 
 function M.cancelTrafficStopActionMenu()
-  if gameplay_police and gameplay_police.cancelStopActionMenu then
-    return gameplay_police.cancelStopActionMenu()
+  if overrides_gameplay_police and overrides_gameplay_police.cancelStopActionMenu then
+    return overrides_gameplay_police.cancelStopActionMenu()
   end
   return false
 end
 
 function M.navigateTrafficStopActionMenu(direction)
-  if gameplay_police and gameplay_police.navigateStopActionMenu then
-    return gameplay_police.navigateStopActionMenu(direction)
+  if overrides_gameplay_police and overrides_gameplay_police.navigateStopActionMenu then
+    return overrides_gameplay_police.navigateStopActionMenu(direction)
   end
   return false
 end
 
 function M.confirmTrafficStopActionMenu()
-  if gameplay_police and gameplay_police.confirmStopAction then
-    return gameplay_police.confirmStopAction()
+  if overrides_gameplay_police and overrides_gameplay_police.confirmStopAction then
+    return overrides_gameplay_police.confirmStopAction()
   end
   return false
 end

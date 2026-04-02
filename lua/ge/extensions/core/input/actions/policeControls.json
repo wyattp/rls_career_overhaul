@@ -11,7 +11,7 @@
         "cat": "gameplay",
         "order": 262,
         "ctx": "tlua",
-        "onDown": "if gameplay_policeComputer and (not gameplay_police or not gameplay_police.isStopActionMenuOpen or not gameplay_police.isStopActionMenuOpen()) then gameplay_policeComputer.cycleANPR(1) end",
+        "onDown": "if gameplay_policeComputer and (not overrides_gameplay_police or not overrides_gameplay_police.isStopActionMenuOpen or not overrides_gameplay_police.isStopActionMenuOpen()) then gameplay_policeComputer.cycleANPR(1) end",
         "title": "Police: ANPR Next Entry",
         "desc": "Cycle to the next entry in the ANPR scanned plates list"
     },
@@ -19,7 +19,7 @@
         "cat": "gameplay",
         "order": 263,
         "ctx": "tlua",
-        "onDown": "if gameplay_policeComputer and (not gameplay_police or not gameplay_police.isStopActionMenuOpen or not gameplay_police.isStopActionMenuOpen()) then gameplay_policeComputer.cycleANPR(-1) end",
+        "onDown": "if gameplay_policeComputer and (not overrides_gameplay_police or not overrides_gameplay_police.isStopActionMenuOpen or not overrides_gameplay_police.isStopActionMenuOpen()) then gameplay_policeComputer.cycleANPR(-1) end",
         "title": "Police: ANPR Previous Entry",
         "desc": "Cycle to the previous entry in the ANPR scanned plates list"
     },
@@ -27,7 +27,7 @@
         "cat": "gameplay",
         "order": 263,
         "ctx": "tlua",
-        "onDown": "if gameplay_police and gameplay_police.confirmTrafficStopPrompt then gameplay_police.confirmTrafficStopPrompt() end",
+        "onDown": "if overrides_gameplay_police and overrides_gameplay_police.confirmTrafficStopPrompt then overrides_gameplay_police.confirmTrafficStopPrompt() end",
         "title": "Police: Confirm Traffic Stop",
         "desc": "Confirm the traffic stop on a fleeing vehicle."
     },
@@ -52,7 +52,7 @@
         "order": 270,
         "ctx": "tlua",
         "isCentered": true,
-        "onChange": "if gameplay_police and gameplay_police.onStopMenuStickInput then gameplay_police.onStopMenuStickInput('x', VALUE) end",
+        "onChange": "if overrides_gameplay_police and overrides_gameplay_police.onStopMenuStickInput then overrides_gameplay_police.onStopMenuStickInput('x', VALUE) end",
         "title": "Police: Stop Menu Stick X",
         "desc": "Analog left/right stick input for the traffic stop action menu."
     },
@@ -61,7 +61,7 @@
         "order": 271,
         "ctx": "tlua",
         "isCentered": true,
-        "onChange": "if gameplay_police and gameplay_police.onStopMenuStickInput then gameplay_police.onStopMenuStickInput('y', VALUE) end",
+        "onChange": "if overrides_gameplay_police and overrides_gameplay_police.onStopMenuStickInput then overrides_gameplay_police.onStopMenuStickInput('y', VALUE) end",
         "title": "Police: Stop Menu Stick Y",
         "desc": "Analog up/down stick input for the traffic stop action menu."
     },

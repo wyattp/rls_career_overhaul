@@ -295,10 +295,10 @@ end
 -- Delegate to police.lua's shared implementation
 local debugVisibilityTimer = 0
 local function getPlayerPoliceVehicle()
-  if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
-    return gameplay_police.getPlayerPoliceVehicle()
+  if overrides_gameplay_police and overrides_gameplay_police.getPlayerPoliceVehicle then
+    return overrides_gameplay_police.getPlayerPoliceVehicle()
   end
-  log('W', logTag, 'getPlayerPoliceVehicle: gameplay_police=' .. tostring(gameplay_police ~= nil) .. ' hasFunc=' .. tostring(gameplay_police and gameplay_police.getPlayerPoliceVehicle ~= nil))
+  log('W', logTag, 'getPlayerPoliceVehicle: gameplay_police=' .. tostring(overrides_gameplay_police ~= nil) .. ' hasFunc=' .. tostring(overrides_gameplay_police and overrides_gameplay_police.getPlayerPoliceVehicle ~= nil))
   return nil
 end
 
@@ -382,15 +382,15 @@ end
 
 -- Delegate to police.lua's shared implementation
 local function getLightbarSignal(vehObj, vehId)
-  if gameplay_police and gameplay_police.getLightbarSignal then
-    return gameplay_police.getLightbarSignal(vehObj, vehId)
+  if overrides_gameplay_police and overrides_gameplay_police.getLightbarSignal then
+    return overrides_gameplay_police.getLightbarSignal(vehObj, vehId)
   end
   return 0
 end
 
 local function isLightbarActive(lightbarSignal)
-  if gameplay_police and gameplay_police.isLightbarActive then
-    return gameplay_police.isLightbarActive(lightbarSignal)
+  if overrides_gameplay_police and overrides_gameplay_police.isLightbarActive then
+    return overrides_gameplay_police.isLightbarActive(lightbarSignal)
   end
   return (tonumber(lightbarSignal) or 0) > 0
 end
@@ -796,7 +796,7 @@ function M.onTrafficVehicleAdded(vehId)
   local record = generateRecord(vehId)
   if record and (record.wanted or record.stolen) then
     if gameplay_police then
-      gameplay_police.setSuspect(vehId)
+      overrides_gameplay_police.setSuspect(vehId)
     end
   end
 end
@@ -853,57 +853,57 @@ end
 -- Called by policeControls when lights are activated behind a vehicle.
 -- Delegate to police.lua
 function M.immediateTrafficStop()
-  if gameplay_police and gameplay_police.immediateTrafficStop then
-    return gameplay_police.immediateTrafficStop()
+  if overrides_gameplay_police and overrides_gameplay_police.immediateTrafficStop then
+    return overrides_gameplay_police.immediateTrafficStop()
   end
   return false
 end
 
 function M.confirmTrafficStopPrompt()
-  if gameplay_police and gameplay_police.confirmTrafficStopPrompt then
-    return gameplay_police.confirmTrafficStopPrompt()
+  if overrides_gameplay_police and overrides_gameplay_police.confirmTrafficStopPrompt then
+    return overrides_gameplay_police.confirmTrafficStopPrompt()
   end
   return false
 end
 
 function M.isTrafficStopFullyCommenced()
-  if gameplay_police and gameplay_police.isTrafficStopFullyCommenced then
-    return gameplay_police.isTrafficStopFullyCommenced()
+  if overrides_gameplay_police and overrides_gameplay_police.isTrafficStopFullyCommenced then
+    return overrides_gameplay_police.isTrafficStopFullyCommenced()
   end
   return false
 end
 
 -- Delegate menu functions to police.lua
 function M.isStopActionMenuOpen()
-  return gameplay_police and gameplay_police.isStopActionMenuOpen and gameplay_police.isStopActionMenuOpen() or false
+  return overrides_gameplay_police and overrides_gameplay_police.isStopActionMenuOpen and overrides_gameplay_police.isStopActionMenuOpen() or false
 end
 
 function M.toggleStopActionMenu()
-  return gameplay_police and gameplay_police.toggleStopActionMenu and gameplay_police.toggleStopActionMenu() or false
+  return overrides_gameplay_police and overrides_gameplay_police.toggleStopActionMenu and overrides_gameplay_police.toggleStopActionMenu() or false
 end
 
 function M.cancelStopActionMenu()
-  return gameplay_police and gameplay_police.cancelStopActionMenu and gameplay_police.cancelStopActionMenu() or false
+  return overrides_gameplay_police and overrides_gameplay_police.cancelStopActionMenu and overrides_gameplay_police.cancelStopActionMenu() or false
 end
 
 function M.navigateStopActionMenu(direction)
-  return gameplay_police and gameplay_police.navigateStopActionMenu and gameplay_police.navigateStopActionMenu(direction) or false
+  return overrides_gameplay_police and overrides_gameplay_police.navigateStopActionMenu and overrides_gameplay_police.navigateStopActionMenu(direction) or false
 end
 
 function M.selectStopActionMenu(direction)
-  return gameplay_police and gameplay_police.selectStopActionMenu and gameplay_police.selectStopActionMenu(direction) or false
+  return overrides_gameplay_police and overrides_gameplay_police.selectStopActionMenu and overrides_gameplay_police.selectStopActionMenu(direction) or false
 end
 
 function M.onStopMenuStickInput(axis, value)
-  if gameplay_police and gameplay_police.onStopMenuStickInput then gameplay_police.onStopMenuStickInput(axis, value) end
+  if overrides_gameplay_police and overrides_gameplay_police.onStopMenuStickInput then overrides_gameplay_police.onStopMenuStickInput(axis, value) end
 end
 
 function M.confirmStopActionMenu()
-  return gameplay_police and gameplay_police.confirmStopAction and gameplay_police.confirmStopAction() or false
+  return overrides_gameplay_police and overrides_gameplay_police.confirmStopAction and overrides_gameplay_police.confirmStopAction() or false
 end
 
 function M.onExtensionLoaded()
-  log('I', logTag, 'Police Computer module loaded. gameplay_police available=' .. tostring(gameplay_police ~= nil))
+  log('I', logTag, 'Police Computer module loaded. gameplay_police available=' .. tostring(overrides_gameplay_police ~= nil))
   elapsedRealtime = 0
   debugVisibilityTimer = 0
   local _, playerVehId = getPlayerPoliceVehicle()
@@ -914,8 +914,8 @@ function M.onExtensionLoaded()
     activeInventoryId = nil
     setEmptyComputerState()
   end
-  if gameplay_police and gameplay_police.setPursuitVars then
-    gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
+  if overrides_gameplay_police and overrides_gameplay_police.setPursuitVars then
+    overrides_gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
 end
 
@@ -935,8 +935,8 @@ function M.onExtensionUnloaded()
   seenTickCounter = 0
   perVehicleComputerState = {}
   activeInventoryId = nil
-  if gameplay_police and gameplay_police.setPursuitVars then
-    gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
+  if overrides_gameplay_police and overrides_gameplay_police.setPursuitVars then
+    overrides_gameplay_police.setPursuitVars({ suspectFrequency = 0.1 })
   end
 end
 
