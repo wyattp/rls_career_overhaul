@@ -710,12 +710,6 @@ local function checkPoliceVehicle()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   local isInPolice = playerVeh ~= nil
 
-  -- Periodic debug log so we can confirm this is running and what it sees
-  debugVisibilityTimer = debugVisibilityTimer + 0 -- incremented in onUpdate
-  if debugVisibilityTimer <= 0 then
-    log('I', logTag, 'checkPoliceVehicle: isInPolice=' .. tostring(isInPolice) .. ' playerVehId=' .. tostring(playerVehId) .. ' computerVisible=' .. tostring(computerVisible))
-  end
-
   if isInPolice then
     local invId = getInventoryIdFromVehicleId(playerVehId)
     if invId and invId ~= activeInventoryId then
