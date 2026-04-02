@@ -605,6 +605,7 @@ local getPlayerPoliceVehicle
 local updateTrafficStop
 local updateRabbit
 
+local debugPoliceTimer = 0
 local function onUpdate(dt, dtSim)
   if not M.enabled or not be:getEnabled() then return end
   if not gameplay_traffic then return end
@@ -840,6 +841,12 @@ local function onUpdate(dt, dtSim)
   end
 
   -- Update traffic stop lifecycle
+  debugPoliceTimer = debugPoliceTimer - dt
+  if debugPoliceTimer <= 0 then
+    debugPoliceTimer = 5.0
+    local pVeh, pVehId = getPlayerPoliceVehicle()
+    log('I', 'police', 'onUpdate: getPlayerPoliceVehicle=' .. tostring(pVehId))
+  end
   if getPlayerPoliceVehicle() then
     updateTrafficStop(dt)
     updateRabbit(dt)
