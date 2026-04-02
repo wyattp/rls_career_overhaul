@@ -607,6 +607,7 @@ local updateRabbit
 
 local function onUpdate(dt, dtSim)
   if not M.enabled or not be:getEnabled() then return end
+  if not gameplay_traffic then return end
   if gameplay_traffic.getState() ~= 'on' or not next(policeVehs) then
     suspectActive = false
     suspectTimer = math.huge
