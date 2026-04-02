@@ -487,7 +487,7 @@ end
 local function getPursuitData(id) -- returns pursuit data from the given vehicle, or the player vehicle by default
   -- exists for backwards compatibility
   id = id or be:getPlayerVehicleID(0)
-  local veh = id and gameplay_traffic.getTrafficData()[id]
+  local veh = id and gameplay_traffic and gameplay_traffic.getTrafficData()[id]
   if veh then
     return veh.pursuit
   end
@@ -498,7 +498,7 @@ local function getPursuitVars()
 end
 
 local function onTrafficAction(id, action, data)
-  if gameplay_traffic.getTrafficData()[id] then
+  if gameplay_traffic and gameplay_traffic.getTrafficData()[id] then
     if action == 'changeRole' then
       if data.name == 'police' then
         if not policeVehs[id] then
