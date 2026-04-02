@@ -4855,62 +4855,51 @@ local function trafficActions()
     end
   end
 
-  -- pull over
-  local minSirenSqDist = math.huge
+  -- pull over detection
+  local minPoliceSqDist = math.huge
   local nearestPoliceId
 
   for plID, v in pairs(mapmgr.getObjects()) do
     if plID ~= objectId and v.states then
-      if v.states.lightbar == 2 or (v.states.lightbar == 1 and v.vel:squaredLength() >= 100) then
+      local lightbar = v.states.lightbar or 0
+
+      if lightbar == 2 then
+        -- Siren active: all directions, 100m radius
         local posFront = obj:getObjectFrontPosition(plID)
-        minSirenSqDist = min(minSirenSqDist, posFront:squaredDistance(ego.pos))
-        nearestPoliceId = plID
+        local sqDist = posFront:squaredDistance(ego.pos)
+        if sqDist <= 10000 and sqDist < minPoliceSqDist then
+          minPoliceSqDist = sqDist
+          nearestPoliceId = plID
+          pullOver = true
+          trafficStates.action.nearestPoliceId = plID
+        end
+
+      elseif lightbar == 1 and v.vel:squaredLength() >= 100 then
+        -- Lights only (no siren), police moving: same-direction traffic only
+        local posFront = obj:getObjectFrontPosition(plID)
+        local sqDist = posFront:squaredDistance(ego.pos)
+        if sqDist <= 10000 then
+          -- Check if this vehicle is traveling roughly the same direction as the police car
+          local sameDirection = v.dirVec and ego.dirVec:dot(v.dirVec) > 0.5
+          if sameDirection and sqDist < minPoliceSqDist then
+            minPoliceSqDist = sqDist
+            nearestPoliceId = plID
+            pullOver = true
+            trafficStates.action.nearestPoliceId = plID
+          end
+        end
       end
     end
   end
-  if minSirenSqDist <= 10000 then
-    pullOver = true
-    trafficStates.action.nearestPoliceId = nearestPoliceId
-  end
 
-  if trafficStates.action.nearestPoliceId then
+  -- Keep vehicle pulled over if stopped near police and in front of them
+  if trafficStates.action.nearestPoliceId and not pullOver then
     local police = mapmgr.objects[trafficStates.action.nearestPoliceId]
-    if police and police.states and police.states.lightbar then
+    if police and police.states and (police.states.lightbar or 0) >= 1 then
       posRelativeToPolice:setSub2(ego.pos, police.pos)
       posRelativeToPolice:normalize()
-      if posRelativeToPolice:dot(police.dirVec) > 0.94 then
-        if ego.speed < 10 and ego.pos:squaredDistance(police.pos) < 400 then
-          pullOver = true -- vehicle stays pulled over in this case, and other traffic may keep driving
-        end
-
-        if ego.dirVec:dot(police.dirVec) > 0.5 then
-          -- Check if there's a vehicle next to this one
-          for otherID, v in pairs(mapmgr.getObjects()) do
-            if otherID ~= objectId and v.pos and otherID ~= trafficStates.action.nearestPoliceId and v.dirVec and v.dirVec:dot(ego.dirVec) < 0 then
-              local distance = ego.pos:squaredDistance(v.pos)
-
-              -- Check if the other vehicle is within a reasonable distance to be considered "next to" us
-              if distance < 225 then -- within 15 meters
-                relativePosOtherVehicle:setSub2(v.pos, ego.pos)
-                local forwardDist = relativePosOtherVehicle:dot(ego.dirVec)
-                local lateralDist = relativePosOtherVehicle:dot(ego.rightVec)
-
-                -- Check if the vehicle is alongside us
-                if abs(forwardDist) < 10 and abs(lateralDist) < 6 then -- vehicle is alongside within 8m forward/back and 6m lateral
-                  -- Only check for vehicles on the other side of the street
-                  -- For right-hand drive: other side is to the left (positive cross product z-component)
-                  -- For left-hand drive: other side is to the right (negative cross product z-component)
-                  local isOnOtherSide = mapmgr.rules.rightHandDrive and lateralDist > 0 or not mapmgr.rules.rightHandDrive and lateralDist < 0
-
-                  if isOnOtherSide then
-                    pullOver = false
-                    break
-                  end
-                end
-              end
-            end
-          end
-        end
+      if posRelativeToPolice:dot(police.dirVec) > 0.94 and ego.speed < 10 and ego.pos:squaredDistance(police.pos) < 400 then
+        pullOver = true
       end
     end
   end

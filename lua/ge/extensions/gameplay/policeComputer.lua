@@ -143,21 +143,6 @@ local STOP_MENU_CLOSE_ON_MOVE_SPEED = 0.15
 local TICKET_BASE_REWARD = 4000
 local lightbarGraceTimer = 0 -- grace period after immediateTrafficStop to let lightbar command propagate
 local LIGHTBAR_GRACE_PERIOD = 0.5
-local SIREN_PULLOVER_RANGE = 40
-
-local function isSirenActive(playerVeh, playerVehId)
-  if playerVehId and map and map.objects and map.objects[playerVehId] and map.objects[playerVehId].states then
-    local state = map.objects[playerVehId].states.rlsSirenActive
-    if state ~= nil then return tonumber(state) > 0 end
-  end
-  if playerVeh and type(playerVeh.getElectrics) == 'function' then
-    local electrics = playerVeh:getElectrics()
-    if electrics and electrics.rlsSirenActive ~= nil then
-      return tonumber(electrics.rlsSirenActive) > 0
-    end
-  end
-  return false
-end
 
 local function isTrafficStopFullyCommenced()
   if not trafficStopTarget then return false end
@@ -616,7 +601,7 @@ local function setEmptyComputerState()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
-  sirenPulledOverVehs = {}
+
   seenTickCounter = 0
 end
 
@@ -956,7 +941,7 @@ function M.clearScans()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
-  sirenPulledOverVehs = {}
+
   seenTickCounter = 0
   saveCurrentVehicleState()
   guihooks.trigger('policeComputerState', {
@@ -1188,16 +1173,6 @@ function M.onPursuitAction(vehId, action, pursuitData)
         record.arrested = true
       end
       retiredVehicleIds[vehId] = true
-      local obj = getObjectByID(vehId)
-      if obj then
-        obj:queueLuaCommand('ai.setMode("stop")')
-        obj:queueLuaCommand('ai.setSpeedMode("set")')
-        obj:queueLuaCommand('ai.setSpeed(0)')
-      end
-      -- Remove from traffic system so it won't be reassigned to drive again
-      if gameplay_traffic and gameplay_traffic.removeVehicle then
-        pcall(gameplay_traffic.removeVehicle, vehId)
-      end
       log('I', logTag, 'Vehicle arrested and retired vehId=' .. vehId)
     end
     if vehId == trafficStopTarget then
@@ -1298,11 +1273,7 @@ local function initiateTrafficStop(vehId)
     trafficStopComplying = true
     trafficStopEnforceTimer = 0
     trafficStopReachedStop = false
-    -- DEBUG: disabled to test if BeamNG native AI is causing pullover
-    --obj:queueLuaCommand('ai.setMode("stop")')
-    --obj:queueLuaCommand('ai.setSpeedMode("set")')
-    --obj:queueLuaCommand('ai.setSpeed(0)')
-    log('I', logTag, 'DEBUG: initiateTrafficStop ai.stop DISABLED for vehId=' .. vehId)
+    -- Vehicle-side AI handles pullover automatically via lightbar detection
     guihooks.trigger('policeComputerStopInitiated', { plate = record and record.plate })
     log('I', logTag, 'Traffic stop: vehicle ' .. vehId .. ' complying')
 
@@ -1374,33 +1345,13 @@ local function finalizePendingStopAction()
   end
 
   -- Apply arrest/detain effects on the target vehicle
-  if action == 'up' then -- Arrest
+  if action == 'up' or action == 'right' then -- Arrest or Detain
     if record then record.arrested = true end
     retiredVehicleIds[targetVehId] = true
-    local obj = targetVehId and getObjectByID(targetVehId)
-    if obj then
-      obj:queueLuaCommand('ai.setMode("stop")')
-      obj:queueLuaCommand('ai.setSpeedMode("set")')
-      obj:queueLuaCommand('ai.setSpeed(0)')
+    if gameplay_police and gameplay_police.arrestVehicle then
+      gameplay_police.arrestVehicle(targetVehId, true)
     end
-    -- Remove from traffic system so it won't be reassigned
-    if gameplay_traffic and gameplay_traffic.removeVehicle then
-      pcall(gameplay_traffic.removeVehicle, targetVehId)
-    end
-    log('I', logTag, 'finalizePendingStopAction: arrested vehId=' .. tostring(targetVehId))
-  elseif action == 'right' then -- Detain
-    if record then record.arrested = true end
-    retiredVehicleIds[targetVehId] = true
-    local obj = targetVehId and getObjectByID(targetVehId)
-    if obj then
-      obj:queueLuaCommand('ai.setMode("stop")')
-      obj:queueLuaCommand('ai.setSpeedMode("set")')
-      obj:queueLuaCommand('ai.setSpeed(0)')
-    end
-    if gameplay_traffic and gameplay_traffic.removeVehicle then
-      pcall(gameplay_traffic.removeVehicle, targetVehId)
-    end
-    log('I', logTag, 'finalizePendingStopAction: detained vehId=' .. tostring(targetVehId))
+    log('I', logTag, 'finalizePendingStopAction: ' .. (action == 'up' and 'arrested' or 'detained') .. ' vehId=' .. tostring(targetVehId))
   end
 
   guihooks.trigger('policeComputerStopActionMenuConfirmed', {
@@ -1544,100 +1495,11 @@ local function findVehicleAhead(playerVeh, range, coneDot)
   return bestId
 end
 
-local sirenPulledOverVehs = {} -- vehIds that were pulled over by siren
 
-local function sirenReleaseVeh(vehId)
-  local trafficData = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData() or nil
-  local tVeh = trafficData and trafficData[vehId]
-  if tVeh and tVeh.setAiMode then
-    tVeh:setAiMode('traffic')
-  else
-    local obj = getObjectByID(vehId)
-    if obj then
-      obj:queueLuaCommand('ai.setMode("traffic")')
-      obj:queueLuaCommand('ai.setSpeedMode("legal")')
-      obj:queueLuaCommand('ai.driveInLane("on")')
-    end
-  end
-end
-
--- Radius-based siren pullover: vehicles inside range stop, vehicles that leave resume
-local function updateSirenPullover(playerVeh, playerVehId)
-  if not gameplay_traffic or not gameplay_traffic.getTrafficData then return end
-  local trafficData = gameplay_traffic.getTrafficData()
-  if not trafficData then return end
-
-  local playerPos = playerVeh:getPosition()
-  local inRange = {}
-
-  for vehId, tVeh in pairs(trafficData) do
-    if vehId ~= playerVehId and tVeh.roleName ~= 'police'
-      and vehId ~= trafficStopTarget
-      and not retiredVehicleIds[vehId]
-    then
-      local record = vehicleRecords[vehId]
-      if not (record and record.arrested) then
-        local obj = getObjectByID(vehId)
-        if obj and playerPos:distance(obj:getPosition()) < SIREN_PULLOVER_RANGE then
-          inRange[vehId] = true
-          if not sirenPulledOverVehs[vehId] then
-            obj:queueLuaCommand('ai.setMode("stop")')
-            obj:queueLuaCommand('ai.setSpeedMode("set")')
-            obj:queueLuaCommand('ai.setSpeed(0)')
-            sirenPulledOverVehs[vehId] = true
-          end
-        end
-      end
-    end
-  end
-
-  -- Release vehicles that left the radius
-  for vehId, _ in pairs(sirenPulledOverVehs) do
-    if not inRange[vehId] then
-      sirenReleaseVeh(vehId)
-      sirenPulledOverVehs[vehId] = nil
-    end
-  end
-end
-
--- Release all vehicles that were pulled over by siren
-local function sirenReleaseAll()
-  for vehId, _ in pairs(sirenPulledOverVehs) do
-    if vehId ~= trafficStopTarget and not retiredVehicleIds[vehId] then
-      sirenReleaseVeh(vehId)
-    end
-  end
-  sirenPulledOverVehs = {}
-end
-
-local function releaseStoppedTarget(vehId)
-  if not vehId then return end
-
-  local trafficData = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData() or nil
-  local tVeh = trafficData and trafficData[vehId] or nil
-  if tVeh and tVeh.setAiMode then
-    -- Restore normal civilian behavior after a completed compliant stop.
-    tVeh:setAiMode('traffic')
-    return
-  end
-
-  local obj = getObjectByID(vehId)
-  if not obj then return end
-  obj:queueLuaCommand('ai.setMode("traffic")')
-  obj:queueLuaCommand('ai.setSpeedMode("legal")')
-  obj:queueLuaCommand('ai.driveInLane("on")')
-  obj:queueLuaCommand('ai.reset()')
-end
 
 resetTrafficStop = function()
   hideTrafficStopPrompt()
-  sirenReleaseAll()
   setStopActionMenuOpen(false, 'trafficStopReset')
-
-  local releaseTargetId = nil
-  if trafficStopInitiated and trafficStopComplying and trafficStopTarget then
-    releaseTargetId = trafficStopTarget
-  end
 
   local hadStopState = trafficStopTarget ~= nil or trafficStopTimer > 0 or earlyFleeTimer ~= nil
   trafficStopTarget = nil
@@ -1656,10 +1518,6 @@ resetTrafficStop = function()
   rabbitDelay = 0
   if hadStopState then
     guihooks.trigger('policeComputerStopProgress', nil)
-  end
-
-  if releaseTargetId then
-    releaseStoppedTarget(releaseTargetId)
   end
 
   -- Re-push siren config in case the stop resolution caused vehicle extension reloads
@@ -1695,13 +1553,6 @@ updateTrafficStop = function(dtReal)
     end
   end
 
-  -- Siren active: enforce pullover by radius every frame
-  if isSirenActive(playerVeh, playerVehId) then
-    updateSirenPullover(playerVeh, playerVehId)
-  elseif next(sirenPulledOverVehs) then
-    sirenReleaseAll()
-  end
-
   if trafficStopInitiated then
     if stopActionMenuOpen and playerVeh:getVelocity():length() > STOP_MENU_CLOSE_ON_MOVE_SPEED then
       stopActionMenuAutoOpenedForCurrentStop = false
@@ -1716,10 +1567,7 @@ updateTrafficStop = function(dtReal)
         trafficStopEnforceTimer = 0
         local targetObj = getObjectByID(trafficStopTarget)
         if targetObj then
-          -- DEBUG: disabled to test if BeamNG native AI is causing pullover
-          --targetObj:queueLuaCommand('ai.setMode("stop")')
-          --targetObj:queueLuaCommand('ai.setSpeedMode("set")')
-          --targetObj:queueLuaCommand('ai.setSpeed(0)')
+          -- Vehicle-side AI handles pullover automatically via lightbar detection
           if targetObj:getVelocity():length() <= STOP_SETTLED_SPEED then
             trafficStopReachedStop = true
           end
@@ -2033,7 +1881,7 @@ function M.onExtensionUnloaded()
   plateSetQueue = {}
   plateSetTimer = 0
   expiryTimer = 0
-  sirenPulledOverVehs = {}
+
   seenTickCounter = 0
   perVehicleComputerState = {}
   activeInventoryId = nil
