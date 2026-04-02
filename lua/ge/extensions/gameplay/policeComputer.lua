@@ -553,34 +553,11 @@ local function removeTrackedVehicleRecord(vehId)
   end
 end
 
+-- Delegate to police.lua's shared implementation
 local function getPlayerPoliceVehicle()
-  local playerVeh = be:getPlayerVehicle(0)
-  if not playerVeh then return nil end
-
-  local playerVehId = playerVeh:getID()
-
-  -- Check inventory role first (same method as playerDriving.getPlayerIsCop)
-  if career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
-    local invId = career_modules_inventory.getInventoryIdFromVehicleId(playerVehId)
-    if invId then
-      local vehicleRole = career_modules_inventory.getVehicleRole and career_modules_inventory.getVehicleRole(invId)
-      if vehicleRole == 'police' then
-        return playerVeh, playerVehId
-      end
-    end
+  if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
+    return gameplay_police.getPlayerPoliceVehicle()
   end
-
-  -- Fallback: check traffic data role
-  if gameplay_traffic and gameplay_traffic.getTrafficData then
-    local trafficData = gameplay_traffic.getTrafficData()
-    if trafficData then
-      local tveh = trafficData[playerVehId]
-      if tveh and tveh.roleName == 'police' then
-        return playerVeh, playerVehId
-      end
-    end
-  end
-
   return nil
 end
 
@@ -662,26 +639,18 @@ local function restoreStateForInventoryId(invId)
   seenTickCounter = saved.seenTickCounter or 0
 end
 
+-- Delegate to police.lua's shared implementation
 local function getLightbarSignal(vehObj, vehId)
-  if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
-    local state = map.objects[vehId].states.lightbar
-    if state ~= nil then
-      return tonumber(state) or 0
-    end
+  if gameplay_police and gameplay_police.getLightbarSignal then
+    return gameplay_police.getLightbarSignal(vehObj, vehId)
   end
-
-  -- Fallback for environments where getElectrics exists.
-  if vehObj and type(vehObj.getElectrics) == 'function' then
-    local electrics = vehObj:getElectrics()
-    if electrics and electrics.lightbar_signal ~= nil then
-      return tonumber(electrics.lightbar_signal) or 0
-    end
-  end
-
   return 0
 end
 
 local function isLightbarActive(lightbarSignal)
+  if gameplay_police and gameplay_police.isLightbarActive then
+    return gameplay_police.isLightbarActive(lightbarSignal)
+  end
   return (tonumber(lightbarSignal) or 0) > 0
 end
 
@@ -1464,35 +1433,12 @@ awardTicketReward = function(vehId, action, actionProfitMultiplier, stopConditio
   return reward
 end
 
+-- Delegate to police.lua's shared implementation
 local function findVehicleAhead(playerVeh, range, coneDot)
-  local playerVehId = playerVeh:getID()
-  local playerPos = playerVeh:getPosition()
-  local playerDir = playerVeh:getDirectionVector()
-
-  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return nil end
-  local trafficData = gameplay_traffic.getTrafficData()
-
-  local bestId = nil
-  local bestDist = math.huge
-
-  for vehId, tVeh in pairs(trafficData) do
-    if vehId ~= playerVehId and tVeh.roleName ~= 'police' then
-      local obj = getObjectByID(vehId)
-      if obj then
-        local vehPos = obj:getPosition()
-        local dirToVeh = (vehPos - playerPos):normalized()
-        local dist = playerPos:distance(vehPos)
-        local dot = playerDir:dot(dirToVeh)
-
-        if dist < range and dot > coneDot and dist < bestDist then
-          bestDist = dist
-          bestId = vehId
-        end
-      end
-    end
+  if gameplay_police and gameplay_police.findVehicleAhead then
+    return gameplay_police.findVehicleAhead(playerVeh, range, coneDot)
   end
-
-  return bestId
+  return nil
 end
 
 

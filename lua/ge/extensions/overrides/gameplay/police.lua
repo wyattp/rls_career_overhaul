@@ -823,6 +823,108 @@ local function onDeserialized(data)
   policePropIds = data.propIds
 end
 
+-- ============================================================================
+-- Traffic stop utilities (shared API for policeComputer, traffic module, etc.)
+-- ============================================================================
+
+local function getPlayerPoliceVehicle()
+  local playerVeh = be:getPlayerVehicle(0)
+  if not playerVeh then return nil end
+
+  local playerVehId = playerVeh:getID()
+
+  -- Check inventory role first
+  if career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
+    local invId = career_modules_inventory.getInventoryIdFromVehicleId(playerVehId)
+    if invId then
+      local vehicleRole = career_modules_inventory.getVehicleRole and career_modules_inventory.getVehicleRole(invId)
+      if vehicleRole == 'police' then
+        return playerVeh, playerVehId
+      end
+    end
+  end
+
+  -- Fallback: check traffic data role
+  if gameplay_traffic and gameplay_traffic.getTrafficData then
+    local trafficData = gameplay_traffic.getTrafficData()
+    if trafficData then
+      local tveh = trafficData[playerVehId]
+      if tveh and tveh.roleName == 'police' then
+        return playerVeh, playerVehId
+      end
+    end
+  end
+
+  return nil
+end
+
+local function getLightbarSignal(vehObj, vehId)
+  if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
+    local state = map.objects[vehId].states.lightbar
+    if state ~= nil then
+      return tonumber(state) or 0
+    end
+  end
+
+  if vehObj and type(vehObj.getElectrics) == 'function' then
+    local electrics = vehObj:getElectrics()
+    if electrics and electrics.lightbar_signal ~= nil then
+      return tonumber(electrics.lightbar_signal) or 0
+    end
+  end
+
+  return 0
+end
+
+local function isLightbarActive(lightbarSignal)
+  return (tonumber(lightbarSignal) or 0) > 0
+end
+
+local function findVehicleAhead(playerVeh, range, coneDot)
+  local playerVehId = playerVeh:getID()
+  local playerPos = playerVeh:getPosition()
+  local playerDir = playerVeh:getDirectionVector()
+
+  if not gameplay_traffic or not gameplay_traffic.getTrafficData() then return nil end
+  local trafficData = gameplay_traffic.getTrafficData()
+
+  local bestId = nil
+  local bestDist = math.huge
+
+  for vehId, tVeh in pairs(trafficData) do
+    if vehId ~= playerVehId and tVeh.roleName ~= 'police' then
+      local obj = getObjectByID(vehId)
+      if obj then
+        local vehPos = obj:getPosition()
+        local dirToVeh = (vehPos - playerPos):normalized()
+        local dist = playerPos:distance(vehPos)
+        local dot = playerDir:dot(dirToVeh)
+
+        if dist < range and dot > coneDot and dist < bestDist then
+          bestDist = dist
+          bestId = vehId
+        end
+      end
+    end
+  end
+
+  return bestId
+end
+
+local function pullOverVehicle(vehId)
+  local obj = getObjectByID(vehId)
+  if obj then
+    obj:queueLuaCommand('ai.setPullOver(true)')
+  end
+end
+
+local function releasePullOver(vehId)
+  local obj = getObjectByID(vehId)
+  if obj then
+    obj:queueLuaCommand('ai.setPullOver(false)')
+  end
+end
+
 -- public interface
 M.insertProp = insertProp
 M.removeProp = removeProp
@@ -838,6 +940,13 @@ M.arrestVehicle = arrestVehicle
 M.evadeVehicle = evadeVehicle
 M.releaseVehicle = releaseVehicle
 M.setupPursuitGameplay = setupPursuitGameplay
+
+M.getPlayerPoliceVehicle = getPlayerPoliceVehicle
+M.getLightbarSignal = getLightbarSignal
+M.isLightbarActive = isLightbarActive
+M.findVehicleAhead = findVehicleAhead
+M.pullOverVehicle = pullOverVehicle
+M.releasePullOver = releasePullOver
 
 M.getPursuitData = getPursuitData
 M.getPursuitVars = getPursuitVars

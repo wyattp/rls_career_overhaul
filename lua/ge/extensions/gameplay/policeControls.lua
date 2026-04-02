@@ -2,55 +2,19 @@ local M = {}
 
 local logTag = "policeControls"
 
+-- Delegate to police.lua's shared implementations
 local function getPlayerPoliceVehicle()
-  local playerVeh = be:getPlayerVehicle(0)
-  if not playerVeh then return nil end
-
-  local playerVehId = playerVeh:getID()
-
-  -- Check inventory role first (same as policeComputer)
-  if career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
-    local invId = career_modules_inventory.getInventoryIdFromVehicleId(playerVehId)
-    if invId then
-      local vehicleRole = career_modules_inventory.getVehicleRole and career_modules_inventory.getVehicleRole(invId)
-      if vehicleRole == "police" then
-        return playerVeh, playerVehId
-      end
-    end
+  if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
+    return gameplay_police.getPlayerPoliceVehicle()
   end
-
-  -- Fallback: check traffic data role
-  if gameplay_traffic and gameplay_traffic.getTrafficData then
-    local trafficData = gameplay_traffic.getTrafficData()
-    if trafficData then
-      local tveh = trafficData[playerVehId]
-      if tveh and tveh.roleName == "police" then
-        return playerVeh, playerVehId
-      end
-    end
-  end
-
   return nil
 end
 
 local function getLightbarState(playerVeh)
   if not playerVeh then return 0 end
-
-  local vehId = playerVeh:getID()
-  if vehId and map and map.objects and map.objects[vehId] and map.objects[vehId].states then
-    local state = map.objects[vehId].states.lightbar
-    if state ~= nil then
-      return tonumber(state) or 0
-    end
+  if gameplay_police and gameplay_police.getLightbarSignal then
+    return gameplay_police.getLightbarSignal(playerVeh, playerVeh:getID())
   end
-
-  if type(playerVeh.getElectrics) == "function" then
-    local electrics = playerVeh:getElectrics()
-    if electrics and electrics.lightbar_signal ~= nil then
-      return tonumber(electrics.lightbar_signal) or 0
-    end
-  end
-
   return 0
 end
 
