@@ -298,7 +298,6 @@ local function getPlayerPoliceVehicle()
   if gameplay_police and gameplay_police.getPlayerPoliceVehicle then
     return gameplay_police.getPlayerPoliceVehicle()
   end
-  log('W', logTag, 'getPlayerPoliceVehicle: gameplay_police=' .. tostring(gameplay_police ~= nil) .. ' hasFunc=' .. tostring(gameplay_police and gameplay_police.getPlayerPoliceVehicle ~= nil))
   return nil
 end
 
