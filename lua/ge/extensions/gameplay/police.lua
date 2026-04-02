@@ -1774,4 +1774,6 @@ M.onUpdate = onUpdate
 M.onSerialize = onSerialize
 M.onDeserialized = onDeserialized
 
+M.RLS_MOD_VERSION = true  -- marker: confirms our mod's police.lua is loaded (not the base game version)
+
 return M
