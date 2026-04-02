@@ -380,6 +380,7 @@ local function expireRecordIfStale(vehId)
     end
     vehicleRecords[vehId] = nil
     vehicleLastSeenTick[vehId] = nil
+    vehiclePlateApplied[vehId] = nil
     for i = #scannedVehIds, 1, -1 do
       if scannedVehIds[i] == vehId then
         table.remove(scannedVehIds, i)
@@ -541,6 +542,7 @@ local function removeTrackedVehicleRecord(vehId)
   end
   vehicleRecords[vehId] = nil
   vehicleLastSeenTick[vehId] = nil
+  vehiclePlateApplied[vehId] = nil
 
   for i = #scannedVehIds, 1, -1 do
     if scannedVehIds[i] == vehId then
