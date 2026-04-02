@@ -523,6 +523,7 @@ local function generateRecord(vehId)
   -- Queue plate text update (applied async to avoid lag spikes)
   if not vehiclePlateApplied[vehId] then
     table.insert(plateSetQueue, { vehId = vehId, plate = plate })
+    log('I', logTag, 'Queued setPlateText: vehId=' .. vehId .. ' plate=' .. plate .. ' queueSize=' .. #plateSetQueue)
   end
 
   return record
@@ -1025,10 +1026,14 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
   if plateSetTimer >= PLATE_SET_INTERVAL and #plateSetQueue > 0 then
     plateSetTimer = 0
     local entry = table.remove(plateSetQueue, 1)
-    if entry and not vehiclePlateApplied[entry.vehId] and getObjectByID(entry.vehId) then
-      if core_vehicles and core_vehicles.setPlateText then
+    if entry and not vehiclePlateApplied[entry.vehId] then
+      local obj = getObjectByID(entry.vehId)
+      if obj and core_vehicles and core_vehicles.setPlateText then
+        log('I', logTag, 'setPlateText: vehId=' .. entry.vehId .. ' plate=' .. entry.plate)
         core_vehicles.setPlateText(entry.plate, entry.vehId)
         vehiclePlateApplied[entry.vehId] = true
+      else
+        log('W', logTag, 'setPlateText SKIPPED: vehId=' .. entry.vehId .. ' obj=' .. tostring(obj) .. ' core_vehicles=' .. tostring(core_vehicles ~= nil))
       end
     end
   end
