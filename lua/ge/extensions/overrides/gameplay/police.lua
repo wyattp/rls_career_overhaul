@@ -1777,4 +1777,8 @@ M.onDeserialized = onDeserialized
 
 M.RLS_MOD_VERSION = true  -- marker: confirms our mod's police.lua is loaded (not the base game version)
 
+M.onExtensionLoaded = function()
+  log('I', 'police', 'RLS police.lua loaded (override active)')
+end
+
 return M
