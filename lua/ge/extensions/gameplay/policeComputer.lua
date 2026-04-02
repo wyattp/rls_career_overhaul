@@ -993,8 +993,7 @@ function M.onUpdate(dtReal, dtSim, dtRaw)
   elapsedRealtime = elapsedRealtime + (dtReal or 0)
   checkPoliceVehicle()
 
-  updateTrafficStop(dtReal)
-  updateRabbit(dtReal)
+  -- Traffic stop lifecycle now runs in police.lua's onUpdate
 
   -- Drain plate set queue: one plate per 0.5s
   plateSetTimer = plateSetTimer + dtReal
@@ -1112,91 +1111,14 @@ function M.onVehicleSwitched(oldId, newId)
   checkPoliceVehicle()
 end
 
--- Context A: Organic pursuit behavior based on criminal record
+-- Record bookkeeping on pursuit actions (stop lifecycle handled by police.lua)
 function M.onPursuitAction(vehId, action, pursuitData)
-  if action == 'evade' then
-    if trafficStopOwnedFlee[vehId] then
-      notifyTrafficStopEscaped(vehId)
-      trafficStopOwnedFlee[vehId] = nil
-    elseif vehicleRecords[vehId] then
-      notifyTrafficStopEscaped(vehId)
+  if action == 'arrest' then
+    local record = vehicleRecords[vehId]
+    if record then
+      record.arrested = true
     end
-    if vehId == trafficStopTarget then
-      setStopActionMenuOpen(false, 'pursuitEvade')
-      resetTrafficStop()
-    end
-    return
-  end
-
-  if action == 'arrest' or action == 'release' or action == 'reset' then
-    if trafficStopOwnedFlee[vehId] then
-      trafficStopOwnedFlee[vehId] = nil
-    end
-    if action == 'arrest' then
-      local record = vehicleRecords[vehId]
-      if record and record.arrested then
-        log('I', logTag, 'Arrest already processed for vehId=' .. vehId .. ', ignoring duplicate')
-        return
-      end
-      if record then
-        record.arrested = true
-      end
-      retiredVehicleIds[vehId] = true
-      log('I', logTag, 'Vehicle arrested and retired vehId=' .. vehId)
-    end
-    if vehId == trafficStopTarget then
-      setStopActionMenuOpen(false, 'pursuitResolved')
-      resetTrafficStop()
-    end
-    return
-  end
-
-  if action ~= 'start' then return end
-  if vehId == trafficStopTarget then
-    setStopActionMenuOpen(false, 'pursuitStart')
-    resetTrafficStop()
-    return
-  end
-  if trafficStopOwnedFlee[vehId] then
-    return
-  end
-  local record = vehicleRecords[vehId]
-  if not record then return end
-
-  if record.wanted then
-    if math.random() < 0.95 then
-      gameplay_police.setPursuitMode(2, vehId)
-      getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
-    else
-      gameplay_police.setPursuitMode(0, vehId)
-      log('I', logTag, 'Alert: vehicle complying plate=' .. tostring(record.plate))
-    end
-  elseif record.stolen then
-    if math.random() < 0.95 then
-      gameplay_police.setPursuitMode(2, vehId)
-      getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
-    else
-      gameplay_police.setPursuitMode(0, vehId)
-      log('I', logTag, 'Alert: vehicle complying plate=' .. tostring(record.plate))
-    end
-  elseif record.apb then
-    local r = math.random()
-    if r < 0.10 then
-      gameplay_police.setPursuitMode(2, vehId)
-      getObjectByID(vehId):queueLuaCommand('ai.setAggression(1.0)')
-      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
-    elseif r < 0.40 then
-      gameplay_police.setPursuitMode(1, vehId)
-      log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
-    end
-  elseif record.suspendedLicense and math.random() < 0.25 then
-    gameplay_police.setPursuitMode(1, vehId)
-    log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
-  elseif record.noInsurance and math.random() < 0.10 then
-    gameplay_police.setPursuitMode(1, vehId)
-    log('I', logTag, 'Alert: vehicle fleeing plate=' .. tostring(record.plate))
+    retiredVehicleIds[vehId] = true
   end
 end
 
@@ -1634,59 +1556,26 @@ updateRabbit = function(dtReal)
 end
 
 -- Called by policeControls when lights are activated behind a vehicle.
--- Immediately initiates a traffic stop on the closest vehicle ahead.
+-- Delegate to police.lua
 function M.immediateTrafficStop()
-  local playerVeh, playerVehId = getPlayerPoliceVehicle()
-  if not playerVeh then return false end
-
-  -- Use a wider range/cone than the dwell-based stop for the immediate trigger
-  local target = findVehicleAhead(playerVeh, 30, 0.85)
-  if not target then return false end
-
-  -- Generate record if not already known
-  generateRecord(target)
-
-  trafficStopTarget = target
-  trafficStopTimer = STOP_DWELL_TIME
-  earlyFleeTimer = nil
-  lightbarGraceTimer = LIGHTBAR_GRACE_PERIOD
-
-  if isVehicleFleeing(target) then
-    showTrafficStopPrompt(target)
-  else
-    setStopActionMenuOpen(false, 'immediateStop')
-    trafficStopInitiated = true
-    trafficStopComplying = false
-    trafficStopReachedStop = false
-    stopActionMenuAutoOpenedForCurrentStop = false
-    trafficStopEnforceTimer = 0
-    initiateTrafficStop(target)
-    -- initiateTrafficStop sets trafficStopComplying=true if the vehicle complies,
-    -- or calls fleeFromStop if it flees. No further action needed here.
+  if gameplay_police and gameplay_police.immediateTrafficStop then
+    return gameplay_police.immediateTrafficStop()
   end
-
-  return true
+  return false
 end
 
 function M.confirmTrafficStopPrompt()
-  if not trafficStopPromptShowing or not trafficStopPromptTarget then return false end
-  local target = trafficStopPromptTarget
-  hideTrafficStopPrompt()
-
-  setStopActionMenuOpen(false, 'promptConfirmed')
-  trafficStopTarget = target
-  trafficStopInitiated = true
-  trafficStopReachedStop = false
-  stopActionMenuAutoOpenedForCurrentStop = false
-  earlyFleeTimer = nil
-  trafficStopTimer = 0
-  initiateTrafficStop(target)
-
-  return true
+  if gameplay_police and gameplay_police.confirmTrafficStopPrompt then
+    return gameplay_police.confirmTrafficStopPrompt()
+  end
+  return false
 end
 
 function M.isTrafficStopFullyCommenced()
-  return isTrafficStopFullyCommenced()
+  if gameplay_police and gameplay_police.isTrafficStopFullyCommenced then
+    return gameplay_police.isTrafficStopFullyCommenced()
+  end
+  return false
 end
 
 function M.isStopActionMenuOpen()
@@ -1859,6 +1748,17 @@ function M.onExtensionUnloaded()
   end
 end
 
+-- Record lookup API (used by police.lua and future modules)
+function M.getVehicleRecord(vehId)
+  return vehicleRecords[vehId]
+end
 
+function M.hasRecord(vehId)
+  return vehicleRecords[vehId] ~= nil
+end
+
+function M.generateVehicleRecord(vehId)
+  return generateRecord(vehId)
+end
 
 return M

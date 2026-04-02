@@ -48,8 +48,8 @@ function M.togglePoliceLights()
     playerVeh:queueLuaCommand("extensions.auto_rlsSirenController.stopAll()")
   else
     -- Lights just turned on — immediately try to initiate a traffic stop on the vehicle ahead
-    if gameplay_policeComputer and gameplay_policeComputer.immediateTrafficStop then
-      gameplay_policeComputer.immediateTrafficStop()
+    if gameplay_police and gameplay_police.immediateTrafficStop then
+      gameplay_police.immediateTrafficStop()
     end
   end
 end

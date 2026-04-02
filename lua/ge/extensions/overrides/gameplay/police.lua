@@ -353,6 +353,14 @@ local function arrestVehicle(id, showMessages) -- instantly sets a vehicle as ar
   suspectActive = false
   suspectTimerDelay = 60
 
+  -- Clean up traffic stop state if this vehicle was the stop target
+  if id == trafficStopTarget then
+    resetTrafficStop()
+  end
+  if trafficStopOwnedFlee[id] then
+    trafficStopOwnedFlee[id] = nil
+  end
+
   extensions.hook('onPursuitAction', id, 'arrest', veh.pursuit)
 
   local tempIds = {}
@@ -378,7 +386,16 @@ local function evadeVehicle(id, showMessages) -- instantly sets a vehicle as eva
 
   suspectActive = false
   if veh.isAi then
-    suspectTimerDelay = suspectTimerDelay + 60 -- extends the timed delay for the next suspect; perhaps this should be reconsidered
+    suspectTimerDelay = suspectTimerDelay + 60
+  end
+
+  -- Clean up traffic stop state if this vehicle was the stop target
+  if id == trafficStopTarget then
+    notifyTrafficStopEscaped(id)
+    resetTrafficStop()
+  end
+  if trafficStopOwnedFlee[id] then
+    trafficStopOwnedFlee[id] = nil
   end
 
   extensions.hook('onPursuitAction', id, 'evade', veh.pursuit)
@@ -520,6 +537,11 @@ local function onTrafficStopped()
 end
 
 local function onVehicleSwitched(oldId, newId)
+  -- Reset traffic stop on vehicle switch
+  if trafficStopTarget then
+    resetTrafficStop()
+  end
+
   if gameplay_traffic.getState() ~= 'on' then return end
 
   local obj = getObjectByID(newId)
@@ -810,6 +832,12 @@ local function onUpdate(dt, dtSim)
     suspectActive = false
     suspectTimer = math.huge
   end
+
+  -- Update traffic stop lifecycle
+  if getPlayerPoliceVehicle() then
+    updateTrafficStop(dt)
+    updateRabbit(dt)
+  end
 end
 
 local function onSerialize()
@@ -925,6 +953,371 @@ local function releasePullOver(vehId)
   end
 end
 
+-- ============================================================================
+-- Traffic stop lifecycle
+-- ============================================================================
+
+local trafficStopTarget = nil
+local trafficStopTimer = 0
+local trafficStopInitiated = false
+local trafficStopComplying = false
+local trafficStopEnforceTimer = 0
+local trafficStopReachedStop = false
+local trafficStopOwnedFlee = {}
+local earlyFleeTimer = nil
+local rabbitTarget = nil
+local rabbitTimer = 0
+local rabbitDelay = 0
+local rabbitRolled = false
+local trafficStopPromptShowing = false
+local trafficStopPromptTarget = nil
+local pendingStopAction = nil
+local lightbarGraceTimer = 0
+
+local STOP_DWELL_TIME = 3.0
+local STOP_RANGE = 15
+local STOP_CONE_DOT = 0.92
+local STOP_MAX_SPEED = 5
+local STOP_ENFORCE_INTERVAL = 0.35
+local STOP_SETTLED_SPEED = 1.0
+local LIGHTBAR_GRACE_PERIOD = 0.5
+
+-- Forward declarations
+local updateTrafficStop
+local updateRabbit
+local resetTrafficStop
+local notifyTrafficStopEscaped
+
+local function isTrafficStopFullyCommenced()
+  if not trafficStopTarget then return false end
+  if not trafficStopInitiated or not trafficStopComplying or not trafficStopReachedStop then
+    return false
+  end
+  return getObjectByID(trafficStopTarget) ~= nil
+end
+
+local function isVehicleFleeing(vehId)
+  if trafficStopOwnedFlee[vehId] then return true end
+  local obj = getObjectByID(vehId)
+  if not obj then return false end
+  local mapObj = map and map.objects and map.objects[vehId]
+  if mapObj and mapObj.states and mapObj.states.aiMode then
+    local mode = tostring(mapObj.states.aiMode):lower()
+    if mode == 'flee' or mode == 'chase' then return true end
+  end
+  return false
+end
+
+local function showTrafficStopPrompt(vehId)
+  local record = gameplay_policeComputer and gameplay_policeComputer.getVehicleRecord and gameplay_policeComputer.getVehicleRecord(vehId) or nil
+  local plate = record and record.plate or '???'
+  trafficStopPromptShowing = true
+  trafficStopPromptTarget = vehId
+  guihooks.trigger('policeStopPrompt', { show = true, plate = plate, vehId = vehId })
+end
+
+local function hideTrafficStopPrompt()
+  if not trafficStopPromptShowing then return end
+  trafficStopPromptShowing = false
+  trafficStopPromptTarget = nil
+  guihooks.trigger('policeStopPrompt', { show = false })
+end
+
+local function getRecordForVehicle(vehId)
+  if gameplay_policeComputer and gameplay_policeComputer.getVehicleRecord then
+    return gameplay_policeComputer.getVehicleRecord(vehId)
+  end
+  return nil
+end
+
+local function fleeFromStop(vehId, mode)
+  mode = mode or 2
+  trafficStopComplying = false
+  trafficStopOwnedFlee[vehId] = true
+  setPursuitMode(mode, vehId)
+  local obj = getObjectByID(vehId)
+  if obj then
+    obj:queueLuaCommand('ai.setMode("flee")')
+    if mode == 2 then
+      obj:queueLuaCommand('ai.setAggression(1.0)')
+    end
+  end
+  local record = getRecordForVehicle(vehId)
+  log('I', logTag, 'Traffic stop: vehicle fleeing plate=' .. tostring(record and record.plate) .. ' mode=' .. tostring(mode))
+end
+
+local function initiateTrafficStop(vehId)
+  local record = getRecordForVehicle(vehId)
+  local obj = getObjectByID(vehId)
+  if not obj then return end
+
+  local flee = false
+  local fleeMode = 1
+  if record then
+    local r = math.random()
+    if record.wanted and r < 0.95 then flee = true; fleeMode = 2
+    elseif record.stolen and r < 0.95 then flee = true; fleeMode = 2
+    elseif record.apb and r < 0.10 then flee = true; fleeMode = 2
+    elseif record.apb and r < 0.40 then flee = true; fleeMode = 1
+    elseif record.suspendedLicense and r < 0.25 then flee = true; fleeMode = 1
+    elseif record.noInsurance and r < 0.10 then flee = true; fleeMode = 1
+    end
+  end
+
+  if flee then
+    fleeFromStop(vehId, fleeMode)
+  else
+    trafficStopComplying = true
+    trafficStopEnforceTimer = 0
+    trafficStopReachedStop = false
+    pullOverVehicle(vehId)
+    guihooks.trigger('policeStopInitiated', { plate = record and record.plate })
+    log('I', logTag, 'Traffic stop: vehicle ' .. vehId .. ' complying')
+
+    if record then
+      local rabbitChance = 0
+      if record.apb then rabbitChance = 0.30
+      elseif record.suspendedLicense then rabbitChance = 0.20
+      elseif record.noInsurance then rabbitChance = 0.15
+      end
+      if rabbitChance > 0 and math.random() < rabbitChance then
+        rabbitTarget = vehId
+        rabbitDelay = math.random() * 2 + 1
+        rabbitRolled = true
+        rabbitTimer = 0
+      end
+    end
+  end
+end
+
+notifyTrafficStopEscaped = function(vehId)
+  local record = getRecordForVehicle(vehId)
+  local plate = record and record.plate or nil
+  guihooks.trigger('policeStopEscaped', { plate = plate })
+  ui_message('Suspect has escaped' .. (plate and (' - ' .. plate) or ''), 5, 'Police')
+end
+
+resetTrafficStop = function()
+  hideTrafficStopPrompt()
+
+  local hadStopState = trafficStopTarget ~= nil or trafficStopTimer > 0 or earlyFleeTimer ~= nil
+  trafficStopTarget = nil
+  trafficStopTimer = 0
+  trafficStopInitiated = false
+  trafficStopComplying = false
+  trafficStopReachedStop = false
+  trafficStopEnforceTimer = 0
+  pendingStopAction = nil
+  earlyFleeTimer = nil
+  rabbitTarget = nil
+  rabbitRolled = false
+  rabbitTimer = 0
+  rabbitDelay = 0
+  if hadStopState then
+    guihooks.trigger('policeStopProgress', nil)
+  end
+
+  -- Re-push siren config in case the stop resolution caused vehicle extension reloads
+  if hadStopState then
+    local playerVeh, playerVehId = getPlayerPoliceVehicle()
+    if playerVehId and career_modules_policeSirenSetup and career_modules_policeSirenSetup.pushSirenConfigToVehicle then
+      career_modules_policeSirenSetup.pushSirenConfigToVehicle(playerVehId)
+    end
+  end
+end
+
+updateTrafficStop = function(dtReal)
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if not playerVeh then
+    resetTrafficStop()
+    return
+  end
+
+  -- Grace period: after immediateTrafficStop, the lightbar command is async
+  if lightbarGraceTimer > 0 then
+    lightbarGraceTimer = lightbarGraceTimer - dtReal
+  else
+    local lightbar = getLightbarSignal(playerVeh, playerVehId)
+    if not isLightbarActive(lightbar) then
+      resetTrafficStop()
+      return
+    end
+  end
+
+  if trafficStopInitiated then
+    if trafficStopComplying then
+      trafficStopEnforceTimer = trafficStopEnforceTimer + dtReal
+      if trafficStopEnforceTimer >= STOP_ENFORCE_INTERVAL then
+        trafficStopEnforceTimer = 0
+        local targetObj = getObjectByID(trafficStopTarget)
+        if targetObj then
+          if targetObj:getVelocity():length() <= STOP_SETTLED_SPEED then
+            trafficStopReachedStop = true
+          end
+        else
+          notifyTrafficStopEscaped(trafficStopTarget)
+          resetTrafficStop()
+          return
+        end
+      end
+    else
+      -- A stop-triggered flee hands off to pursuit
+      resetTrafficStop()
+      return
+    end
+
+    guihooks.trigger('policeStopProgress', nil)
+    return
+  end
+
+  if playerVeh:getVelocity():length() > STOP_MAX_SPEED then
+    resetTrafficStop()
+    return
+  end
+
+  local target = findVehicleAhead(playerVeh, STOP_RANGE, STOP_CONE_DOT)
+  if not target then
+    resetTrafficStop()
+    return
+  end
+
+  -- Generate record for the target if policeComputer is available
+  if gameplay_policeComputer and gameplay_policeComputer.generateVehicleRecord then
+    gameplay_policeComputer.generateVehicleRecord(target)
+  end
+
+  if trafficStopTarget ~= target then
+    hideTrafficStopPrompt()
+    trafficStopTarget = target
+    trafficStopTimer = 0
+    trafficStopInitiated = false
+    trafficStopComplying = false
+    trafficStopReachedStop = false
+    trafficStopEnforceTimer = 0
+    earlyFleeTimer = nil
+
+    local record = getRecordForVehicle(target)
+    if record then
+      local r = math.random()
+      if record.wanted and r < 0.70 then
+        earlyFleeTimer = math.random() * 1.0 + 0.5
+      elseif record.stolen and r < 0.60 then
+        earlyFleeTimer = math.random() * 1.0 + 0.5
+      end
+    end
+  end
+
+  if earlyFleeTimer then
+    earlyFleeTimer = earlyFleeTimer - dtReal
+    if earlyFleeTimer <= 0 then
+      earlyFleeTimer = nil
+      trafficStopInitiated = true
+      fleeFromStop(trafficStopTarget, 2)
+      guihooks.trigger('policeStopProgress', nil)
+      return
+    end
+  end
+
+  trafficStopTimer = trafficStopTimer + dtReal
+  local record = getRecordForVehicle(target)
+  guihooks.trigger('policeStopProgress', {
+    timer = trafficStopTimer,
+    total = STOP_DWELL_TIME,
+    plate = record and record.plate or nil
+  })
+
+  if trafficStopTimer >= STOP_DWELL_TIME and not trafficStopInitiated and not trafficStopPromptShowing then
+    if isVehicleFleeing(target) then
+      guihooks.trigger('policeStopProgress', nil)
+      showTrafficStopPrompt(target)
+    else
+      trafficStopInitiated = true
+      initiateTrafficStop(target)
+      guihooks.trigger('policeStopProgress', nil)
+    end
+  end
+end
+
+updateRabbit = function(dtReal)
+  if not rabbitTarget or not rabbitRolled then return end
+
+  local playerVeh = getPlayerPoliceVehicle()
+  local targetObj = getObjectByID(rabbitTarget)
+  if not playerVeh or not targetObj then
+    rabbitTarget = nil
+    rabbitRolled = false
+    rabbitTimer = 0
+    return
+  end
+
+  local playerStopped = playerVeh:getVelocity():length() < 1
+  local targetStopped = targetObj:getVelocity():length() < 1
+  if playerStopped and targetStopped then
+    rabbitTimer = rabbitTimer + dtReal
+    if rabbitTimer >= rabbitDelay then
+      fleeFromStop(rabbitTarget, 2)
+      local record = getRecordForVehicle(rabbitTarget)
+      guihooks.trigger('policeStopRabbit', { plate = record and record.plate })
+      rabbitTarget = nil
+      rabbitRolled = false
+      rabbitTimer = 0
+    end
+  else
+    rabbitTimer = 0
+  end
+end
+
+local function doImmediateTrafficStop()
+  local playerVeh, playerVehId = getPlayerPoliceVehicle()
+  if not playerVeh then return false end
+
+  local target = findVehicleAhead(playerVeh, 30, 0.85)
+  if not target then return false end
+
+  -- Generate record if policeComputer is available
+  if gameplay_policeComputer and gameplay_policeComputer.generateVehicleRecord then
+    gameplay_policeComputer.generateVehicleRecord(target)
+  end
+
+  trafficStopTarget = target
+  trafficStopTimer = STOP_DWELL_TIME
+  earlyFleeTimer = nil
+  lightbarGraceTimer = LIGHTBAR_GRACE_PERIOD
+
+  if isVehicleFleeing(target) then
+    showTrafficStopPrompt(target)
+  else
+    trafficStopInitiated = true
+    trafficStopComplying = false
+    trafficStopReachedStop = false
+    trafficStopEnforceTimer = 0
+    initiateTrafficStop(target)
+  end
+
+  return true
+end
+
+local function confirmTrafficStopPrompt()
+  if not trafficStopPromptShowing or not trafficStopPromptTarget then return false end
+  local target = trafficStopPromptTarget
+  hideTrafficStopPrompt()
+
+  trafficStopTarget = target
+  trafficStopInitiated = true
+  trafficStopComplying = false
+  trafficStopReachedStop = false
+  trafficStopEnforceTimer = 0
+  earlyFleeTimer = nil
+  trafficStopTimer = 0
+  initiateTrafficStop(target)
+
+  return true
+end
+
+local function getTrafficStopTarget()
+  return trafficStopTarget
+end
+
 -- public interface
 M.insertProp = insertProp
 M.removeProp = removeProp
@@ -947,6 +1340,12 @@ M.isLightbarActive = isLightbarActive
 M.findVehicleAhead = findVehicleAhead
 M.pullOverVehicle = pullOverVehicle
 M.releasePullOver = releasePullOver
+
+M.immediateTrafficStop = doImmediateTrafficStop
+M.confirmTrafficStopPrompt = confirmTrafficStopPrompt
+M.isTrafficStopFullyCommenced = isTrafficStopFullyCommenced
+M.getTrafficStopTarget = getTrafficStopTarget
+M.resetTrafficStop = resetTrafficStop
 
 M.getPursuitData = getPursuitData
 M.getPursuitVars = getPursuitVars
