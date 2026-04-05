@@ -33,6 +33,9 @@
     <PoliceComputerApp />
   </div>
 
+  <!-- Police Stop Action Menu - self-manages visibility via policeStopActionMenu events -->
+  <PoliceStopMenuApp />
+
   <!-- this debug overlay gets teleported away to the body, so there's no way to render it on top of a popup -->
   <VueDebug />
 
@@ -61,6 +64,7 @@ import Popup from "@/common/modules/popup/views/Popup.vue"
 import Popover from "@/common/views/Popover.vue"
 import MainBackground from "@/common/modules/main-bg/components/MainBackground.vue"
 import PoliceComputerApp from "@/modules/apps/policeComputer/app.vue"
+import PoliceStopMenuApp from "@/modules/apps/policeStopMenu/app.vue"
 import { useSettings } from "@/services/settings"
 import router from "@/router"
 
