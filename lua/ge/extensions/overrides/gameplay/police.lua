@@ -327,6 +327,10 @@ local function setSuspectTimer(time) -- sets the time until the next suspect wil
   suspectTimer = time or (lerp(suspectTimerDelay, 0, vars.suspectFrequency) + random(15)) * coef -- time until next suspect gets queued
 end
 
+-- Forward declarations for traffic stop state used by arrestVehicle/evadeVehicle
+local trafficStopTarget
+local trafficStopOwnedFlee = {}
+
 local function arrestVehicle(id, showMessages) -- instantly sets a vehicle as arrested
   local veh = gameplay_traffic.getTrafficData()[id]
   if not veh then return end
@@ -970,13 +974,13 @@ end
 -- Traffic stop lifecycle
 -- ============================================================================
 
-local trafficStopTarget = nil
+-- trafficStopTarget and trafficStopOwnedFlee declared above arrestVehicle
 local trafficStopTimer = 0
 local trafficStopInitiated = false
 local trafficStopComplying = false
 local trafficStopEnforceTimer = 0
 local trafficStopReachedStop = false
-local trafficStopOwnedFlee = {}
+-- trafficStopOwnedFlee declared above arrestVehicle
 local earlyFleeTimer = nil
 local rabbitTarget = nil
 local rabbitTimer = 0
