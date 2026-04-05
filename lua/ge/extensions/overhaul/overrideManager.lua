@@ -227,6 +227,20 @@ local function installSystem()
     end
   end
 
+  -- Reload any overridden extensions that are already loaded so our
+  -- version replaces the base game module that was cached before we installed.
+  for name, entry in pairs(overrides) do
+    if isExtensionFormat(name) and _G[name] then
+      local success, mod = pcall(require, entry.override)
+      if success and mod then
+        local existing = _G[name]
+        for k in pairs(existing) do existing[k] = nil end
+        for k, v in pairs(mod) do existing[k] = v end
+        log('I', logTag, 'Replaced already-loaded extension: ' .. name)
+      end
+    end
+  end
+
   clearDirectory(LOCAL_OVERRIDEN_ROOT)
   mountCustomOverrides()
   reloadUI()
