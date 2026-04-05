@@ -327,9 +327,16 @@ local function setSuspectTimer(time) -- sets the time until the next suspect wil
   suspectTimer = time or (lerp(suspectTimerDelay, 0, vars.suspectFrequency) + random(15)) * coef -- time until next suspect gets queued
 end
 
--- Forward declarations for traffic stop state used by arrestVehicle/evadeVehicle
+-- Forward declarations for traffic stop state/functions used before their definition
 local trafficStopTarget
 local trafficStopOwnedFlee = {}
+local resetTrafficStop
+local notifyTrafficStopEscaped
+local stopActionMenuOpen
+local stopActionMenuResolutionInProgress
+local stopActionMenuAutoOpenedForCurrentStop
+local setStopActionMenuOpen
+local confirmStopAction
 
 local function arrestVehicle(id, showMessages) -- instantly sets a vehicle as arrested
   local veh = gameplay_traffic.getTrafficData()[id]
@@ -999,9 +1006,7 @@ local STOP_ENFORCE_INTERVAL = 0.35
 local STOP_SETTLED_SPEED = 1.0
 local LIGHTBAR_GRACE_PERIOD = 0.5
 
--- Forward declarations (updateTrafficStop/updateRabbit declared above onUpdate; remaining here)
-local resetTrafficStop
-local notifyTrafficStopEscaped
+-- resetTrafficStop/notifyTrafficStopEscaped declared above arrestVehicle
 
 local function isTrafficStopFullyCommenced()
   if not trafficStopTarget then return false end
@@ -1342,11 +1347,9 @@ end
 -- Stop action menu and resolution
 -- ============================================================================
 
-local stopActionMenuOpen = false
+-- stopActionMenuOpen, stopActionMenuResolutionInProgress, stopActionMenuAutoOpenedForCurrentStop declared above arrestVehicle
 local stopActionMenuTarget = nil
 local stopActionMenuSelection = 'up'
-local stopActionMenuResolutionInProgress = false
-local stopActionMenuAutoOpenedForCurrentStop = false
 local stopMenuStickX = 0
 local stopMenuStickY = 0
 local stopActionMenuPrevMenuActionMapEnabled = nil
@@ -1423,7 +1426,7 @@ local function triggerStopActionMenuEvent(reason)
   })
 end
 
-local function setStopActionMenuOpen(open, reason)
+setStopActionMenuOpen = function(open, reason)
   if open then
     if not isStopActionMenuEligibleForCurrentTarget() then
       open = false
@@ -1663,7 +1666,7 @@ local function onStopMenuStickInput(axis, value)
   guihooks.trigger('policeStopMenuStick', { x = stopMenuStickX, y = stopMenuStickY })
 end
 
-local function confirmStopAction()
+confirmStopAction = function()
   if not stopActionMenuOpen then return false end
   if stopActionMenuResolutionInProgress then return false end
   if not isStopActionMenuEligibleForCurrentTarget() then
