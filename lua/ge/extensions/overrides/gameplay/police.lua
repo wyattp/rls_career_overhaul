@@ -1694,8 +1694,20 @@ end
 -- Integrate menu auto-open into updateTrafficStop (called from onUpdate)
 -- Override the original updateTrafficStop to add menu logic
 local _origUpdateTrafficStop = updateTrafficStop
+local debugStopMenuTimer = 0
 updateTrafficStop = function(dtReal)
   _origUpdateTrafficStop(dtReal)
+
+  debugStopMenuTimer = debugStopMenuTimer - dtReal
+  if debugStopMenuTimer <= 0 and trafficStopTarget then
+    debugStopMenuTimer = 3.0
+    log('I', 'police', 'stopMenu: target=' .. tostring(trafficStopTarget)
+      .. ' initiated=' .. tostring(trafficStopInitiated)
+      .. ' complying=' .. tostring(trafficStopComplying)
+      .. ' reachedStop=' .. tostring(trafficStopReachedStop)
+      .. ' menuOpen=' .. tostring(stopActionMenuOpen)
+      .. ' eligible=' .. tostring(isStopActionMenuEligibleForCurrentTarget()))
+  end
 
   -- Auto-open menu when stop is fully commenced and player is settled
   if trafficStopInitiated and isStopActionMenuEligibleForCurrentTarget()
