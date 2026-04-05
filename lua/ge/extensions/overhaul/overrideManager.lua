@@ -188,6 +188,17 @@ local function overrideReload(extPath)
 
   local entry = overrides[extPath]
   if entry then
+    -- If the extension is already loaded, merge our override into the existing table
+    -- so the global reference stays valid for BeamNG's hook system
+    if isExtensionFormat(extPath) and _G[extPath] then
+      package.loaded[entry.override] = nil
+      local success, mod = pcall(require, entry.override)
+      if success and mod then
+        for k, v in pairs(mod) do _G[extPath][k] = v end
+        log('I', logTag, 'Hot-reloaded override: ' .. extPath)
+        return true
+      end
+    end
     return originalReload(entry.override)
   else
     return originalReload(extPath)
