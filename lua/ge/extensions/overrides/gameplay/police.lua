@@ -858,4 +858,6 @@ M.onUpdate = onUpdate
 M.onSerialize = onSerialize
 M.onDeserialized = onDeserialized
 
+M.RLS_MOD_VERSION = true
+
 return M
