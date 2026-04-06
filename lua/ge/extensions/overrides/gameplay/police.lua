@@ -1752,11 +1752,16 @@ updateTrafficStop = function(dtReal)
   -- Close menu if player moves
   if stopActionMenuOpen then
     local playerVeh = getPlayerPoliceVehicle()
-    if playerVeh and playerVeh:getVelocity():length() > STOP_MENU_CLOSE_ON_MOVE_SPEED then
-      stopActionMenuAutoOpenedForCurrentStop = false
-      setStopActionMenuOpen(false, 'playerMoved')
+    if playerVeh then
+      local speed = playerVeh:getVelocity():length()
+      if speed > STOP_MENU_CLOSE_ON_MOVE_SPEED then
+        log('I', 'police', 'MENU CLOSING - PLAYER MOVED speed=' .. string.format('%.3f', speed))
+        stopActionMenuAutoOpenedForCurrentStop = false
+        setStopActionMenuOpen(false, 'playerMoved')
+      end
     end
     if not isStopActionMenuEligibleForCurrentTarget() then
+      log('I', 'police', 'MENU CLOSING - NO LONGER ELIGIBLE')
       setStopActionMenuOpen(false, 'stopNoLongerEligible')
     end
   end
