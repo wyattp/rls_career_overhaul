@@ -172,7 +172,9 @@ function pointToStopActionItem(x, y) {
 
   if (idx > -1 && idx < len && typeof stopActionRadialRenderer.buttons[idx].focus === 'function') {
     stopActionRadialRenderer.buttons[idx].focus()
-    stopActionMenu.selection = normalizeStopActionSelection(stopActionRadialRenderer.buttons[idx].item.id)
+    const sel = normalizeStopActionSelection(stopActionRadialRenderer.buttons[idx].item.id)
+    stopActionMenu.selection = sel
+    $game.api.engineLua(`if gameplay_police and gameplay_police.setStopMenuSelection then gameplay_police.setStopMenuSelection("${sel}") end`)
   } else {
     stopActionMenu.selection = null
   }

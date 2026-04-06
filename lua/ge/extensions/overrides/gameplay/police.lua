@@ -1705,6 +1705,13 @@ local function selectStopActionMenu(direction)
   return navigateStopActionMenu(direction)
 end
 
+local function setStopMenuSelection(direction)
+  if not stopActionMenuOpen then return end
+  if STOP_ACTION_MENU_DIRECTIONS[direction] then
+    stopActionMenuSelection = direction
+  end
+end
+
 local function onStopMenuStickInput(axis, value)
   if not stopActionMenuOpen then return end
   if axis == 'x' then
@@ -1833,6 +1840,7 @@ M.toggleStopActionMenu = toggleStopActionMenu
 M.cancelStopActionMenu = cancelStopActionMenu
 M.navigateStopActionMenu = navigateStopActionMenu
 M.selectStopActionMenu = selectStopActionMenu
+M.setStopMenuSelection = setStopMenuSelection
 M.confirmStopAction = confirmStopAction
 M.onStopMenuStickInput = onStopMenuStickInput
 
