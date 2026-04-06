@@ -1454,12 +1454,12 @@ setStopActionMenuOpen = function(open, reason)
     local menuMap = scenetree.findObject("MenuActionMap")
     log('I', 'police', 'ENTERING MENU MODE - PUSH: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
     if menuMap then menuMap:push() end
-    if core_quickAccess then core_quickAccess.setEnabled(true) end
+    if simTimeAuthority then simTimeAuthority.set(0.1) else be:setSimulationTimeScale(0.1) end
   elseif not stopActionMenuOpen and wasOpen then
     local menuMap = scenetree.findObject("MenuActionMap")
     log('I', 'police', 'EXITING MENU MODE - POP: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
     if menuMap then menuMap:pop() end
-    if core_quickAccess then core_quickAccess.setEnabled(false) end
+    if simTimeAuthority then simTimeAuthority.set(1) else be:setSimulationTimeScale(1) end
   end
 
   setStopActionMenuUINavEnabled(stopActionMenuOpen)
