@@ -1432,6 +1432,7 @@ local function triggerStopActionMenuEvent(reason)
 end
 
 setStopActionMenuOpen = function(open, reason)
+  log('I', 'police', 'STOP MENU OPEN CALLED: open=' .. tostring(open) .. ' reason=' .. tostring(reason) .. ' wasOpen=' .. tostring(stopActionMenuOpen))
   if open then
     if not isStopActionMenuEligibleForCurrentTarget() then
       open = false
