@@ -1124,6 +1124,11 @@ resetTrafficStop = function()
     setStopActionMenuOpen(false, 'trafficStopReset')
   end
 
+  -- Release the stopped target vehicle back to traffic AI
+  if trafficStopTarget and trafficStopComplying then
+    releasePullOver(trafficStopTarget)
+  end
+
   local hadStopState = trafficStopTarget ~= nil or trafficStopTimer > 0 or earlyFleeTimer ~= nil
   trafficStopTarget = nil
   trafficStopTimer = 0
