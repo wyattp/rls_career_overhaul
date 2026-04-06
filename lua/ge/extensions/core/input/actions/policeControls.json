@@ -47,6 +47,14 @@
         "title": "Police: Cancel Stop Action Menu",
         "desc": "Close the traffic stop action menu without selecting an action."
     },
+    "confirmStopActionMenu": {
+        "cat": "gameplay",
+        "order": 266,
+        "ctx": "tlua",
+        "onDown": "if gameplay_police and gameplay_police.confirmStopAction then gameplay_police.confirmStopAction() end",
+        "title": "Police: Confirm Stop Action",
+        "desc": "Confirm the currently selected action in the traffic stop menu."
+    },
     "stopActionMenuStickX": {
         "cat": "gameplay",
         "order": 270,
