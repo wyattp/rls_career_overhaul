@@ -1,7 +1,7 @@
 <template>
   <div
     class="stop-action-overlay"
-    v-show="stopActionMenu.open"
+    v-if="stopActionMenu.open"
     v-bng-blur
     bng-ui-scope="policeStopActionMenu"
     v-bng-on-ui-nav:focus_lr,focus_ud="processStopActionStickInput"
