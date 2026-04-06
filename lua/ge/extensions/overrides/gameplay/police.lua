@@ -1454,13 +1454,17 @@ setStopActionMenuOpen = function(open, reason)
     stopActionMenuAutoOpenedForCurrentStop = true
   end
 
-  -- Enter/exit menu input mode (slow-mo, stick routing, back button)
+  -- Enter/exit menu input mode (slow-mo, stick routing)
   if stopActionMenuOpen and not wasOpen then
     log('I', 'police', 'ENTERING MENU MODE: reason=' .. tostring(reason))
-    if core_quickAccess then core_quickAccess.setEnabled(true) end
+    local menuMap = scenetree.findObject("MenuActionMap")
+    if menuMap then menuMap:push() end
+    be:setSimulationTimeScale(0.1)
   elseif not stopActionMenuOpen and wasOpen then
     log('I', 'police', 'EXITING MENU MODE: reason=' .. tostring(reason))
-    if core_quickAccess then core_quickAccess.setEnabled(false) end
+    local menuMap = scenetree.findObject("MenuActionMap")
+    if menuMap then menuMap:pop() end
+    be:setSimulationTimeScale(1)
   end
 
   triggerStopActionMenuEvent(reason)
