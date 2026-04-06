@@ -1454,9 +1454,8 @@ setStopActionMenuOpen = function(open, reason)
     stopActionMenuAutoOpenedForCurrentStop = true
   end
 
-  -- Enter/exit menu input mode so left stick controls the menu, not the vehicle
+  -- Enter/exit menu input mode (slow-mo, stick routing, back button)
   if stopActionMenuOpen and not wasOpen then
-    local menuMap = scenetree.findObject("MenuActionMap")
     log('I', 'police', 'ENTERING MENU MODE: reason=' .. tostring(reason))
     if core_quickAccess then core_quickAccess.setEnabled(true) end
   elseif not stopActionMenuOpen and wasOpen then
@@ -1464,7 +1463,6 @@ setStopActionMenuOpen = function(open, reason)
     if core_quickAccess then core_quickAccess.setEnabled(false) end
   end
 
-  setStopActionMenuUINavEnabled(stopActionMenuOpen)
   triggerStopActionMenuEvent(reason)
 end
 
