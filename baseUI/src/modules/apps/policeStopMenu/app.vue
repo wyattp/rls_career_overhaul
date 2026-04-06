@@ -31,6 +31,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useLibStore } from '@/services'
 import { vBngBlur, vBngOnUiNav, vBngUiNavLabel } from '@/common/directives'
 import { getUINavServiceInstance } from '@/services/uiNav'
+import { useUINavScope } from '@/services/uiNav'
 import RadialSVG from '@/modules/radial/radialsvg'
 
 const { $game } = useLibStore()
@@ -54,7 +55,6 @@ stopActionRadialRenderer.setMenuIcon('police')
 const STOP_ACTION_MENU_DEFAULT = 'up'
 const STOP_ACTION_MENU_SCOPE = 'policeStopActionMenu'
 const STOP_ACTION_STICK_THRESHOLD = 0.5
-let stopActionPreviousScope = null
 let stopActionStickX = 0
 let stopActionStickY = 0
 let stopActionStickActive = false
@@ -284,26 +284,17 @@ function onStopActionMenu(data) {
   nextTick(() => updateStopActionRadial())
 }
 
+const navScope = useUINavScope(undefined, true)
+
 watch(
   () => stopActionMenu.open,
   open => {
-    const uiNav = getUINavServiceInstance()
-    if (!uiNav) return
-
     if (open) {
-      if (stopActionPreviousScope === null || stopActionPreviousScope === undefined) {
-        stopActionPreviousScope = uiNav.activeScope
-      }
-      uiNav.setActiveScope(STOP_ACTION_MENU_SCOPE)
+      navScope.set(STOP_ACTION_MENU_SCOPE)
       clearStopActionPointerAndSelection()
       nextTick(() => updateStopActionRadial())
-      return
-    }
-
-    clearStopActionPointerAndSelection()
-    if (stopActionPreviousScope !== null && stopActionPreviousScope !== undefined) {
-      uiNav.setActiveScope(stopActionPreviousScope)
-      stopActionPreviousScope = null
+    } else {
+      clearStopActionPointerAndSelection()
     }
   }
 )
@@ -316,11 +307,6 @@ onMounted(() => {
 onUnmounted(() => {
   $game.events.off('policeStopActionMenu', onStopActionMenu)
   $game.events.off('policeStopMenuStick', onStopMenuStick)
-  const uiNav = getUINavServiceInstance()
-  if (uiNav && stopActionPreviousScope !== null && stopActionPreviousScope !== undefined) {
-    uiNav.setActiveScope(stopActionPreviousScope)
-    stopActionPreviousScope = null
-  }
   stopActionRadialRenderer.dispose()
 })
 </script>
