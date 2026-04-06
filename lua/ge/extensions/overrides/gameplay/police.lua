@@ -1622,6 +1622,8 @@ finalizePendingStopAction = function()
     if rewardGranted then
       clearRecordAfterStopResolution(record)
     end
+  else
+    ui_message("Traffic stop resolved - " .. getStopActionLabel(action), 5, "Police")
   end
 
   if action == 'up' or action == 'right' then -- Arrest or Detain
