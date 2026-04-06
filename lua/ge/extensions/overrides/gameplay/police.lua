@@ -1438,6 +1438,7 @@ setStopActionMenuOpen = function(open, reason)
     end
   end
 
+  local wasOpen = stopActionMenuOpen
   stopActionMenuOpen = open and true or false
   stopActionMenuTarget = stopActionMenuOpen and trafficStopTarget or nil
   stopMenuStickX = 0
@@ -1445,6 +1446,15 @@ setStopActionMenuOpen = function(open, reason)
   if stopActionMenuOpen then
     stopActionMenuSelection = STOP_ACTION_MENU_DEFAULT
     stopActionMenuAutoOpenedForCurrentStop = true
+  end
+
+  -- Enter/exit menu input mode so left stick controls the menu, not the vehicle
+  if stopActionMenuOpen and not wasOpen then
+    local menuMap = scenetree.findObject("MenuActionMap")
+    if menuMap then menuMap:push() end
+  elseif not stopActionMenuOpen and wasOpen then
+    local menuMap = scenetree.findObject("MenuActionMap")
+    if menuMap then menuMap:pop() end
   end
 
   setStopActionMenuUINavEnabled(stopActionMenuOpen)
