@@ -1610,6 +1610,15 @@ local function finalizePendingStopAction()
 
   if action == 'up' or action == 'right' then -- Arrest or Detain
     if record then record.arrested = true end
+    local obj = targetVehId and getObjectByID(targetVehId)
+    if obj then
+      obj:queueLuaCommand('ai.setMode("stop")')
+      obj:queueLuaCommand('ai.setSpeedMode("set")')
+      obj:queueLuaCommand('ai.setSpeed(0)')
+    end
+    if gameplay_traffic and gameplay_traffic.removeVehicle then
+      pcall(gameplay_traffic.removeVehicle, targetVehId)
+    end
     arrestVehicle(targetVehId, true)
     log('I', logTag, 'finalizePendingStopAction: ' .. (action == 'up' and 'arrested' or 'detained') .. ' vehId=' .. tostring(targetVehId))
   end
