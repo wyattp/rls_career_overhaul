@@ -1,7 +1,7 @@
 <template>
   <div
     class="stop-action-overlay"
-    v-if="stopActionMenu.open"
+    v-show="stopActionMenu.open"
     v-bng-blur
     bng-ui-scope="policeStopActionMenu"
     v-bng-on-ui-nav:focus_lr,focus_ud="processStopActionStickInput"
@@ -284,17 +284,14 @@ function onStopActionMenu(data) {
   nextTick(() => updateStopActionRadial())
 }
 
-const navScope = useUINavScope(undefined, true)
+useUINavScope(STOP_ACTION_MENU_SCOPE)
 
 watch(
   () => stopActionMenu.open,
   open => {
     if (open) {
       clearStopActionPointerAndSelection()
-      nextTick(() => {
-        navScope.set(STOP_ACTION_MENU_SCOPE)
-        updateStopActionRadial()
-      })
+      nextTick(() => updateStopActionRadial())
     } else {
       clearStopActionPointerAndSelection()
     }
