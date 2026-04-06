@@ -1053,8 +1053,10 @@ end
 
 local function fleeFromStop(vehId, mode)
   mode = mode or 2
-  trafficStopComplying = false
-  trafficStopOwnedFlee[vehId] = true
+  local record = getRecordForVehicle(vehId)
+  log('I', logTag, 'Traffic stop: vehicle fleeing plate=' .. tostring(record and record.plate) .. ' mode=' .. tostring(mode))
+
+  -- Hand off entirely to the pursuit system
   setPursuitMode(mode, vehId)
   local obj = getObjectByID(vehId)
   if obj then
@@ -1063,8 +1065,9 @@ local function fleeFromStop(vehId, mode)
       obj:queueLuaCommand('ai.setAggression(1.0)')
     end
   end
-  local record = getRecordForVehicle(vehId)
-  log('I', logTag, 'Traffic stop: vehicle fleeing plate=' .. tostring(record and record.plate) .. ' mode=' .. tostring(mode))
+
+  -- Clean up traffic stop state completely — pursuit system handles it from here
+  resetTrafficStop()
 end
 
 local function initiateTrafficStop(vehId)
@@ -1383,6 +1386,11 @@ local function isStopActionMenuEligibleForCurrentTarget()
   if not isTrafficStopFullyCommenced() then return false end
   if not trafficStopTarget then return false end
   if trafficStopOwnedFlee[trafficStopTarget] then return false end
+  -- Don't show menu if target is in an active pursuit (fleeing)
+  if gameplay_traffic and gameplay_traffic.getTrafficData then
+    local tVeh = gameplay_traffic.getTrafficData()[trafficStopTarget]
+    if tVeh and tVeh.pursuit and tVeh.pursuit.mode >= 1 then return false end
+  end
   local record = getRecordForVehicle(trafficStopTarget)
   if record and record.arrested then return false end
   return true
