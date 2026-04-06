@@ -65,6 +65,14 @@ local function setOverride(originalPath, overridePath, overrideType)
   local absolutePath = '/lua/ge/extensions/' .. convertedPath
   package.preload[absolutePath] = package.preload[convertedPath]
 
+  -- Also register with slash-based paths for sub-modules loaded via require
+  -- originalPath has the dot format: lua.ge.extensions.gameplay.traffic.vehicle
+  -- Convert to slash paths that require() would use
+  local slashFromOriginal = originalPath:gsub('%.', '/')
+  local shortSlash = slashFromOriginal:gsub('^lua/ge/extensions/', '')
+  package.preload[shortSlash] = package.preload[convertedPath]
+  package.preload['/' .. slashFromOriginal] = package.preload[convertedPath]
+
   return true
 end
 
