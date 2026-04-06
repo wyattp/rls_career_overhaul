@@ -284,12 +284,13 @@ function onStopActionMenu(data) {
   nextTick(() => updateStopActionRadial())
 }
 
-useUINavScope(STOP_ACTION_MENU_SCOPE)
+const navScope = useUINavScope(undefined, true)
 
 watch(
   () => stopActionMenu.open,
   open => {
     if (open) {
+      navScope.set(STOP_ACTION_MENU_SCOPE)
       clearStopActionPointerAndSelection()
       nextTick(() => updateStopActionRadial())
     } else {
