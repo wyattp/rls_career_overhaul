@@ -646,7 +646,7 @@ function C:checkOffenses() -- tests for vechicle offenses for police
       end
 
       if not coll.offense and validCollision then
-        if veh.role.name == 'police' and coll.inArea then -- always triggers if police was hit
+        if false and veh.role.name == 'police' and coll.inArea then -- disabled: bumping police no longer triggers pursuit
           -- Skip if this police vehicle is owned by the player
           local policeVehInventoryId = career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId(id)
           if not policeVehInventoryId then
