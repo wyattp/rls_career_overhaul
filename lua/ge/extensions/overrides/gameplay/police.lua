@@ -1633,8 +1633,13 @@ finalizePendingStopAction = function()
     if gameplay_traffic and gameplay_traffic.removeVehicle then
       pcall(gameplay_traffic.removeVehicle, targetVehId)
     end
-    arrestVehicle(targetVehId, true)
-    log('I', logTag, 'finalizePendingStopAction: ' .. (action == 'up' and 'arrested' or 'detained') .. ' vehId=' .. tostring(targetVehId))
+    -- Only trigger pursuit arrest (which gives enforcement bonus) if there's an actual violation
+    local hasViolation = record and (record.wanted or record.stolen or record.apb
+      or record.suspendedLicense or record.noInsurance or record.expiredRegistration)
+    if hasViolation then
+      arrestVehicle(targetVehId, true)
+    end
+    log('I', logTag, 'finalizePendingStopAction: ' .. (action == 'up' and 'arrested' or 'detained') .. ' vehId=' .. tostring(targetVehId) .. ' hasViolation=' .. tostring(hasViolation ~= nil))
   end
 
   guihooks.trigger('policeStopActionMenuConfirmed', {
