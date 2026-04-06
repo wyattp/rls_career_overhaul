@@ -1383,7 +1383,12 @@ local function setStopActionMenuUINavEnabled(enabled)
   if not core_input_bindings and extensions and extensions.load then
     pcall(extensions.load, 'core_input_bindings')
   end
-  if not core_input_bindings then return end
+  if not core_input_bindings then
+    log('W', 'police', 'setStopActionMenuUINavEnabled: core_input_bindings is nil')
+    return
+  end
+
+  log('I', 'police', 'setStopActionMenuUINavEnabled: enabled=' .. tostring(enabled) .. ' hasSetFunc=' .. tostring(core_input_bindings.setMenuActionMapEnabled ~= nil))
 
   if enabled then
     if not stopActionMenuForcedMenuActionMap then
