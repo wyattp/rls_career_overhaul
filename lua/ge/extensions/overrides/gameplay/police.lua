@@ -337,6 +337,7 @@ local stopActionMenuResolutionInProgress
 local stopActionMenuAutoOpenedForCurrentStop
 local setStopActionMenuOpen
 local confirmStopAction
+local finalizePendingStopAction
 
 local function arrestVehicle(id, showMessages) -- instantly sets a vehicle as arrested
   local veh = gameplay_traffic.getTrafficData()[id]
@@ -1164,6 +1165,10 @@ updateTrafficStop = function(dtReal)
   else
     local lightbar = getLightbarSignal(playerVeh, playerVehId)
     if not isLightbarActive(lightbar) then
+      -- If there's a pending stop action, finalize it before resetting
+      if stopActionMenuResolutionInProgress and pendingStopAction then
+        finalizePendingStopAction()
+      end
       resetTrafficStop()
       return
     end
@@ -1589,7 +1594,7 @@ local function awardTicketReward(vehId, action, actionProfitMultiplier, stopCond
   return reward
 end
 
-local function finalizePendingStopAction()
+finalizePendingStopAction = function()
   if not pendingStopAction then
     stopActionMenuResolutionInProgress = false
     return false
