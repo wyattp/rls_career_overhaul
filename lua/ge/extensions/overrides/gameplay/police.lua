@@ -1580,10 +1580,11 @@ local function awardTicketReward(vehId, action, actionProfitMultiplier, stopCond
   end
 
   if reward > 0 then
+    local rewardLabel = "Police Stop - " .. getStopActionLabel(action)
     if career_modules_playerAttributes and career_modules_playerAttributes.addAttributes then
-      career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = "Traffic Ticket"})
+      career_modules_playerAttributes.addAttributes({money = reward}, {tags = {"gameplay", "reward", "police"}, label = rewardLabel})
     elseif career_modules_payment and career_modules_payment.reward then
-      career_modules_payment.reward({money = {amount = reward}}, {label = "Traffic Ticket", tags = {"gameplay", "reward", "police"}}, true)
+      career_modules_payment.reward({money = {amount = reward}}, {label = rewardLabel, tags = {"gameplay", "reward", "police"}}, true)
     end
   end
 
@@ -1615,11 +1616,13 @@ finalizePendingStopAction = function()
 
   local rewardGranted = false
   local rewardAmount = 0
-  local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
-  rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier, evaluation.condition) or 0
-  rewardGranted = rewardAmount > 0
-  if rewardGranted then
-    clearRecordAfterStopResolution(record)
+  if action ~= 'down' then -- No reward for release/go free
+    local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
+    rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier, evaluation.condition) or 0
+    rewardGranted = rewardAmount > 0
+    if rewardGranted then
+      clearRecordAfterStopResolution(record)
+    end
   end
 
   if action == 'up' or action == 'right' then -- Arrest or Detain
