@@ -1616,9 +1616,8 @@ finalizePendingStopAction = function()
 
   local rewardGranted = false
   local rewardAmount = 0
-  if action ~= 'down' then -- No reward for release/go free
-    local actionProfitMultiplier = evaluation.appropriate and 1 or 0.8
-    rewardAmount = awardTicketReward(targetVehId, action, actionProfitMultiplier, evaluation.condition) or 0
+  if action ~= 'down' and evaluation.appropriate then
+    rewardAmount = awardTicketReward(targetVehId, action, 1, evaluation.condition) or 0
     rewardGranted = rewardAmount > 0
     if rewardGranted then
       clearRecordAfterStopResolution(record)
