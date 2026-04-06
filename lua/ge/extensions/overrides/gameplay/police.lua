@@ -1505,10 +1505,10 @@ local function evaluateStopActionSelection(targetVehId, record, selectedAction)
 end
 
 local function getStopActionLabel(action)
-  if action == STOP_ACTION_ARREST then return 'Arrest' end
-  if action == STOP_ACTION_DETAIN then return 'Detain' end
-  if action == STOP_ACTION_GO_FREE_WARNING then return 'Go Free/Warning' end
-  if action == STOP_ACTION_TICKET then return 'Ticket' end
+  if action == STOP_ACTION_ARREST then return 'Arrested suspect' end
+  if action == STOP_ACTION_DETAIN then return 'Detained suspect' end
+  if action == STOP_ACTION_GO_FREE_WARNING then return 'Released suspect' end
+  if action == STOP_ACTION_TICKET then return 'Issued ticket' end
   return 'Action'
 end
 
@@ -1588,9 +1588,9 @@ local function awardTicketReward(vehId, action, actionProfitMultiplier, stopCond
     end
   end
 
-  local message = "Stop action resolved - no reward - " .. getStopActionLabel(action)
+  local message = "Traffic stop resolved - " .. getStopActionLabel(action)
   if reward > 0 then
-    message = "Stop action resolved - reward granted ($" .. reward .. ") - " .. getStopActionLabel(action)
+    message = message .. " - Reward $" .. reward
   end
   if reward > 0 and reputationBonus ~= 1 then
     message = message .. " (Reputation Bonus: " .. math.floor((reputationBonus - 1) * 100) .. "%)"
