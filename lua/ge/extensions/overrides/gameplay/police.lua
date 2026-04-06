@@ -1452,14 +1452,11 @@ setStopActionMenuOpen = function(open, reason)
   -- Enter/exit menu input mode so left stick controls the menu, not the vehicle
   if stopActionMenuOpen and not wasOpen then
     local menuMap = scenetree.findObject("MenuActionMap")
-    log('I', 'police', 'ENTERING MENU MODE - PUSH: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
-    if menuMap then menuMap:push() end
-    if simTimeAuthority then simTimeAuthority.set(0.1) else be:setSimulationTimeScale(0.1) end
+    log('I', 'police', 'ENTERING MENU MODE: reason=' .. tostring(reason))
+    if core_quickAccess then core_quickAccess.setEnabled(true) end
   elseif not stopActionMenuOpen and wasOpen then
-    local menuMap = scenetree.findObject("MenuActionMap")
-    log('I', 'police', 'EXITING MENU MODE - POP: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
-    if menuMap then menuMap:pop() end
-    if simTimeAuthority then simTimeAuthority.set(1) else be:setSimulationTimeScale(1) end
+    log('I', 'police', 'EXITING MENU MODE: reason=' .. tostring(reason))
+    if core_quickAccess then core_quickAccess.setEnabled(false) end
   end
 
   setStopActionMenuUINavEnabled(stopActionMenuOpen)
