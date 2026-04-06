@@ -183,11 +183,17 @@ local function convertVehicleToPolice(computerId, inventoryId)
 end
 
 local function closeMenu()
+  log('I', logTag, 'closeMenu: originComputerId=' .. tostring(originComputerId))
   if originComputerId then
     local computer = freeroam_facilities.getFacility("computer", originComputerId)
-    career_modules_computer.openMenu(computer)
+    log('I', logTag, 'closeMenu: computer=' .. tostring(computer ~= nil))
+    if computer then
+      career_modules_computer.openMenu(computer)
+    else
+      guihooks.trigger('ChangeState', {state = 'play'})
+    end
   else
-    career_modules_computer.closeAllMenus()
+    guihooks.trigger('ChangeState', {state = 'play'})
   end
 end
 
