@@ -31,7 +31,11 @@ function C:init(id, role)
   local modelData = core_vehicles.getModel(obj.jbeam).model
   local modelType = modelData and string.lower(modelData.Type) or 'none'
   if obj.jbeam == 'unicycle' and obj:isPlayerControlled() then modelType = 'player' end
-  if not modelData or not arrayFindValueIndex({'car', 'truck', 'automation', 'traffic', 'proptraffic', 'player'}, modelType) or obj.ignoreTraffic or obj.jbeam == 'TPUMedForklift' then
+  -- Vehicles excluded from traffic spawning
+  local trafficExcludedModels = {
+    TPUMedForklift = true,
+  }
+  if not modelData or not arrayFindValueIndex({'car', 'truck', 'automation', 'traffic', 'proptraffic', 'player'}, modelType) or obj.ignoreTraffic or trafficExcludedModels[obj.jbeam] then
     log('I', logTag, string.format('Ignoring traffic vehicle due to invalid vehicle type: %d', id))
     return
   end
