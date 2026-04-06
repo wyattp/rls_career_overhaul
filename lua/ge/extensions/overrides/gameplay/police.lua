@@ -1452,11 +1452,11 @@ setStopActionMenuOpen = function(open, reason)
   -- Enter/exit menu input mode so left stick controls the menu, not the vehicle
   if stopActionMenuOpen and not wasOpen then
     local menuMap = scenetree.findObject("MenuActionMap")
-    log('I', 'police', 'MenuActionMap PUSH: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
+    log('I', 'police', 'ENTERING MENU MODE - PUSH: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
     if menuMap then menuMap:push() end
   elseif not stopActionMenuOpen and wasOpen then
     local menuMap = scenetree.findObject("MenuActionMap")
-    log('I', 'police', 'MenuActionMap POP: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
+    log('I', 'police', 'EXITING MENU MODE - POP: menuMap=' .. tostring(menuMap ~= nil) .. ' reason=' .. tostring(reason))
     if menuMap then menuMap:pop() end
   end
 
