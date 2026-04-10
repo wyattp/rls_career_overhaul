@@ -6,6 +6,7 @@ local M = {}
 M.dependencies = {'gameplay_police', 'gameplay_traffic_trafficUtils', 'core_vehicleActivePooling'}
 
 local logTag = 'traffic'
+log('I', 'traffic', '>>> RLS TRAFFIC OVERRIDE LOADED <<<')
 
 local traffic, trafficAiVehsList, trafficIdsSorted = {}, {}, {}
 local mapNodes
@@ -183,6 +184,7 @@ local function getRandomConfig(model) -- picks a random non-police config for a 
 end
 
 local function buildWeightedTrafficGroup(amount) -- builds a traffic group using weighted random selection
+  log('I', logTag, '>>> buildWeightedTrafficGroup called, amount: ' .. tostring(amount))
   buildValidatedPool()
 
   local group = {}
