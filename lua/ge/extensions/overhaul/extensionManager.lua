@@ -127,14 +127,23 @@ local function startup()
     setExtensionUnloadMode("overhaul_overrideManager", "manual")
     extensions.load("overhaul_overrideManager")
 
-    -- gameplay_police is loaded by the base game before overrideManager installs,
-    -- so the override never takes effect. Merge our override exports into the
-    -- existing table so our onUpdate, getPlayerPoliceVehicle, etc. are active.
+    -- gameplay_police and gameplay_traffic are loaded by the base game before
+    -- overrideManager installs, so the overrides never take effect. Merge our
+    -- override exports into the existing tables so our functions are active.
     if gameplay_police then
         local success, mod = pcall(require, 'lua.ge.extensions.overrides.gameplay.police')
         if success and mod then
             for k, v in pairs(mod) do
                 gameplay_police[k] = v
+            end
+        end
+    end
+
+    if gameplay_traffic then
+        local success, mod = pcall(require, 'lua.ge.extensions.overrides.gameplay.traffic')
+        if success and mod then
+            for k, v in pairs(mod) do
+                gameplay_traffic[k] = v
             end
         end
     end
