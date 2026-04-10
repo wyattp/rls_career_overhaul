@@ -568,6 +568,21 @@ local function onVehicleSwitched(oldId, newId)
       local inVeh = (prevObj and prevObj.jbeam == 'unicycle')
       local outVeh = (obj and obj.jbeam == 'unicycle')
 
+      -- Check if new vehicle is a police vehicle (traffic role or inventory role)
+      local newIsPolice = traffic[newId].role.name == 'police' or traffic[newId].roleName == 'police'
+      if not newIsPolice and career_modules_inventory and career_modules_inventory.getInventoryIdFromVehicleId then
+        local invId = career_modules_inventory.getInventoryIdFromVehicleId(newId)
+        if invId and career_modules_inventory.getVehicleRole then
+          newIsPolice = career_modules_inventory.getVehicleRole(invId) == 'police'
+        end
+      end
+
+      -- If switching to a police vehicle while under active pursuit, clear pursuit instead of transferring
+      if newIsPolice and traffic[oldId].pursuit.mode > 0 then
+        setPursuitMode(0, oldId)
+        return
+      end
+
       if outVeh and traffic[oldId].role.name == 'police' then
         traffic[newId].ignorePolice = true -- prevents self arrest
       end
