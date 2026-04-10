@@ -567,9 +567,6 @@ local function processNextSpawn(id, ignorePool) -- processes the next vehicle re
     vehPool:setVeh(newId, true)
   end
 
-  -- Swap to a new random model on respawn
-  swapVehicleModel(newId)
-
   newPos, newRot = getNextSpawnPoint(newId)
   if newPos then
     respawnVehicle(newId, newPos, newRot)
