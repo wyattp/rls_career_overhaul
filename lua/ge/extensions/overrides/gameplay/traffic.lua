@@ -654,6 +654,7 @@ local function startRotation()
       rotation.vehId = nil
       rotation.phase = nil
       rotation.cooldown = ROTATION_INTERVAL
+      extensions.hook('onTrafficVehicleRotated', picked, newModel)
     end, 'ping')
   else
     rotation.phase = 'waitDeactivate'
@@ -692,9 +693,10 @@ local function onRotationVehicleDeactivated(vehId)
   log('I', logTag, string.format('Rotation: veh %d deactivated, now swapping to %s', vehId, rotation.newModel))
   core_vehicles.replaceVehicle(rotation.newModel, spawnOptions, obj)
 
+  local capturedModel = rotation.newModel
   core_vehicleBridge.requestValue(obj, function()
-    log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', vehId, rotation.newModel))
-    rotation.loadedModels[vehId] = rotation.newModel
+    log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', vehId, capturedModel))
+    rotation.loadedModels[vehId] = capturedModel
     rotation.modelSetTime[vehId] = os.clock()
     if traffic[vehId] then
       traffic[vehId]._rotationPending = nil
@@ -704,6 +706,7 @@ local function onRotationVehicleDeactivated(vehId)
     rotation.vehId = nil
     rotation.phase = nil
     rotation.cooldown = ROTATION_INTERVAL
+    extensions.hook('onTrafficVehicleRotated', vehId, capturedModel)
   end, 'ping')
 end
 
