@@ -574,10 +574,16 @@ local function processNextSpawn(id, ignorePool) -- processes the next vehicle re
     if tempId then
       if #vehPool.activeVehs < vehPool.maxActiveAmount then -- amount of active vehicles is less than the expected limit
         newId = tempId
+        log('I', logTag, string.format('processNextSpawn: id=%d poolSwapIn=%d (under max active)', id, newId))
       else
         oldId, newId = vehPool:crossCycle(vehPool.prevPoolId, oldId, tempId) -- cycles the pool; if a previous pool exists, use a vehicle from there
+        log('I', logTag, string.format('processNextSpawn: id=%d crossCycle oldId=%d newId=%d', id, oldId, newId))
       end
+    else
+      log('I', logTag, string.format('processNextSpawn: id=%d no inactive vehicle available', id))
     end
+  else
+    log('I', logTag, string.format('processNextSpawn: id=%d no pool swap (ignorePool=%s autoPooling=%s)', id, tostring(ignorePool), tostring(traffic[id] and traffic[id].enableAutoPooling)))
   end
 
   if vehPool.allVehs[newId] == 0 then -- if vehicle is still inactive, set it to active
@@ -586,11 +592,14 @@ local function processNextSpawn(id, ignorePool) -- processes the next vehicle re
 
   newPos, newRot = getNextSpawnPoint(newId)
   if newPos then
+    log('I', logTag, string.format('processNextSpawn: respawning veh %d (original queued=%d)', newId, id))
     respawnVehicle(newId, newPos, newRot)
   else
     if not tempId then
+      log('I', logTag, string.format('processNextSpawn: veh %d onRefresh (no spawn point)', newId))
       traffic[newId]:onRefresh() -- refreshes the vehicle in place (only if it didn't get cycled)
     else
+      log('I', logTag, string.format('processNextSpawn: veh %d forceTeleport behind player (no spawn point)', newId))
       forceTeleport(newId, nil, -focus.dirVec) -- force teleports the vehicle behind the player view (not an ideal solution)
     end
   end
