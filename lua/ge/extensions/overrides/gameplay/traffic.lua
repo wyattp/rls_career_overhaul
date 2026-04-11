@@ -123,12 +123,10 @@ local rotation = {
   newConfig = nil,       -- target config
   phase = nil,           -- 'waitDeactivate' | 'loading'
   cooldown = 0,          -- seconds until next rotation attempt
-  loadingTimer = 0,      -- seconds spent in 'loading' phase (timeout safety)
   loadedModels = {},     -- [vehId] = modelName — tracks what's currently loaded per slot
   modelSetTime = {},     -- [vehId] = timestamp (os.clock()) when model was last set
 }
 local ROTATION_INTERVAL = 15  -- seconds between rotation attempts
-local ROTATION_LOADING_TIMEOUT = 30 -- seconds to wait for model load before giving up
 
 local function invalidateVehiclePool()
   validatedPool = nil
@@ -680,34 +678,33 @@ end
 local function executeRotationSwap()
   local vehId = rotation.vehId
   local obj = getObjectByID(vehId)
+  local newModel = rotation.newModel
+  local newConfig = rotation.newConfig
 
-  rotation.phase = 'loading'
-  rotation.loadingTimer = 0
+  rotation.phase = 'spawning'
 
-  -- Queue additional vehicle data before replacing (matches businessPartCustomization pattern)
-  core_vehicle_manager.queueAdditionalVehicleData({spawnWithEngineRunning = false}, vehId)
+  -- Delete the old vehicle
+  log('I', logTag, string.format('Rotation: deleting veh %d, spawning %s config=%s', vehId, newModel, tostring(newConfig)))
+  removeTraffic(vehId)
+  obj:delete()
 
-  local spawnOptions = {keepOtherVehRotation = true}
-  if rotation.newConfig then spawnOptions.config = rotation.newConfig end
+  -- Clean up old rotation tracking for the deleted vehId
+  rotation.loadedModels[vehId] = nil
+  rotation.modelSetTime[vehId] = nil
 
-  log('I', logTag, string.format('Rotation: swapping veh %d to %s config=%s', vehId, rotation.newModel, tostring(spawnOptions.config)))
-  core_vehicles.replaceVehicle(rotation.newModel, spawnOptions, obj)
+  -- Spawn a new vehicle via core_multiSpawn (uses job system for async loading)
+  local groupEntry = {model = newModel}
+  if newConfig then groupEntry.config = newConfig end
 
-  local capturedModel = rotation.newModel
-  core_vehicleBridge.requestValue(obj, function()
-    log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', vehId, capturedModel))
-    rotation.loadedModels[vehId] = capturedModel
-    rotation.modelSetTime[vehId] = os.clock()
-    if traffic[vehId] then
-      traffic[vehId]._rotationPending = nil
-      traffic[vehId].activeProbability = 1
-    end
-    rotation.active = false
-    rotation.vehId = nil
-    rotation.phase = nil
-    rotation.cooldown = ROTATION_INTERVAL
-    extensions.hook('onTrafficVehicleRotated', vehId, capturedModel)
-  end, 'ping')
+  rotation._pendingGroupName = 'rotationSpawn_' .. tostring(os.clock())
+  core_multiSpawn.spawnGroup({groupEntry}, 1, {
+    name = rotation._pendingGroupName,
+    mode = 'traffic',
+    gap = 20,
+    ignoreJobSystem = false,
+    randomPaints = true,
+  })
+  -- Completion handled in onVehicleGroupSpawned
 end
 
 local function updateRotation(dtReal)
@@ -730,11 +727,6 @@ local function updateRotation(dtReal)
       end
     elseif rotation.phase == 'pendingSwap' then
       executeRotationSwap()
-    elseif rotation.phase == 'loading' then
-      rotation.loadingTimer = rotation.loadingTimer + dtReal
-      if rotation.loadingTimer >= ROTATION_LOADING_TIMEOUT then
-        cancelRotation('loading timeout (ping callback never fired)')
-      end
     end
   else
     rotation.cooldown = rotation.cooldown - dtReal
@@ -1356,6 +1348,28 @@ local function onVehicleGroupSpawned(vehList, groupId, groupName)
   if groupName == 'autoTraffic' then
     spawnProcess.vehList = vehList
     activate(spawnProcess.vehList)
+  end
+
+  -- Handle rotation spawn completion
+  if rotation.active and rotation.phase == 'spawning' and rotation._pendingGroupName and groupName == rotation._pendingGroupName then
+    rotation._pendingGroupName = nil
+    if vehList and vehList[1] then
+      local newId = vehList[1]
+      log('I', logTag, string.format('Rotation: new veh %d spawned (%s)', newId, rotation.newModel))
+
+      -- Insert into traffic system
+      insertTraffic(newId)
+
+      rotation.loadedModels[newId] = rotation.newModel
+      rotation.modelSetTime[newId] = os.clock()
+    else
+      log('W', logTag, 'Rotation: spawn group returned empty vehList')
+    end
+
+    rotation.active = false
+    rotation.vehId = nil
+    rotation.phase = nil
+    rotation.cooldown = ROTATION_INTERVAL
   end
 end
 
