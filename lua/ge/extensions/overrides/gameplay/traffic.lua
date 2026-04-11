@@ -128,7 +128,6 @@ local rotation = {
   modelSetTime = {},     -- [vehId] = timestamp (os.clock()) when model was last set
 }
 local ROTATION_INTERVAL = 15  -- seconds between rotation attempts
-local ROTATION_DEACTIVATE_TIMEOUT = 60 -- seconds to wait for deactivation before skipping
 local ROTATION_LOADING_TIMEOUT = 30 -- seconds to wait for model load before giving up
 
 local function invalidateVehiclePool()
@@ -648,8 +647,6 @@ local function startRotation()
   rotation.vehId = picked
   rotation.newModel = newModel
   rotation.newConfig = newConfig
-  rotation.cooldown = ROTATION_DEACTIVATE_TIMEOUT
-
   -- Mark the vehicle so the pool won't reactivate it
   if traffic[picked] then
     traffic[picked]._rotationPending = true
@@ -738,9 +735,20 @@ end
 local function updateRotation(dtReal)
   if rotation.active then
     if rotation.phase == 'waitDeactivate' then
-      rotation.cooldown = rotation.cooldown - dtReal
-      if rotation.cooldown <= 0 then
-        cancelRotation('deactivation timeout')
+      -- Check if vehicle is far enough from player to force-deactivate
+      local vehId = rotation.vehId
+      local obj = vehId and getObjectByID(vehId)
+      if obj then
+        local vehPos = obj:getPosition()
+        local playerDist = focus.pos:distance(vehPos)
+        if playerDist > 150 then
+          log('I', logTag, string.format('Rotation: veh %d is %.0fm away, force-deactivating', vehId, playerDist))
+          if vehPool then vehPool:setVeh(vehId, false) end
+          -- onVehicleActiveChanged will fire and trigger the swap
+        end
+      else
+        cancelRotation('vehicle object lost')
+        startRotation() -- immediately try next candidate
       end
     elseif rotation.phase == 'loading' then
       rotation.loadingTimer = rotation.loadingTimer + dtReal
