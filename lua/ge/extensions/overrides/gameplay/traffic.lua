@@ -12,7 +12,6 @@ local traffic, trafficAiVehsList, trafficIdsSorted = {}, {}, {}
 local mapNodes
 local vehPool, vehPoolId
 local trafficVehicle = require('gameplay/traffic/vehicle')
-local insertTraffic, removeTraffic -- forward declarations (defined later, used by rotation system)
 
 -- const vectors --
 local vecUp = vec3(0, 0, 1)
@@ -111,23 +110,6 @@ local vehicleWeights = {
 local validatedPool = nil -- cached after first build: {{model, weight}, ...}
 local validatedPoolTotalWeight = 0
 
--- ============================================================================
--- Async model rotation system
--- Rotates one traffic vehicle model at a time to spread load cost over time.
--- Flow: pick slot -> mark unavailable -> wait for deactivation -> replaceVehicle
---       -> requestValue ping -> mark available
--- ============================================================================
-local rotation = {
-  active = false,        -- true while a rotation is in progress
-  vehId = nil,           -- vehicle ID being rotated
-  newModel = nil,        -- target model to swap to
-  newConfig = nil,       -- target config
-  phase = nil,           -- 'waitDeactivate' | 'loading'
-  cooldown = 0,          -- seconds until next rotation attempt
-  loadedModels = {},     -- [vehId] = modelName — tracks what's currently loaded per slot
-  modelSetTime = {},     -- [vehId] = timestamp (os.clock()) when model was last set
-}
-local ROTATION_INTERVAL = 15  -- seconds between rotation attempts
 
 local function invalidateVehiclePool()
   validatedPool = nil
@@ -231,6 +213,18 @@ local function buildWeightedTrafficGroup(amount) -- builds a traffic group using
     table.insert(group, entry)
     modelCounts[bestModel] = (modelCounts[bestModel] or 0) + 1
   end
+
+  -- Log the group composition
+  local modelSummary = {}
+  for _, entry in ipairs(group) do
+    modelSummary[entry.model] = (modelSummary[entry.model] or 0) + 1
+  end
+  local parts = {}
+  for model, count in pairs(modelSummary) do
+    table.insert(parts, model .. '=' .. count)
+  end
+  table.sort(parts)
+  log('I', logTag, string.format('Traffic group: %d vehicles, %d unique models: %s', #group, #parts, table.concat(parts, ', ')))
 
   return group
 end
@@ -431,7 +425,6 @@ end
 local function respawnVehicle(id, pos, rot, strict) -- moves the vehicle to a new position and rotation
   local obj = id and getObjectByID(id)
   if not obj or not pos or not rot then return end
-  if traffic[id] and traffic[id]._rotationPending then return end -- don't respawn vehicles being phased out
 
   if not strict then
     spawn.safeTeleport(obj, pos, rot, true, nil, false) -- this is slower, but prevents vehicles from spawning inside static geometry
@@ -452,7 +445,6 @@ end
 
 local function forceTeleport(id, pos, dir, minDist, maxDist, targetDist) -- force teleports a traffic vehicle
   if traffic[id] and traffic[id].ignoreForceTeleport then return end -- ignoreForceTeleport is a special flag for vehicles that should not be force teleported
-  if traffic[id] and traffic[id]._rotationPending then return end -- don't teleport vehicles being phased out for rotation
 
   local vehObj = getObjectByID(id)
   if vehObj and vehObj:getActive() then
@@ -525,6 +517,9 @@ local function updateTrafficPool() -- updates the main traffic vehicle pooling o
   vehPool:setMaxActiveAmount(vars.activeAmount)
   vehPool:setAllVehs(true)
   updateActiveAmount()
+  log('I', logTag, string.format('Pool update: maxActive=%d, active=%d, inactive=%d, total=%d',
+    vehPool.maxActiveAmount or 0, #vehPool.activeVehs, #vehPool.inactiveVehs,
+    #vehPool.activeVehs + #vehPool.inactiveVehs))
 end
 
 local function getNextVehFromPool() -- returns the next usable inactive vehicle, or nil if none found
@@ -566,176 +561,6 @@ local function swapVehicleModel(id) -- swaps a traffic vehicle to a different we
   core_vehicles.replaceVehicle(newModel, spawnOptions, obj)
 end
 
--- ============================================================================
--- Async rotation: pick a slot, swap its model without a lag spike
--- ============================================================================
-
-local function startRotation()
-  if rotation.active then
-    log('I', logTag, 'Rotation tick: SKIPPED — rotation already active (phase=' .. tostring(rotation.phase) .. ' veh=' .. tostring(rotation.vehId) .. ')')
-    return
-  end
-  if not vehPool or state ~= 'on' then
-    log('I', logTag, 'Rotation tick: SKIPPED — pool=' .. tostring(vehPool ~= nil) .. ' state=' .. tostring(state))
-    return
-  end
-
-  buildValidatedPool()
-  if not validatedPool or #validatedPool == 0 then
-    log('I', logTag, 'Rotation tick: SKIPPED — no validated pool')
-    return
-  end
-
-  -- Pick a candidate: longest dwell time (oldest model), skip police and player
-  local candidates = {}
-  for _, id in ipairs(trafficAiVehsList) do
-    local veh = traffic[id]
-    if veh and veh.isAi and not veh.isPlayerControlled then
-      if not (veh.role and veh.role.name == 'police') then
-        table.insert(candidates, id)
-      end
-    end
-  end
-
-  if #candidates == 0 then
-    log('I', logTag, 'Rotation tick: SKIPPED — no eligible candidates')
-    return
-  end
-
-  -- Sort candidates by dwell time (oldest first)
-  local now = os.clock()
-  table.sort(candidates, function(a, b)
-    local aTime = rotation.modelSetTime[a] or 0
-    local bTime = rotation.modelSetTime[b] or 0
-    return aTime < bTime
-  end)
-
-  local picked = candidates[1]
-  local age = now - (rotation.modelSetTime[picked] or 0)
-  local poolState = vehPool.allVehs[picked] == 0 and 'inactive' or 'active'
-  local obj = getObjectByID(picked)
-  local currentModel = obj and obj.jbeam or '?'
-  log('I', logTag, string.format('Rotation tick: %d candidates, picked veh %d (model=%s, age=%.0fs, %s)', #candidates, picked, currentModel, age, poolState))
-
-  -- Pick a new model different from what's loaded in this slot
-  local obj = getObjectByID(picked)
-  if not obj then
-    log('I', logTag, 'Rotation tick: SKIPPED — picked veh object does not exist')
-    return
-  end
-  local currentModel = obj.jbeam
-  local newModel
-  for attempt = 1, 10 do
-    newModel = pickWeightedModel()
-    if newModel ~= currentModel then break end
-  end
-  if newModel == currentModel then return end -- couldn't find a different model
-
-  local newConfig = getRandomConfig(newModel)
-
-  rotation.active = true
-  rotation.vehId = picked
-  rotation.newModel = newModel
-  rotation.newConfig = newConfig
-  -- Mark the vehicle so the pool won't reactivate it
-  if traffic[picked] then
-    traffic[picked]._rotationPending = true
-    traffic[picked].activeProbability = 0 -- prevent pool from activating it
-  end
-
-  -- If already inactive, swap next frame; otherwise wait for deactivation
-  if vehPool.allVehs[picked] == 0 then
-    rotation.phase = 'pendingSwap'
-    log('I', logTag, string.format('Rotation: veh %d already inactive, will swap next frame (%s -> %s)', picked, currentModel, newModel))
-  else
-    rotation.phase = 'waitDeactivate'
-    log('I', logTag, string.format('Rotation: waiting for veh %d to drive away (%s -> %s)', picked, currentModel, newModel))
-  end
-end
-
-local function cancelRotation(reason)
-  if not rotation.active then return end
-  local vehId = rotation.vehId
-  log('I', logTag, string.format('Rotation: cancelled for veh %d — %s', vehId or -1, reason or 'unknown'))
-  if vehId and traffic[vehId] then
-    traffic[vehId]._rotationPending = nil
-    traffic[vehId].activeProbability = 1
-  end
-  rotation.active = false
-  rotation.vehId = nil
-  rotation.phase = nil
-  rotation.cooldown = ROTATION_INTERVAL
-end
-
-local function onRotationVehicleDeactivated(vehId)
-  -- Called when the vehicle we're waiting on goes inactive
-  if rotation.phase ~= 'waitDeactivate' or rotation.vehId ~= vehId then return end
-
-  -- Defer the actual swap to next frame so the engine fully cleans up the deactivated vehicle
-  rotation.phase = 'pendingSwap'
-  log('I', logTag, string.format('Rotation: veh %d deactivated, will swap next frame', vehId))
-end
-
-local function executeRotationSwap()
-  local vehId = rotation.vehId
-  local obj = getObjectByID(vehId)
-  local newModel = rotation.newModel
-  local newConfig = rotation.newConfig
-
-  rotation.phase = 'spawning'
-
-  -- Delete the old vehicle
-  log('I', logTag, string.format('Rotation: deleting veh %d, spawning %s config=%s', vehId, newModel, tostring(newConfig)))
-  removeTraffic(vehId)
-  obj:delete()
-
-  -- Clean up old rotation tracking for the deleted vehId
-  rotation.loadedModels[vehId] = nil
-  rotation.modelSetTime[vehId] = nil
-
-  -- Spawn a new vehicle via core_multiSpawn (uses job system for async loading)
-  local groupEntry = {model = newModel}
-  if newConfig then groupEntry.config = newConfig end
-
-  rotation._pendingGroupName = 'rotationSpawn_' .. tostring(os.clock())
-  core_multiSpawn.spawnGroup({groupEntry}, 1, {
-    name = rotation._pendingGroupName,
-    mode = 'traffic',
-    gap = 20,
-    ignoreJobSystem = false,
-    randomPaints = true,
-  })
-  -- Completion handled in onVehicleGroupSpawned
-end
-
-local function updateRotation(dtReal)
-  if rotation.active then
-    if rotation.phase == 'waitDeactivate' then
-      -- Check if vehicle is far enough from player to force-deactivate
-      local vehId = rotation.vehId
-      local obj = vehId and getObjectByID(vehId)
-      if obj then
-        local vehPos = obj:getPosition()
-        local playerDist = focus.pos:distance(vehPos)
-        if playerDist > 150 then
-          log('I', logTag, string.format('Rotation: veh %d is %.0fm away, force-deactivating', vehId, playerDist))
-          if vehPool then vehPool:setVeh(vehId, false) end
-          -- onVehicleActiveChanged will fire and trigger the swap
-        end
-      else
-        cancelRotation('vehicle object lost')
-        startRotation() -- immediately try next candidate
-      end
-    elseif rotation.phase == 'pendingSwap' then
-      executeRotationSwap()
-    end
-  else
-    rotation.cooldown = rotation.cooldown - dtReal
-    if rotation.cooldown <= 0 then
-      startRotation()
-    end
-  end
-end
 
 local function processNextSpawn(id, ignorePool) -- processes the next vehicle respawn action
   if not next(map.getMap().nodes) then return end
@@ -857,7 +682,7 @@ local function setActiveAmount(amount) -- sets the maximum amount of active (vis
   setTrafficVars({activeAmount = amount})
 end
 
-insertTraffic = function(id, ignoreAi, ignoreVehPool) -- inserts a new vehicle into the traffic table
+local function insertTraffic(id, ignoreAi, ignoreVehPool) -- inserts a new vehicle into the traffic table
   -- ignoreAi prevents AI and respawn logic from getting applied to the given vehicle
   -- ignoreVehPool prevents the vehicle from becoming deactivated due to the vehicle pooling system (maybe needs another way to handle this)
   local obj = getObjectByID(id)
@@ -891,7 +716,7 @@ insertTraffic = function(id, ignoreAi, ignoreVehPool) -- inserts a new vehicle i
   end
 end
 
-removeTraffic = function(id, stopAi) -- remove a vehicle from the traffic table
+local function removeTraffic(id, stopAi) -- remove a vehicle from the traffic table
   if traffic[id] then
     local obj = getObjectByID(id)
     local idx = arrayFindValueIndex(trafficAiVehsList, id)
@@ -949,10 +774,6 @@ local function onVehicleSpawned(id)
     traffic[id]:setRole(traffic[id].autoRole)
     traffic[id]:resetAll()
   end
-  -- Stamp model set time for rotation scheduling
-  if not rotation.modelSetTime[id] then
-    rotation.modelSetTime[id] = os.clock()
-  end
   if vehPool then vehPool._updateFlag = true end
 end
 
@@ -968,21 +789,16 @@ local function onVehicleResetted(id)
 end
 
 local function onVehicleDestroyed(id)
-  if rotation.active and rotation.vehId == id then
-    cancelRotation('vehicle destroyed')
-  end
   removeTraffic(id)
   if vehPool then vehPool._updateFlag = true end
 end
 
 local function onVehicleActiveChanged(vehId, active)
   if traffic[vehId] and traffic[vehId].isAi then
+    local obj = getObjectByID(vehId)
+    local model = obj and obj.jbeam or '?'
+    log('I', logTag, string.format('Vehicle %d (%s) %s', vehId, model, active and 'ACTIVATED' or 'DEACTIVATED'))
     if not active then
-      -- Check if this vehicle is pending rotation
-      if rotation.active and rotation.vehId == vehId then
-        onRotationVehicleDeactivated(vehId)
-        return -- don't set _teleport — rotation handles this vehicle
-      end
       traffic[vehId]._teleport = true
       traffic[vehId].alpha = 0
       getObjectByID(vehId):setMeshAlpha(0, '')
@@ -1075,14 +891,13 @@ local function setupTraffic(amount, policeRatio, options) -- prepares a group of
     policeAmount = options.policeAmount or math.ceil(amount * policeRatio)
     activeAmount = amount
 
-    if settings.getValue('trafficExtraVehicles') then -- extra amount of vehicles to spawn (they will be inactive when the vehicle pooling system starts)
-      local extraAmount = settings.getValue('trafficExtraAmount')
-      if extraAmount == 0 then
-        extraAmount = clamp(amountFromSettings, 2, 8)
-      end
-
-      amount = max(amountFromSettings, amount + extraAmount)
+    -- Always spawn extra inactive vehicles for pool variety (overrides user setting)
+    local extraAmount = settings.getValue('trafficExtraAmount') or 0
+    if extraAmount == 0 then
+      extraAmount = clamp(amountFromSettings, 4, 10)
     end
+    amount = max(amountFromSettings, amount + extraAmount)
+    log('I', logTag, string.format('Traffic pool: %d active, %d extra inactive, %d total', activeAmount, extraAmount, amount))
   else
     if options.autoAdjustAmount then
       amount = getIdealSpawnAmount(amount) -- adjust for amount of existing active vehicles
@@ -1245,7 +1060,7 @@ local function doTraffic(dt, dtSim) -- active traffic logic
           end
         end
 
-        if i == auxiliaryData.queuedVehicle and not veh._rotationPending then -- checks one vehicle per frame, as an optimization
+        if i == auxiliaryData.queuedVehicle then -- checks one vehicle per frame, as an optimization
           if veh._teleport then
             forceTeleport(id, nil, nil, veh._teleportDist)
           else
@@ -1309,8 +1124,6 @@ local function doTraffic(dt, dtSim) -- active traffic logic
     auxiliaryData.sampleTimer = 0
   end
 
-  -- Async model rotation — one swap at a time, spread over time
-  updateRotation(dt)
 end
 
 local function trackAIAllVeh(mode) -- triggers when the player sets an AI mode for all vehicles
@@ -1349,28 +1162,6 @@ local function onVehicleGroupSpawned(vehList, groupId, groupName)
   if groupName == 'autoTraffic' then
     spawnProcess.vehList = vehList
     activate(spawnProcess.vehList)
-  end
-
-  -- Handle rotation spawn completion
-  if rotation.active and rotation.phase == 'spawning' and rotation._pendingGroupName and groupName == rotation._pendingGroupName then
-    rotation._pendingGroupName = nil
-    if vehList and vehList[1] then
-      local newId = vehList[1]
-      log('I', logTag, string.format('Rotation: new veh %d spawned (%s)', newId, rotation.newModel))
-
-      -- Insert into traffic system
-      insertTraffic(newId)
-
-      rotation.loadedModels[newId] = rotation.newModel
-      rotation.modelSetTime[newId] = os.clock()
-    else
-      log('W', logTag, 'Rotation: spawn group returned empty vehList')
-    end
-
-    rotation.active = false
-    rotation.vehId = nil
-    rotation.phase = nil
-    rotation.cooldown = ROTATION_INTERVAL
   end
 end
 
@@ -1489,16 +1280,6 @@ local function onTrafficStarted()
 end
 
 local function onTrafficStopped()
-  -- Cancel any in-progress rotation
-  if rotation.active then
-    rotation.active = false
-    rotation.vehId = nil
-    rotation.phase = nil
-  end
-  rotation.cooldown = ROTATION_INTERVAL
-  table.clear(rotation.loadedModels)
-  table.clear(rotation.modelSetTime)
-
   deleteTrafficPool()
   table.clear(traffic)
   table.clear(trafficAiVehsList)
@@ -1517,8 +1298,6 @@ local function onClientEndMission()
   setFocus()
   auxiliaryData.worldLoaded = false
   invalidateVehiclePool()
-  table.clear(rotation.loadedModels)
-  table.clear(rotation.modelSetTime)
 end
 
 local function onUiWaitingState() -- callback for when the waiting UI is shown

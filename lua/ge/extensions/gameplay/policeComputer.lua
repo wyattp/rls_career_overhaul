@@ -755,15 +755,6 @@ function M.onTrafficVehicleRespawn(vehId)
   saveCurrentVehicleState()
 end
 
-function M.onTrafficVehicleRotated(vehId, newModel)
-  log('I', logTag, 'onTrafficVehicleRotated: vehId=' .. vehId .. ' newModel=' .. tostring(newModel))
-  removeTrackedVehicleRecord(vehId)
-
-  vehiclePlateApplied[vehId] = nil
-  M.onTrafficVehicleAdded(vehId)
-  saveCurrentVehicleState()
-end
-
 function M.onTrafficVehicleRemoved(vehId)
   log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
   removeTrackedVehicleRecord(vehId)
