@@ -12,6 +12,7 @@ local traffic, trafficAiVehsList, trafficIdsSorted = {}, {}, {}
 local mapNodes
 local vehPool, vehPoolId
 local trafficVehicle = require('gameplay/traffic/vehicle')
+local insertTraffic, removeTraffic -- forward declarations (defined later, used by rotation system)
 
 -- const vectors --
 local vecUp = vec3(0, 0, 1)
@@ -856,7 +857,7 @@ local function setActiveAmount(amount) -- sets the maximum amount of active (vis
   setTrafficVars({activeAmount = amount})
 end
 
-local function insertTraffic(id, ignoreAi, ignoreVehPool) -- inserts a new vehicle into the traffic table
+insertTraffic = function(id, ignoreAi, ignoreVehPool) -- inserts a new vehicle into the traffic table
   -- ignoreAi prevents AI and respawn logic from getting applied to the given vehicle
   -- ignoreVehPool prevents the vehicle from becoming deactivated due to the vehicle pooling system (maybe needs another way to handle this)
   local obj = getObjectByID(id)
@@ -890,7 +891,7 @@ local function insertTraffic(id, ignoreAi, ignoreVehPool) -- inserts a new vehic
   end
 end
 
-local function removeTraffic(id, stopAi) -- remove a vehicle from the traffic table
+removeTraffic = function(id, stopAi) -- remove a vehicle from the traffic table
   if traffic[id] then
     local obj = getObjectByID(id)
     local idx = arrayFindValueIndex(trafficAiVehsList, id)
