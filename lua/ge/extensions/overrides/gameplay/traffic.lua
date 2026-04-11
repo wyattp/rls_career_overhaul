@@ -123,11 +123,13 @@ local rotation = {
   newConfig = nil,       -- target config
   phase = nil,           -- 'waitDeactivate' | 'loading'
   cooldown = 0,          -- seconds until next rotation attempt
+  loadingTimer = 0,      -- seconds spent in 'loading' phase (timeout safety)
   loadedModels = {},     -- [vehId] = modelName — tracks what's currently loaded per slot
   modelSetTime = {},     -- [vehId] = timestamp (os.clock()) when model was last set
 }
 local ROTATION_INTERVAL = 15  -- seconds between rotation attempts
 local ROTATION_DEACTIVATE_TIMEOUT = 60 -- seconds to wait for deactivation before skipping
+local ROTATION_LOADING_TIMEOUT = 30 -- seconds to wait for model load before giving up
 
 local function invalidateVehiclePool()
   validatedPool = nil
@@ -569,10 +571,20 @@ end
 -- ============================================================================
 
 local function startRotation()
-  if rotation.active or not vehPool or state ~= 'on' then return end
+  if rotation.active then
+    log('I', logTag, 'Rotation tick: SKIPPED — rotation already active (phase=' .. tostring(rotation.phase) .. ' veh=' .. tostring(rotation.vehId) .. ')')
+    return
+  end
+  if not vehPool or state ~= 'on' then
+    log('I', logTag, 'Rotation tick: SKIPPED — pool=' .. tostring(vehPool ~= nil) .. ' state=' .. tostring(state))
+    return
+  end
 
   buildValidatedPool()
-  if not validatedPool or #validatedPool == 0 then return end
+  if not validatedPool or #validatedPool == 0 then
+    log('I', logTag, 'Rotation tick: SKIPPED — no validated pool')
+    return
+  end
 
   -- Pick a candidate: longest dwell time (oldest model), skip police and player
   local candidates = {}
@@ -585,7 +597,12 @@ local function startRotation()
     end
   end
 
-  if #candidates == 0 then return end
+  if #candidates == 0 then
+    log('I', logTag, 'Rotation tick: SKIPPED — no eligible candidates')
+    return
+  end
+
+  log('I', logTag, string.format('Rotation tick: %d candidates, checking dwell times...', #candidates))
 
   -- Find the oldest model set time among candidates
   local now = os.clock()
@@ -608,9 +625,17 @@ local function startRotation()
 
   local picked = oldest[random(#oldest)]
 
+  local now = os.clock()
+  local age = now - (rotation.modelSetTime[picked] or 0)
+  local poolState = vehPool.allVehs[picked] == 0 and 'inactive' or 'active'
+  log('I', logTag, string.format('Rotation tick: picked veh %d (age=%.0fs, pool=%s, %d tied for oldest)', picked, age, poolState, #oldest))
+
   -- Pick a new model different from what's loaded in this slot
   local obj = getObjectByID(picked)
-  if not obj then return end
+  if not obj then
+    log('I', logTag, 'Rotation tick: SKIPPED — picked veh object does not exist')
+    return
+  end
   local currentModel = obj.jbeam
   local newModel
   for attempt = 1, 10 do
@@ -636,6 +661,7 @@ local function startRotation()
   -- If already inactive, proceed immediately
   if vehPool.allVehs[picked] == 0 then
     rotation.phase = 'loading'
+    rotation.loadingTimer = 0
     local spawnOptions = {keepOtherVehRotation = true}
     if newConfig then spawnOptions.config = newConfig end
 
@@ -687,6 +713,7 @@ local function onRotationVehicleDeactivated(vehId)
   end
 
   rotation.phase = 'loading'
+  rotation.loadingTimer = 0
   local spawnOptions = {keepOtherVehRotation = true}
   if rotation.newConfig then spawnOptions.config = rotation.newConfig end
 
@@ -712,11 +739,15 @@ end
 
 local function updateRotation(dtReal)
   if rotation.active then
-    -- Timeout: if waiting for deactivation too long, skip this slot
     if rotation.phase == 'waitDeactivate' then
       rotation.cooldown = rotation.cooldown - dtReal
       if rotation.cooldown <= 0 then
         cancelRotation('deactivation timeout')
+      end
+    elseif rotation.phase == 'loading' then
+      rotation.loadingTimer = rotation.loadingTimer + dtReal
+      if rotation.loadingTimer >= ROTATION_LOADING_TIMEOUT then
+        cancelRotation('loading timeout (ping callback never fired)')
       end
     end
   else

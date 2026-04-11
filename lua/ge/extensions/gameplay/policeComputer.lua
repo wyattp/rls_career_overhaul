@@ -9,7 +9,6 @@ local scannedVehIds = {} -- ordered list of scanned vehicle IDs (most recent fir
 local vehicleRecords = {} -- keyed by vehicle ID
 local plateOwners = {} -- keyed by plate string, value is vehId
 local vehicleLastSeenTick = {} -- keyed by vehicle ID, higher means more recent
-local retiredVehicleIds = {} -- vehicles evicted from ANPR history for this session
 local seenTickCounter = 0
 local perVehicleComputerState = {} -- keyed by inventoryId
 local activeInventoryId = nil
@@ -288,7 +287,7 @@ local function setEmptyComputerState()
   vehicleRecords = {}
   plateOwners = {}
   vehicleLastSeenTick = {}
-  retiredVehicleIds = {}
+
   vehiclePlateApplied = {}
   plateSetQueue = {}
   plateSetTimer = 0
@@ -304,13 +303,11 @@ local function saveStateForInventoryId(invId, detach)
       scannedVehIds = scannedVehIds,
       vehicleRecords = vehicleRecords,
       vehicleLastSeenTick = vehicleLastSeenTick,
-      retiredVehicleIds = retiredVehicleIds,
       seenTickCounter = seenTickCounter or 0,
     }
     scannedVehIds = {}
     vehicleRecords = {}
     vehicleLastSeenTick = {}
-    retiredVehicleIds = {}
   else
     -- Snapshot: copy tables so active state is preserved
     perVehicleComputerState[invId] = {
@@ -318,7 +315,6 @@ local function saveStateForInventoryId(invId, detach)
       scannedVehIds = deepcopy(scannedVehIds),
       vehicleRecords = deepcopy(vehicleRecords),
       vehicleLastSeenTick = deepcopy(vehicleLastSeenTick),
-      retiredVehicleIds = deepcopy(retiredVehicleIds),
       seenTickCounter = seenTickCounter or 0,
     }
   end
@@ -348,7 +344,6 @@ local function restoreStateForInventoryId(invId)
     end
   end
   vehicleLastSeenTick = saved.vehicleLastSeenTick or {}
-  retiredVehicleIds = saved.retiredVehicleIds or {}
   seenTickCounter = saved.seenTickCounter or 0
 end
 
@@ -422,7 +417,6 @@ local function scanForVehicles()
           local inFrontCone = dist < scanRange and dot > scanConeAngle
           local inLeftCone = dist < scanRangeLeft and dotLeft > scanConeAngleLeft
           local inCone = (inFrontCone or inLeftCone) and verticalDiff >= scanVerticalMin and verticalDiff <= scanVerticalMax
-          local isRetired = retiredVehicleIds[vehId] and true or false
           local isPolice = tVeh.roleName == 'police'
           local wasTracked = trackedSet[vehId]
 
@@ -439,7 +433,6 @@ local function scanForVehicles()
             local coneSrc = inFrontCone and 'FRONT' or 'LEFT'
             local status = 'IN_CONE(' .. coneSrc .. ')'
             if isPolice then status = status .. '|POLICE' end
-            if isRetired then status = status .. '|RETIRED' end
             if wasTracked then status = status .. '|TRACKED' end
 
             log('I', logTag, string.format('ANPR scan: %s vehId=%d dist=%.1fm vDiff=%.1fm dotFwd=%.2f dotLeft=%.2f plate=%s model=%s color=%s driver=%s age=%.1fs',
@@ -448,8 +441,8 @@ local function scanForVehicles()
               record.createdAt and (os.clock() - record.createdAt) or -1))
           end
 
-          -- Only act on vehicles that are: in cone, not police, not retired
-          if inCone and not isPolice and not isRetired then
+          -- Only act on vehicles that are: in cone, not police
+          if inCone and not isPolice then
             if inFrontCone then coneFrontHit = true end
             if inLeftCone then coneLeftHit = true end
             -- Track closest vehicle in cone
@@ -497,7 +490,7 @@ local function scanForVehicles()
 
     local ordered = {}
     for vehId, tick in pairs(vehicleLastSeenTick) do
-      if tick and not retiredVehicleIds[vehId] then
+      if tick then
         table.insert(ordered, {vehId = vehId, tick = tick})
       end
     end
@@ -508,9 +501,8 @@ local function scanForVehicles()
       if i <= maxScannedPlates then
         table.insert(scannedVehIds, entry.vehId)
       else
-        local evictedVehId = entry.vehId
-        removeTrackedVehicleRecord(evictedVehId)
-        retiredVehicleIds[evictedVehId] = true
+        -- Remove from display list but keep the record so re-scanning returns the same plate
+        vehicleLastSeenTick[entry.vehId] = nil
       end
     end
 
@@ -616,7 +608,7 @@ end
 function M.clearScans()
   scannedVehIds = {}
   vehicleLastSeenTick = {}
-  retiredVehicleIds = {}
+
   vehiclePlateApplied = {}
   plateSetQueue = {}
   plateSetTimer = 0
@@ -757,7 +749,7 @@ end
 function M.onTrafficVehicleRespawn(vehId)
   log('I', logTag, 'onTrafficVehicleRespawn: vehId=' .. vehId)
   removeTrackedVehicleRecord(vehId)
-  retiredVehicleIds[vehId] = nil
+
   vehiclePlateApplied[vehId] = nil
   M.onTrafficVehicleAdded(vehId)
   saveCurrentVehicleState()
@@ -766,7 +758,7 @@ end
 function M.onTrafficVehicleRotated(vehId, newModel)
   log('I', logTag, 'onTrafficVehicleRotated: vehId=' .. vehId .. ' newModel=' .. tostring(newModel))
   removeTrackedVehicleRecord(vehId)
-  retiredVehicleIds[vehId] = nil
+
   vehiclePlateApplied[vehId] = nil
   M.onTrafficVehicleAdded(vehId)
   saveCurrentVehicleState()
@@ -775,7 +767,7 @@ end
 function M.onTrafficVehicleRemoved(vehId)
   log('I', logTag, 'onTrafficVehicleRemoved: vehId=' .. vehId)
   removeTrackedVehicleRecord(vehId)
-  retiredVehicleIds[vehId] = nil
+
   vehiclePlateApplied[vehId] = nil
   saveCurrentVehicleState()
 end
@@ -809,7 +801,7 @@ function M.onPursuitAction(vehId, action, pursuitData)
     if record then
       record.arrested = true
     end
-    retiredVehicleIds[vehId] = true
+
   end
 end
 
@@ -890,7 +882,7 @@ function M.onExtensionUnloaded()
   vehicleRecords = {}
   plateOwners = {}
   vehicleLastSeenTick = {}
-  retiredVehicleIds = {}
+
   vehiclePlateApplied = {}
   plateSetQueue = {}
   plateSetTimer = 0
