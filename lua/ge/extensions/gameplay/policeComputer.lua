@@ -106,18 +106,14 @@ local function isNonVehicleJbeam(jbeamName)
 end
 
 
+local skippedVehIds = {} -- vehIds that are not vehicles (pedestrians etc), don't retry
+
 local function generateRecord(vehId)
   local existing = vehicleRecords[vehId]
   if existing then
     return existing
   end
-  -- Seed with high-entropy source to guarantee uniqueness
-  local seed = os.clock() * 1000000 + vehId * 31
-  math.randomseed(seed)
-  -- Burn a few values to decorrelate
-  math.random(); math.random(); math.random()
-
-  log('I', logTag, 'generateRecord: NEW record for vehId=' .. vehId .. ' seed=' .. tostring(seed))
+  if skippedVehIds[vehId] then return nil end
 
   local obj = getObjectByID(vehId)
   if not obj then return nil end
@@ -125,7 +121,7 @@ local function generateRecord(vehId)
   -- Skip pedestrians/walking NPCs
   local jbeamName = tostring(obj.jbeam or '')
   if isNonVehicleJbeam(jbeamName) then
-    log('D', logTag, 'generateRecord: skipping non-vehicle vehId=' .. vehId .. ' jbeam=' .. jbeamName)
+    skippedVehIds[vehId] = true
     return nil
   end
 
@@ -136,9 +132,14 @@ local function generateRecord(vehId)
     vehicleName = model.Brand .. ' ' .. vehicleName
   end
   if isWalkingEntityLabel(vehicleName) then
-    log('D', logTag, 'generateRecord: skipping walking entity vehId=' .. vehId .. ' model=' .. tostring(vehicleName))
+    skippedVehIds[vehId] = true
     return nil
   end
+
+  -- Seed with high-entropy source to guarantee uniqueness
+  local seed = os.clock() * 1000000 + vehId * 31
+  math.randomseed(seed)
+  math.random(); math.random(); math.random()
 
   -- Generate unique plate
   local plate
