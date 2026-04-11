@@ -33,7 +33,7 @@ end
 
 -- Lights toggle: OFF <-> lights-only.
 -- Turning lights off kills siren sounds via the vehicle extension.
--- Turning lights on triggers an immediate traffic stop on the vehicle ahead.
+-- Turning lights on starts the traffic stop dwell timer (3s) via updateTrafficStop.
 function M.togglePoliceLights()
   local playerVeh, playerVehId = getPlayerPoliceVehicle()
   if not playerVeh then return end
@@ -46,11 +46,6 @@ function M.togglePoliceLights()
     -- Lights off: stop siren sounds
     playerVeh:queueLuaCommand("if electrics and electrics.set_warn_signal then electrics.set_warn_signal(0) end")
     playerVeh:queueLuaCommand("extensions.auto_rlsSirenController.stopAll()")
-  else
-    -- Lights just turned on — immediately try to initiate a traffic stop on the vehicle ahead
-    if gameplay_police and gameplay_police.immediateTrafficStop then
-      gameplay_police.immediateTrafficStop()
-    end
   end
 end
 

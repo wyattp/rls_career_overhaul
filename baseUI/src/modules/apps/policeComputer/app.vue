@@ -555,9 +555,15 @@ $clear-green: #3cff6e;
   }
 
   &.selected {
-    background: rgba(74, 158, 255, 0.15);
-    border-left: 2px solid $text-accent;
-    padding-left: 8px;
+    background: rgba(74, 158, 255, 0.25);
+    border-left: 3px solid $text-accent;
+    padding-left: 7px;
+    box-shadow: inset 0 0 12px rgba(74, 158, 255, 0.2);
+
+    .plate-number {
+      color: #fff;
+      text-shadow: 0 0 6px rgba(74, 158, 255, 0.5);
+    }
   }
 
   &.ahead {

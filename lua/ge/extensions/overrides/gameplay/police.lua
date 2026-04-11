@@ -141,7 +141,7 @@ local function resetPursuitVars() -- resets pursuit variables to default
     arrestRadius = 20,
     evadeTime = 45,
     evadeRadius = 80,
-    suspectFrequency = 0.5, -- this is disabled if traffic random events are disabled
+    suspectFrequency = 0.2, -- this is disabled if traffic random events are disabled
     roadblockFrequency = 0.5, -- roadblock frequency modifier (set to 0 to disable)
     useVisibility = true, -- set to false to disable visibility checks for pursuit targets
     autoRelease = false -- keep arrested suspects immobilized until despawn unless explicitly re-enabled
@@ -1231,6 +1231,17 @@ updateTrafficStop = function(dtReal)
   local target = findVehicleAhead(playerVeh, STOP_RANGE, STOP_CONE_DOT)
   if not target then
     resetTrafficStop()
+    return
+  end
+
+  -- Skip vehicles already fleeing or in an active pursuit
+  if isVehicleFleeing(target) then
+    if trafficStopTarget == target then resetTrafficStop() end
+    return
+  end
+  local tData = gameplay_traffic.getTrafficData()[target]
+  if tData and tData.pursuit and tData.pursuit.mode >= 1 then
+    if trafficStopTarget == target then resetTrafficStop() end
     return
   end
 
