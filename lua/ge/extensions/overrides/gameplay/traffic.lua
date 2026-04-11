@@ -432,8 +432,9 @@ local function respawnVehicle(id, pos, rot, strict) -- moves the vehicle to a ne
     rot = rot * quat(0, 0, 1, 0)
     obj:setPositionRotation(pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, rot.w)
     obj:autoplace(false)
-    obj:resetBrokenFlexMesh()
   end
+  obj:resetBrokenFlexMesh()
+  obj:queueLuaCommand('recovery.loadHome()')
 
   if traffic[id] then
     traffic[id].pos = vec3(pos) -- instantly updates the position this frame
