@@ -684,8 +684,8 @@ local function executeRotationSwap()
   rotation.phase = 'loading'
   rotation.loadingTimer = 0
 
-  -- Reactivate the object before replacing — engine may not handle mesh replacement on inactive objects
-  obj:setActive(1)
+  -- Queue additional vehicle data before replacing (matches businessPartCustomization pattern)
+  core_vehicle_manager.queueAdditionalVehicleData({spawnWithEngineRunning = false}, vehId)
 
   local spawnOptions = {keepOtherVehRotation = true}
   if rotation.newConfig then spawnOptions.config = rotation.newConfig end
