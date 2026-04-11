@@ -603,8 +603,6 @@ local function startRotation()
     return
   end
 
-  log('I', logTag, string.format('Rotation tick: %d candidates, checking dwell times...', #candidates))
-
   -- Sort candidates by dwell time (oldest first)
   local now = os.clock()
   table.sort(candidates, function(a, b)
@@ -613,19 +611,12 @@ local function startRotation()
     return aTime < bTime
   end)
 
-  -- Log all candidates for debugging
-  for i, id in ipairs(candidates) do
-    local t = rotation.modelSetTime[id] or 0
-    local inactive = vehPool.allVehs[id] == 0
-    local obj = getObjectByID(id)
-    local model = obj and obj.jbeam or '?'
-    log('I', logTag, string.format('  candidate %d: veh %d model=%s age=%.0fs %s', i, id, model, now - t, inactive and 'INACTIVE' or 'active'))
-  end
-
   local picked = candidates[1]
   local age = now - (rotation.modelSetTime[picked] or 0)
   local poolState = vehPool.allVehs[picked] == 0 and 'inactive' or 'active'
-  log('I', logTag, string.format('Rotation tick: picked veh %d (age=%.0fs, pool=%s)', picked, age, poolState))
+  local obj = getObjectByID(picked)
+  local currentModel = obj and obj.jbeam or '?'
+  log('I', logTag, string.format('Rotation tick: %d candidates, picked veh %d (model=%s, age=%.0fs, %s)', #candidates, picked, currentModel, age, poolState))
 
   -- Pick a new model different from what's loaded in this slot
   local obj = getObjectByID(picked)
@@ -653,33 +644,13 @@ local function startRotation()
     traffic[picked].activeProbability = 0 -- prevent pool from activating it
   end
 
-  -- If already inactive, proceed immediately
+  -- If already inactive, swap next frame; otherwise wait for deactivation
   if vehPool.allVehs[picked] == 0 then
-    rotation.phase = 'loading'
-    rotation.loadingTimer = 0
-    local spawnOptions = {keepOtherVehRotation = true}
-    if newConfig then spawnOptions.config = newConfig end
-
-    log('I', logTag, string.format('Rotation: swapping veh %d from %s to %s (was inactive)', picked, currentModel, newModel))
-    core_vehicles.replaceVehicle(newModel, spawnOptions, obj)
-
-    core_vehicleBridge.requestValue(obj, function()
-      log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', picked, newModel))
-      rotation.loadedModels[picked] = newModel
-      rotation.modelSetTime[picked] = os.clock()
-      if traffic[picked] then
-        traffic[picked]._rotationPending = nil
-        traffic[picked].activeProbability = 1
-      end
-      rotation.active = false
-      rotation.vehId = nil
-      rotation.phase = nil
-      rotation.cooldown = ROTATION_INTERVAL
-      extensions.hook('onTrafficVehicleRotated', picked, newModel)
-    end, 'ping')
+    rotation.phase = 'pendingSwap'
+    log('I', logTag, string.format('Rotation: veh %d already inactive, will swap next frame (%s -> %s)', picked, currentModel, newModel))
   else
     rotation.phase = 'waitDeactivate'
-    log('I', logTag, string.format('Rotation: waiting for veh %d to deactivate (current: %s, target: %s)', picked, currentModel, newModel))
+    log('I', logTag, string.format('Rotation: waiting for veh %d to drive away (%s -> %s)', picked, currentModel, newModel))
   end
 end
 
@@ -701,18 +672,25 @@ local function onRotationVehicleDeactivated(vehId)
   -- Called when the vehicle we're waiting on goes inactive
   if rotation.phase ~= 'waitDeactivate' or rotation.vehId ~= vehId then return end
 
+  -- Defer the actual swap to next frame so the engine fully cleans up the deactivated vehicle
+  rotation.phase = 'pendingSwap'
+  log('I', logTag, string.format('Rotation: veh %d deactivated, will swap next frame', vehId))
+end
+
+local function executeRotationSwap()
+  local vehId = rotation.vehId
   local obj = getObjectByID(vehId)
-  if not obj then
-    cancelRotation('vehicle destroyed')
-    return
-  end
 
   rotation.phase = 'loading'
   rotation.loadingTimer = 0
+
+  -- Reactivate the object before replacing — engine may not handle mesh replacement on inactive objects
+  obj:setActive(1)
+
   local spawnOptions = {keepOtherVehRotation = true}
   if rotation.newConfig then spawnOptions.config = rotation.newConfig end
 
-  log('I', logTag, string.format('Rotation: veh %d deactivated, now swapping to %s', vehId, rotation.newModel))
+  log('I', logTag, string.format('Rotation: swapping veh %d to %s config=%s', vehId, rotation.newModel, tostring(spawnOptions.config)))
   core_vehicles.replaceVehicle(rotation.newModel, spawnOptions, obj)
 
   local capturedModel = rotation.newModel
@@ -750,6 +728,8 @@ local function updateRotation(dtReal)
         cancelRotation('vehicle object lost')
         startRotation() -- immediately try next candidate
       end
+    elseif rotation.phase == 'pendingSwap' then
+      executeRotationSwap()
     elseif rotation.phase == 'loading' then
       rotation.loadingTimer = rotation.loadingTimer + dtReal
       if rotation.loadingTimer >= ROTATION_LOADING_TIMEOUT then
