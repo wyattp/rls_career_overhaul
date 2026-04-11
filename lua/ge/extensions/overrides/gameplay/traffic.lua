@@ -433,6 +433,7 @@ end
 local function respawnVehicle(id, pos, rot, strict) -- moves the vehicle to a new position and rotation
   local obj = id and getObjectByID(id)
   if not obj or not pos or not rot then return end
+  if traffic[id] and traffic[id]._rotationPending then return end -- don't respawn vehicles being phased out
 
   if not strict then
     spawn.safeTeleport(obj, pos, rot, true, nil, false) -- this is slower, but prevents vehicles from spawning inside static geometry
@@ -453,6 +454,7 @@ end
 
 local function forceTeleport(id, pos, dir, minDist, maxDist, targetDist) -- force teleports a traffic vehicle
   if traffic[id] and traffic[id].ignoreForceTeleport then return end -- ignoreForceTeleport is a special flag for vehicles that should not be force teleported
+  if traffic[id] and traffic[id]._rotationPending then return end -- don't teleport vehicles being phased out for rotation
 
   local vehObj = getObjectByID(id)
   if vehObj and vehObj:getActive() then
@@ -604,31 +606,27 @@ local function startRotation()
 
   log('I', logTag, string.format('Rotation tick: %d candidates, checking dwell times...', #candidates))
 
-  -- Find the oldest model set time among candidates
+  -- Sort candidates by dwell time (oldest first)
   local now = os.clock()
-  local oldestTime = now
-  for _, id in ipairs(candidates) do
+  table.sort(candidates, function(a, b)
+    local aTime = rotation.modelSetTime[a] or 0
+    local bTime = rotation.modelSetTime[b] or 0
+    return aTime < bTime
+  end)
+
+  -- Log all candidates for debugging
+  for i, id in ipairs(candidates) do
     local t = rotation.modelSetTime[id] or 0
-    if t < oldestTime then
-      oldestTime = t
-    end
+    local inactive = vehPool.allVehs[id] == 0
+    local obj = getObjectByID(id)
+    local model = obj and obj.jbeam or '?'
+    log('I', logTag, string.format('  candidate %d: veh %d model=%s age=%.0fs %s', i, id, model, now - t, inactive and 'INACTIVE' or 'active'))
   end
 
-  -- Collect all candidates tied at the oldest time (within 1s tolerance)
-  local oldest = {}
-  for _, id in ipairs(candidates) do
-    local t = rotation.modelSetTime[id] or 0
-    if t <= oldestTime + 1 then
-      table.insert(oldest, id)
-    end
-  end
-
-  local picked = oldest[random(#oldest)]
-
-  local now = os.clock()
+  local picked = candidates[1]
   local age = now - (rotation.modelSetTime[picked] or 0)
   local poolState = vehPool.allVehs[picked] == 0 and 'inactive' or 'active'
-  log('I', logTag, string.format('Rotation tick: picked veh %d (age=%.0fs, pool=%s, %d tied for oldest)', picked, age, poolState, #oldest))
+  log('I', logTag, string.format('Rotation tick: picked veh %d (age=%.0fs, pool=%s)', picked, age, poolState))
 
   -- Pick a new model different from what's loaded in this slot
   local obj = getObjectByID(picked)
