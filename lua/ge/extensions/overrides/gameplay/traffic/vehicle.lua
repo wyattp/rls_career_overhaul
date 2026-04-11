@@ -693,6 +693,7 @@ function C:onVehicleResetted() -- triggers whenever vehicle resets (automaticall
 end
 
 function C:onRespawn() -- triggers after vehicle respawns in traffic
+  log('I', 'traffic', string.format('onRespawn: veh %d respawnCount=%d', self.id, self.respawnCount or 0))
   if self.useRandomPaint then
     local paints
     if self.definedPaints then
@@ -709,7 +710,6 @@ function C:onRespawn() -- triggers after vehicle respawns in traffic
   self.respawnActive = true
   self.crashActive = nil
   self.state = 'reset'
-  extensions.hook('onTrafficVehicleRespawn', self.id)
 end
 
 function C:onRefresh() -- triggers whenever vehicle data needs to be refreshed (usually after respawning)

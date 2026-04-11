@@ -136,10 +136,6 @@ local function generateRecord(vehId)
     return nil
   end
 
-  -- Seed with high-entropy source to guarantee uniqueness
-  local seed = os.clock() * 1000000 + vehId * 31
-  math.randomseed(seed)
-  math.random(); math.random(); math.random()
 
   -- Generate unique plate
   local plate

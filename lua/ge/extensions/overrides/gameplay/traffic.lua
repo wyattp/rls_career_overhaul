@@ -440,6 +440,8 @@ local function respawnVehicle(id, pos, rot, strict) -- moves the vehicle to a ne
     traffic[id]._teleport = nil
     traffic[id]._teleportDist = nil
     traffic[id]:onRespawn()
+    log('I', logTag, string.format('respawnVehicle: firing onTrafficVehicleRespawn for veh %d', id))
+    extensions.hook('onTrafficVehicleRespawn', id)
   end
 end
 
@@ -448,6 +450,7 @@ local function forceTeleport(id, pos, dir, minDist, maxDist, targetDist) -- forc
 
   local vehObj = getObjectByID(id)
   if vehObj and vehObj:getActive() then
+    log('I', logTag, string.format('forceTeleport: veh %d (%s)', id, vehObj.jbeam or '?'))
     mapNodes = map.getMap().nodes
 
     pos = pos or core_camera.getPosition()
@@ -901,20 +904,21 @@ local function setupTraffic(amount, policeRatio, options) -- prepares a group of
     amount = getIdealSpawnAmount(amountFromSettings) -- maxAmount automatically accounts for currently spawned non-traffic vehicles
     policeAmount = options.policeAmount or math.ceil(amount * policeRatio)
     activeAmount = amount
-
-    -- Always spawn extra inactive vehicles for pool variety (overrides user setting)
-    local extraAmount = settings.getValue('trafficExtraAmount') or 0
-    if extraAmount == 0 then
-      extraAmount = clamp(amountFromSettings, 4, 10)
-    end
-    amount = max(amountFromSettings, amount + extraAmount)
-    log('I', logTag, string.format('Traffic pool: %d active, %d extra inactive, %d total', activeAmount, extraAmount, amount))
   else
     if options.autoAdjustAmount then
       amount = getIdealSpawnAmount(amount) -- adjust for amount of existing active vehicles
     end
     policeAmount = options.policeAmount or math.ceil(amount * policeRatio)
+    activeAmount = amount
   end
+
+  -- Always spawn extra inactive vehicles for pool variety
+  local extraAmount = settings.getValue('trafficExtraAmount') or 0
+  if extraAmount == 0 then
+    extraAmount = clamp(amount, 4, 10)
+  end
+  amount = amount + extraAmount
+  log('I', logTag, string.format('Traffic pool: %d active, %d extra inactive, %d total', activeAmount, extraAmount, amount))
 
   if not trafficGroup then -- if predefined vehicle group does not exist, create it
     if policeAmount >= 1 then
