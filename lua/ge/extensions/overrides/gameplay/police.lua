@@ -375,6 +375,12 @@ local function arrestVehicle(id, showMessages) -- instantly sets a vehicle as ar
 
   extensions.hook('onPursuitAction', id, 'arrest', veh.pursuit)
 
+  -- Shut down the arrested vehicle's engine
+  local obj = getObjectByID(id)
+  if obj then
+    obj:queueLuaCommand('electrics.setIgnitionLevel(0)')
+  end
+
   local tempIds = {}
   for pid, p in pairs(policeVehs) do
     if p.role.targetId == id then

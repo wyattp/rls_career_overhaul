@@ -124,6 +124,7 @@ local rotation = {
   phase = nil,           -- 'waitDeactivate' | 'loading'
   cooldown = 0,          -- seconds until next rotation attempt
   loadedModels = {},     -- [vehId] = modelName — tracks what's currently loaded per slot
+  modelSetTime = {},     -- [vehId] = timestamp (os.clock()) when model was last set
 }
 local ROTATION_INTERVAL = 15  -- seconds between rotation attempts
 local ROTATION_DEACTIVATE_TIMEOUT = 60 -- seconds to wait for deactivation before skipping
@@ -573,7 +574,7 @@ local function startRotation()
   buildValidatedPool()
   if not validatedPool or #validatedPool == 0 then return end
 
-  -- Pick a candidate: prefer inactive vehicles, skip police and player
+  -- Pick a candidate: longest dwell time (oldest model), skip police and player
   local candidates = {}
   for _, id in ipairs(trafficAiVehsList) do
     local veh = traffic[id]
@@ -586,17 +587,26 @@ local function startRotation()
 
   if #candidates == 0 then return end
 
-  -- Shuffle and pick one — prefer vehicles that are already inactive
-  local picked = nil
+  -- Find the oldest model set time among candidates
+  local now = os.clock()
+  local oldestTime = now
   for _, id in ipairs(candidates) do
-    if vehPool.allVehs[id] == 0 then -- already inactive
-      picked = id
-      break
+    local t = rotation.modelSetTime[id] or 0
+    if t < oldestTime then
+      oldestTime = t
     end
   end
-  if not picked then
-    picked = candidates[random(#candidates)]
+
+  -- Collect all candidates tied at the oldest time (within 1s tolerance)
+  local oldest = {}
+  for _, id in ipairs(candidates) do
+    local t = rotation.modelSetTime[id] or 0
+    if t <= oldestTime + 1 then
+      table.insert(oldest, id)
+    end
   end
+
+  local picked = oldest[random(#oldest)]
 
   -- Pick a new model different from what's loaded in this slot
   local obj = getObjectByID(picked)
@@ -635,6 +645,7 @@ local function startRotation()
     core_vehicleBridge.requestValue(obj, function()
       log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', picked, newModel))
       rotation.loadedModels[picked] = newModel
+      rotation.modelSetTime[picked] = os.clock()
       if traffic[picked] then
         traffic[picked]._rotationPending = nil
         traffic[picked].activeProbability = 1
@@ -684,6 +695,7 @@ local function onRotationVehicleDeactivated(vehId)
   core_vehicleBridge.requestValue(obj, function()
     log('I', logTag, string.format('Rotation: veh %d loaded %s successfully', vehId, rotation.newModel))
     rotation.loadedModels[vehId] = rotation.newModel
+    rotation.modelSetTime[vehId] = os.clock()
     if traffic[vehId] then
       traffic[vehId]._rotationPending = nil
       traffic[vehId].activeProbability = 1
@@ -923,6 +935,10 @@ local function onVehicleSpawned(id)
     traffic[id]:applyModelConfigData()
     traffic[id]:setRole(traffic[id].autoRole)
     traffic[id]:resetAll()
+  end
+  -- Stamp model set time for rotation scheduling
+  if not rotation.modelSetTime[id] then
+    rotation.modelSetTime[id] = os.clock()
   end
   if vehPool then vehPool._updateFlag = true end
 end
@@ -1446,6 +1462,7 @@ local function onTrafficStopped()
   end
   rotation.cooldown = ROTATION_INTERVAL
   table.clear(rotation.loadedModels)
+  table.clear(rotation.modelSetTime)
 
   deleteTrafficPool()
   table.clear(traffic)
@@ -1466,6 +1483,7 @@ local function onClientEndMission()
   auxiliaryData.worldLoaded = false
   invalidateVehiclePool()
   table.clear(rotation.loadedModels)
+  table.clear(rotation.modelSetTime)
 end
 
 local function onUiWaitingState() -- callback for when the waiting UI is shown
