@@ -809,6 +809,8 @@ local function onVehicleActiveChanged(vehId, active)
         else
           forceTeleport(vehId, nil, nil, traffic[vehId]._teleportDist)
         end
+        -- Vehicle is re-entering from inactive pool — give it a fresh identity
+        extensions.hook('onTrafficVehicleRespawn', vehId)
       end
     end
   end
